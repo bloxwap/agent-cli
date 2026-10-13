@@ -22,3 +22,4 @@
 | #17 | done | Funding command returns address/fees/minimum/expiry/8-decimal received amount, persists deposits and reuses valid quotes. |
 | #18 | done | Resumable ordered master-signature steps, trusted Relay submission endpoints and funding flow docs. |
 | #19 | done | Persisted terminal deposit lifecycle, Relay + exact balance settlement, retryable trading gate and runner emission hook. |
+| #20 | done | Account read commands, numeric strings, deposits/approval/policy/expiry status; runner preference wired in #27. |
