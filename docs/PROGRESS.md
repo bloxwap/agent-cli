@@ -26,3 +26,4 @@
 | #21 | done | Exact decimal risk evaluation covers markets, size/notional/position/leverage/loss/open-order limits; trade hooks and audit wired in #22/#35. |
 | #22 | done | Limit Gtc/Ioc/Alo, slippage IOC market, TP/SL, rounding, cloid, risk/deposit/expiry gates, builder and Privy signing; runner routing in #27. |
 | #23 | done | Batch cancellation by oid/cloid, coin or account; unknown order normalization and mocked tests. |
+| #24 | done | Single/batch modification by oid/cloid with rounding and pre-signing risk checks. |
