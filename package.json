@@ -6,7 +6,7 @@
     "agent-cli": "dist/cli.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "files": [
     "dist",
@@ -14,12 +14,14 @@
     "policies"
   ],
   "scripts": {
-    "build": "tsup src/cli.ts --format esm --clean",
+    "build": "tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "docs:generate": "npm run build && node scripts/generate-docs.mjs",
-    "test:e2e": "node scripts/e2e-testnet.mjs"
+    "test:e2e": "node scripts/e2e-testnet.mjs",
+    "test:package": "node scripts/package-smoke.mjs",
+    "build:binaries": "node scripts/build-binaries.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
@@ -41,5 +43,10 @@
     "qrcode": "^1.5.4",
     "ws": "^8.22.0",
     "zod": "^4.6.7"
+  },
+  "description": "Agent-native Hyperliquid trading CLI with Privy custody and Relay funding",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
   }
 }
