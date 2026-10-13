@@ -19,3 +19,4 @@
 | #14 | done | Typed validated Relay quote/status adapter, perps USDC destination, multiple origin routes and fee parsing; mocked fixtures. |
 | #15 | done | Exact bigint decimal parse/format and loss-detecting 6↔8 conversions with property-style round trips. |
 | #16 | done | Terminal QR on stderr and JSON field, optional PNG/SVG, no-qr support and snapshot. |
+| #17 | done | Funding command returns address/fees/minimum/expiry/8-decimal received amount, persists deposits and reuses valid quotes. |
