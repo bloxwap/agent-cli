@@ -20,3 +20,4 @@
 | #15 | done | Exact bigint decimal parse/format and loss-detecting 6↔8 conversions with property-style round trips. |
 | #16 | done | Terminal QR on stderr and JSON field, optional PNG/SVG, no-qr support and snapshot. |
 | #17 | done | Funding command returns address/fees/minimum/expiry/8-decimal received amount, persists deposits and reuses valid quotes. |
+| #18 | done | Resumable ordered master-signature steps, trusted Relay submission endpoints and funding flow docs. |

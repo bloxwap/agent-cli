@@ -3,6 +3,7 @@ import { dispatch } from './core/router.js';
 import './commands/config.js';
 import './commands/init.js';
 import './commands/fund.js';
+import './commands/deposit.js';
 let stdin='';
 if (!process.stdin.isTTY) for await (const chunk of process.stdin) stdin += String(chunk);
 const result=await dispatch(process.argv.slice(2),stdin);

@@ -6,6 +6,7 @@ import {RelayClient,PERPS_USDC,parseQuote} from '../funding/relay.js';
 import {parseUsdc,formatUsdc} from '../funding/amounts.js';
 import {renderQr} from '../funding/qr.js';
 import {readDeposits,writeDeposits} from '../funding/store.js';
+import {signatureSteps} from '../funding/signatures.js';
 import {builderRate} from '../core/builder.js';
 import {AgentCliError} from '../errors/index.js';
 export const fundSchema=z.object({originChain:z.number().int().positive().default(42161),originCurrency:z.string().default('0xaf88d065e77c8cC2239327C5EDb3A432268e5831'),originDecimals:z.number().int().min(0).max(30).default(6),amount:z.string().default('10'),qr:z.boolean().default(true),qrPath:z.string().optional()});
@@ -21,6 +22,6 @@ export async function fund(config:Config,input:z.infer<typeof fundSchema>,depend
   deposit={id:parsed.depositId,network:config.network,recipient:config.masterAddress,route,quote,expiresAt:parsed.expiresAt,state:'awaiting_funds',baseline,createdAt:Date.now(),completedSteps:[]};deposits.push(deposit);await writeDeposits(deposits,dependencies.path);
  }
  const parsed=parseQuote(deposit.quote);const received=formatUsdc(BigInt(parsed.expectedReceived),parsed.receivedDecimals);
- return {...parsed,expectedReceived:parseUsdc(received,8).toString(),expectedReceivedHuman:received,originChain:input.originChain,originCurrency:input.originCurrency,minDeposit:formatUsdc(BigInt(parsed.minAmount),input.originDecimals),builderFeeRate:builderRate(config),state:deposit.state,...await (dependencies.qr??renderQr)(parsed.depositAddress,{enabled:input.qr,path:input.qrPath})};
+ return {...parsed,expectedReceived:parseUsdc(received,8).toString(),expectedReceivedHuman:received,originChain:input.originChain,originCurrency:input.originCurrency,minDeposit:formatUsdc(BigInt(parsed.minAmount),input.originDecimals),builderFeeRate:builderRate(config),state:deposit.state,signatureSteps:signatureSteps(deposit),...await (dependencies.qr??renderQr)(parsed.depositAddress,{enabled:input.qr,path:input.qrPath})};
 }
 register('fund',{description:'Quote funding with address, QR and transparent fees',schema:fundSchema,execute:async(input,context)=>{const config=await loadConfig(context.configPath);if(context.network) config.network=context.network;return fund(config,input as z.infer<typeof fundSchema>);}});
