@@ -9,7 +9,7 @@ import {commands,type Context} from '../core/router.js';
 import type {Runner} from './lifecycle.js';
 export const socketPath=(directory=stateDir())=>process.platform==='win32'?`\\\\.\\pipe\\bloxwap-${createHash('sha256').update(directory).digest('hex').slice(0,24)}`:join(directory,'run.sock');
 const aliases:Record<string,string>={'status.get':'status','balance.get':'balance','positions.get':'positions','orders.get':'orders','order.place':'order','order.cancel':'cancel','order.modify':'modify','leverage.set':'leverage','config.get':'config','runner.shutdown':'shutdown'};
-export const routedCommands=new Set(['status','balance','positions','orders','order','cancel','modify','leverage','rotate']);
+export const routedCommands=new Set(['status','balance','positions','orders','order','cancel','modify','leverage','rotate','revoke']);
 const requestSchema=z.object({jsonrpc:z.literal('2.0'),id:z.union([z.string(),z.number(),z.null()]),method:z.string(),params:z.record(z.string(),z.unknown()).default({})});
 export async function rpcServer(runner:Runner,context:Context,execute?: (name:string,input:Record<string,unknown>)=>Promise<unknown>):Promise<Server>{
  const path=socketPath(runner.directory);let queue=Promise.resolve();
