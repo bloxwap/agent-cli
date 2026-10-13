@@ -9,7 +9,7 @@ const address=z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const positive=z.number().positive().finite();
 export const configSchema=z.object({
  version:z.literal(1).default(1),network:z.enum(['mainnet','testnet']).default('testnet'),
- masterAddress:address.optional(),agentAddress:address.optional(),agentExpiry:z.number().int().positive().optional(),
+ agentName:z.string().max(16).default('bloxwap'),masterAddress:address.optional(),agentAddress:address.optional(),agentExpiry:z.number().int().positive().optional(),
  privyAppId:z.string().optional(),privyWalletId:z.string().optional(),policyId:z.string().optional(),policyVersion:z.number().int().optional(),
  authorizationKeyRef:z.string().regex(/^env:[A-Z_][A-Z0-9_]*$|^file:.+/).optional(),
  privyAppSecretRef:z.string().regex(/^env:[A-Z_][A-Z0-9_]*$/).optional(),

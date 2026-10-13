@@ -12,6 +12,7 @@ import './commands/leverage.js';
 import './commands/run.js';
 import './commands/events.js';
 import './commands/logs.js';
+import './commands/rotate.js';
 import {routeToRunner} from './runner/rpc.js';
 setRouting(routeToRunner);
 let stdin='';
