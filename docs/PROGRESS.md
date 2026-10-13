@@ -38,3 +38,4 @@
 | #33 | done | Persisted two-approval rotation, verified new agent before serialized runner hot-swap, old revocation only after handoff; rotation audit hook in #35. |
 | #34 | done | Optional cancel-all, resumable master revocation payload, immediate local blocking and config/session clearing after exchange submission. |
 | #35 | done | Cross-process locked fsynced hash-chain audit, intent/decision/signature digest/response/fill linkage, rotation/revoke records and filters; tamper/redaction tests. |
+| #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |

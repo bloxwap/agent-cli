@@ -1,3 +1,4 @@
+import {assertSafeInput} from './safety.js';
 import {ApproveAgentTypes} from '@bloxwap/hyperliquid/api/exchange/approveAgent';
 import {ApproveBuilderFeeTypes} from '@bloxwap/hyperliquid/api/exchange/approveBuilderFee';
 import {AgentCliError} from '../errors/index.js';
@@ -15,8 +16,4 @@ export async function submitApproval(network:'mainnet'|'testnet',pending:Approva
  const response=await jsonRequest(`${hlEndpoint(network)}/exchange`,{action:pending.action,nonce:pending.action.nonce,signature:{r:signature.slice(0,66),s:'0x'+signature.slice(66,130),v}}) as {status:string;response:unknown};
  if(response.status!=='ok') throw new AgentCliError('UPSTREAM_ERROR','Approval failed');return response;
 }
-export function rejectMasterKey(value:unknown){
- if(typeof value==='string'&&/^(?:0x)?[a-fA-F0-9]{64}$/.test(value.trim())) throw new AgentCliError('POLICY_REJECTED','Never supply a master private key');
- if(Array.isArray(value)) value.forEach(rejectMasterKey);
- else if(value&&typeof value==='object') for(const [key,field] of Object.entries(value)){if(/private.?key|mnemonic|seedPhrase/i.test(key)) throw new AgentCliError('POLICY_REJECTED','Master keys are forbidden');rejectMasterKey(field);}
-}
+export const rejectMasterKey=assertSafeInput;

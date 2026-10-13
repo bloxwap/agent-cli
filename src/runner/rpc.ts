@@ -1,3 +1,4 @@
+import {assertSafeInput} from '../wallet/safety.js';
 import {createServer,createConnection,type Server} from 'node:net';
 import {chmod,unlink} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -23,7 +24,7 @@ export async function rpcServer(runner:Runner,context:Context,execute?: (name:st
  if(name==='shutdown'){socket.write(JSON.stringify({jsonrpc:'2.0',id,result:{stopping:true}})+'\n');setImmediate(()=>{void runner.shutdown();});return;}
  if(!routedCommands.has(name)&&name!=='config') throw new AgentCliError('CONFIG_INVALID','Unknown runner method');
  const command=commands.get(name);if(!command&&!execute) throw new AgentCliError('CONFIG_INVALID','Unavailable method');
- const input=name==='config'?{args:['get']}:request.params;const parsed=command?.schema.safeParse(input);if(parsed&&!parsed.success) throw new AgentCliError('CONFIG_INVALID','Invalid runner input');
+ assertSafeInput(request.params);const input=name==='config'?{args:['get']}:request.params;const parsed=command?.schema.safeParse(input);if(parsed&&!parsed.success) throw new AgentCliError('CONFIG_INVALID','Invalid runner input');
  const data=execute?await execute(name,input):await command!.execute(parsed!.data as Record<string,unknown>,{...context,runner:true});
  socket.write(JSON.stringify({jsonrpc:'2.0',id,result:data})+'\n');
  }catch(error){const normalized=error instanceof SyntaxError||error instanceof z.ZodError?new AgentCliError('CONFIG_INVALID','Invalid JSON-RPC request'):normalizeError(error);socket.write(JSON.stringify({jsonrpc:'2.0',id,error:{code:-32000,message:normalized.message,data:normalized.toJSON()}})+'\n');}

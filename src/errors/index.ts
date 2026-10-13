@@ -1,3 +1,4 @@
+import {redact} from '../core/logger.js';
 export const errorDefaults = {
   INSUFFICIENT_MARGIN: false, POLICY_REJECTED: false, AGENT_EXPIRED: false,
   AGENT_NOT_APPROVED: false, DEPOSIT_PENDING: true, NONCE_COLLISION: true,
@@ -11,7 +12,7 @@ export class AgentCliError extends Error {
   constructor(readonly code: ErrorCode, message: string, readonly details: unknown = null, retryable = errorDefaults[code] as boolean) {
     super(message); this.name = 'AgentCliError'; this.retryable = retryable;
   }
-  toJSON() { return { ok: false as const, code: this.code, message: this.message, retryable: this.retryable, details: this.details }; }
+  toJSON() { return { ok: false as const, code: this.code, message: String(redact(this.message)), retryable: this.retryable, details: redact(this.details) }; }
   get exitCode() { return this.code === 'CONFIG_INVALID' ? 2 : this.retryable ? 75 : 1; }
 }
 export function normalizeError(error: unknown): AgentCliError {

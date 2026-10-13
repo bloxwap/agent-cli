@@ -33,6 +33,7 @@
  "dependencies": {
   "@bloxwap/hyperliquid": "^0.6.0",
   "@privy-io/node": "^0.35.0",
+  "@scure/bip39": "^2.4.0",
   "qrcode": "^1.5.4",
   "ws": "^8.22.0",
   "zod": "^4.6.7"

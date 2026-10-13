@@ -5,7 +5,10 @@ import { stateDir } from './config.js';
 export const levels={debug:10,info:20,warn:30,error:40};
 export type Level=keyof typeof levels;
 export function redact(value: unknown): unknown {
- if (typeof value==='string') return value.replace(/(?:0x)?[a-fA-F0-9]{64,}/g,'[REDACTED]').replace(/Bearer\s+\S+/gi,'Bearer [REDACTED]');
+ if (typeof value==='string') {
+ let safe=value;for(const [key,secret] of Object.entries(process.env)) if(/secret|token|authorization|private.?key|password/i.test(key)&&secret&&secret.length>=4) safe=safe.split(secret).join('[REDACTED]');
+ return safe.replace(/(?:0x)?[a-fA-F0-9]{64,}/g,'[REDACTED]').replace(/Bearer\s+\S+/gi,'Bearer [REDACTED]');}
+
  if (Array.isArray(value)) return value.map(redact);
  if (value && typeof value==='object') return Object.fromEntries(Object.entries(value).map(([key,v])=>[key,/secret|signature|token|authorization|private.?key|seed|mnemonic|password|app.?key/i.test(key) ? '[REDACTED]' : redact(v)]));
  return value;

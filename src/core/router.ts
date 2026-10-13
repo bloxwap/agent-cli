@@ -1,3 +1,4 @@
+import {assertSafeInput} from '../wallet/safety.js';
 import {auditedAction} from './audit.js';
 import { z } from 'zod';
 import { AgentCliError, normalizeError, success } from '../errors/index.js';
@@ -41,7 +42,7 @@ export async function dispatch(argv: string[], stdin = '') {
   if (name === 'schema') return {body:success(schemas(args[0])),exitCode:0,context};
   const command=commands.get(name); if (!command) throw new AgentCliError('CONFIG_INVALID',`Unknown command: ${name}`);
   if (args.length) input.args=args;
-  const parsed=command.schema.safeParse(input);
+  assertSafeInput(input);const parsed=command.schema.safeParse(input);
   if (!parsed.success) throw new AgentCliError('CONFIG_INVALID','Invalid command input',parsed.error.flatten());
   const route=await routing?.(name,parsed.data as Record<string,unknown>,context);
   const data=route?.routed?route.data:await command.execute(parsed.data as Record<string,unknown>,context);
