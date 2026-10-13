@@ -9,3 +9,9 @@ Unknown versions fail closed. Writes use a private temporary file and atomic ren
 persisted values; `config validate` validates them without overrides.
 Secrets use `env:BLOXWAP_PRIVY_APP_SECRET` and `env:BLOXWAP_AUTHORIZATION_KEY`
 references; authorization keys may also use `file:/absolute/private/path`.
+
+Builder fees use tenths of a basis point (`fee:10` means 0.01%). Set
+`builder.address` and `builder.fee`; each order verifies the master approved maximum.
+The specs do not supply a Bloxwap builder address/fee schedule, so defaults disable
+fees (`fee:0`, no address) instead of inventing a fee recipient. Deployments must
+configure the official recipient before enabling builder fees.
