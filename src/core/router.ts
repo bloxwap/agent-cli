@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { AgentCliError, normalizeError, success } from '../errors/index.js';
-export interface Context { configPath?: string; network?: 'mainnet' | 'testnet'; pretty: boolean; }
+export interface Context { configPath?: string; network?: 'mainnet' | 'testnet'; pretty: boolean; runner?: boolean; }
 export interface Command { description: string; schema: z.ZodType; execute: (input: Record<string, unknown>, context: Context) => Promise<unknown>; }
+export let routing:((name:string,input:Record<string,unknown>,context:Context)=>Promise<{routed:boolean;data?:unknown}>)|undefined;
+export function setRouting(value:typeof routing){routing=value;}
 export const commands = new Map<string, Command>();
 export function register(name: string, command: Command) { commands.set(name, command); }
 export function schemas(name: string) {
@@ -37,7 +39,8 @@ export async function dispatch(argv: string[], stdin = '') {
   if (args.length) input.args=args;
   const parsed=command.schema.safeParse(input);
   if (!parsed.success) throw new AgentCliError('CONFIG_INVALID','Invalid command input',parsed.error.flatten());
-  const data=await command.execute(parsed.data as Record<string,unknown>,context);
+  const route=await routing?.(name,parsed.data as Record<string,unknown>,context);
+  const data=route?.routed?route.data:await command.execute(parsed.data as Record<string,unknown>,context);
   return {body:success(data),exitCode:0,context};
  } catch (error) {
   const normalized=error instanceof z.ZodError || error instanceof SyntaxError ? new AgentCliError('CONFIG_INVALID','Invalid JSON or flags') : normalizeError(error);

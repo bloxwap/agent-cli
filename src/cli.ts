@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { dispatch } from './core/router.js';
+import { dispatch,setRouting } from './core/router.js';
 import './commands/config.js';
 import './commands/init.js';
 import './commands/fund.js';
@@ -10,6 +10,8 @@ import './commands/cancel.js';
 import './commands/modify.js';
 import './commands/leverage.js';
 import './commands/run.js';
+import {routeToRunner} from './runner/rpc.js';
+setRouting(routeToRunner);
 let stdin='';
 if (!process.stdin.isTTY) for await (const chunk of process.stdin) stdin += String(chunk);
 const result=await dispatch(process.argv.slice(2),stdin);

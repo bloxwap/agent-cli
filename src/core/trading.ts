@@ -1,3 +1,4 @@
+import {activeRunner} from '../runner/lifecycle.js';
 import {randomUUID} from 'node:crypto';
 import {type Config} from './config.js';
 import {createClients,type ExchangeAdapter,type Market} from './hlclient.js';
@@ -13,7 +14,7 @@ import {evaluateRisk,type RiskIntent} from './risk.js';
 import {Logger} from './logger.js';
 export interface TradingServices {exchange:ExchangeAdapter;market:(coin:string)=>Promise<Market>;state:()=>Promise<AccountState>;orders:()=>Promise<OpenOrder[]>;mids:()=>Promise<Record<string,string>>;}
 export async function tradingServices(config:Config):Promise<TradingServices>{
- const signer=await privySigner(config,await privyClient(config));const clients=createClients(config.network,signer,()=>nextNonce(signer.address));
+ const signer=activeRunner?.signer??await privySigner(config,await privyClient(config));const clients=createClients(config.network,signer,()=>nextNonce(signer.address));
  return {exchange:clients.exchange!,market:coin=>clients.meta.lookup(coin),state:()=>hlInfo(config.network,'clearinghouseState',{user:config.masterAddress}),orders:()=>hlInfo(config.network,'frontendOpenOrders',{user:config.masterAddress}),mids:()=>hlInfo(config.network,'allMids')};
 }
 export async function assertCanTrade(config:Config){
