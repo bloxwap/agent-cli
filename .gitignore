@@ -4,3 +4,5 @@ coverage/
 .env
 *.tgz
 site/
+artifacts/
+.bloxwap/

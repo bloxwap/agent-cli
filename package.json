@@ -18,7 +18,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "docs:generate": "npm run build && node scripts/generate-docs.mjs"
+    "docs:generate": "npm run build && node scripts/generate-docs.mjs",
+    "test:e2e": "node scripts/e2e-testnet.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
@@ -30,6 +31,7 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.2",
+    "viem": "^2.57.5",
     "vitest": "^3.2.7"
   },
   "dependencies": {

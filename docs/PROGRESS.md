@@ -41,3 +41,4 @@
 | #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |
 | #37 | partial | Validated self-contained skill with every command example, ordered funding/custody flow and complete error table; real agent testnet execution requires credentials (#39 gate). |
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
+| #39 | partial | Full mocked CLI/SDK/RPC lifecycle passes; opt-in real testnet lifecycle with mocked Relay, nightly secrets gate and journal artifacts. Real execution skipped without credentials. |

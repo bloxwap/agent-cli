@@ -1,0 +1,31 @@
+name: Testnet lifecycle
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  testnet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: testnet
+    env:
+      BLOXWAP_E2E: '1'
+      BLOXWAP_TEST_MASTER_KEY: ${{ secrets.BLOXWAP_TEST_MASTER_KEY }}
+      BLOXWAP_PRIVY_APP_ID: ${{ secrets.BLOXWAP_PRIVY_APP_ID }}
+      BLOXWAP_PRIVY_APP_SECRET: ${{ secrets.BLOXWAP_PRIVY_APP_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: testnet-journals
+          path: artifacts/
