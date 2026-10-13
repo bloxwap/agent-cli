@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {renderQr} from '../funding/qr.js';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {register} from '../core/router.js';
@@ -24,5 +25,5 @@ register('init',{description:'Create agent and emit resumable master-wallet appr
  if(config.builder.address){const max=await hlInfo<number>(config.network,'maxBuilderFee',{user:config.masterAddress,builder:config.builder.address});config.approved=config.approved&&max>=config.builder.fee;}
  config.revoked=false;await saveConfig(config,context.configPath);
  const deeplink=`ethereum:${config.masterAddress}?request=${encodeURIComponent(JSON.stringify(pending.agent.typedData))}`;
- return {masterAddress:config.masterAddress,agentAddress:config.agentAddress,expiry,policyId,approved:config.approved,requiresSignature:!config.approved,approvals:pending,deeplink};
+ return {masterAddress:config.masterAddress,agentAddress:config.agentAddress,expiry,policyId,approved:config.approved,requiresSignature:!config.approved,approvals:pending,deeplink,...await renderQr(deeplink,{enabled:input.qr as boolean})};
 }});
