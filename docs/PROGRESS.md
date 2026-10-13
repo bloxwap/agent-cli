@@ -30,3 +30,4 @@
 | #25 | done | Cross/isolated leverage updates enforce market and configured ceilings with mocked tests. |
 | #26 | done | Private exclusive PID lock, managed signer session, foreground/detach, idempotency and graceful shutdown; persistent stores survive restart. Stale locks fail closed. |
 | #27 | done | Bounded newline JSON-RPC socket with private mode, method aliases, serialized trading, normalized errors and configurable direct fallback. |
+| #28 | done | SDK reconnect/resubscribe + heartbeat transport, user/market subscriptions, info gap-fill and persisted tid dedupe; simulated drop tests. |
