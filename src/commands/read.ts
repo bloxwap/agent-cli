@@ -1,3 +1,4 @@
+import {runnerHealth} from '../runner/health.js';
 import {events} from '../runner/events.js';
 import {activeRunner} from '../runner/lifecycle.js';
 import {z} from 'zod';
@@ -20,7 +21,7 @@ export async function readCommand(name:string,config:Config){
  const state=await hlInfo<AccountState>(config.network,'clearinghouseState',{user:config.masterAddress});
  if(name==='balance') return accountBalance(state);if(name==='positions') return positions(state);
  const [agents,deposits,maxBuilderFee]=await Promise.all([hlInfo<{address:string;validUntil:number}[]>(config.network,'extraAgents',{user:config.masterAddress}),pollDeposits(config.network,config.masterAddress,state.marginSummary.accountValue,{emit:activeRunner?async deposit=>{await events.append('deposit',{id:deposit.id,state:deposit.state});}:undefined}),config.builder.address?hlInfo<number>(config.network,'maxBuilderFee',{user:config.masterAddress,builder:config.builder.address}):Promise.resolve(0)]);
- return {balance:accountBalance(state),positions:positions(state),agent:{address:config.agentAddress,approved:agents.some(a=>a.address.toLowerCase()===config.agentAddress?.toLowerCase()),revoked:config.revoked,...expiryStatus(config)},policy:{id:config.policyId??null,version:String(config.policyVersion??0)},deposits:deposits.map(d=>({id:d.id,state:d.state})),approvedMaxBuilderFee:String(maxBuilderFee),runner:null};
+ return {balance:accountBalance(state),positions:positions(state),agent:{address:config.agentAddress,approved:agents.some(a=>a.address.toLowerCase()===config.agentAddress?.toLowerCase()),revoked:config.revoked,...expiryStatus(config)},policy:{id:config.policyId??null,version:String(config.policyVersion??0)},deposits:deposits.map(d=>({id:d.id,state:d.state})),approvedMaxBuilderFee:String(maxBuilderFee),runner:await runnerHealth()};
  }catch(error){throw mapHyperliquidError(error);}
 }
 export async function commandConfig(context:Context){const config=await loadConfig(context.configPath);if(context.network) config.network=context.network;return config;}

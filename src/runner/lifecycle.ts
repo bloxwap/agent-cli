@@ -1,3 +1,4 @@
+import type {Subscriptions} from './subscriptions.js';
 import {open,readFile,unlink,mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {spawn} from 'node:child_process';
@@ -11,7 +12,7 @@ export const runnerPidPath=()=>join(stateDir(),'runner.pid');
 export function isAlive(pid:number){try{process.kill(pid,0);return true;}catch(error){return (error as NodeJS.ErrnoException).code==='EPERM';}}
 export async function runningInfo(path=runnerPidPath()):Promise<RunnerInfo|null>{try{const info=JSON.parse(await readFile(path,'utf8')) as RunnerInfo;return Number.isInteger(info.pid)&&info.pid>0&&isAlive(info.pid)?info:null;}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT'||error instanceof SyntaxError) return null;throw error;}}
 export class Runner {
- readonly info:RunnerInfo;readonly logger:Logger;signer?:Signer;private timer?:NodeJS.Timeout;private cleanup:(()=>Promise<void>)[]=[];private closing=false;
+ subscriptions?:Subscriptions;readonly info:RunnerInfo;readonly logger:Logger;signer?:Signer;private timer?:NodeJS.Timeout;private cleanup:(()=>Promise<void>)[]=[];private closing=false;
  constructor(readonly config:Config,readonly directory=stateDir()){this.info={pid:process.pid,startedAt:Date.now(),network:config.network};this.logger=new Logger({level:config.logLevel,directory:join(directory,'logs')});}
  async start(openSigner:()=>Promise<Signer>=async()=>privySigner(this.config,await privyClient(this.config))){
  await mkdir(this.directory,{recursive:true,mode:0o700});const path=join(this.directory,'runner.pid');

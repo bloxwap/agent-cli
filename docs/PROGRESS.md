@@ -33,3 +33,4 @@
 | #28 | done | SDK reconnect/resubscribe + heartbeat transport, user/market subscriptions, info gap-fill and persisted tid dedupe; simulated drop tests. |
 | #29 | done | Typed persisted monotonic event journal, replay/filter/follow stream, subscription/deposit emission and shutdown flush. |
 | #30 | done | JSON-line log replay/follow across rotated files, minimum-level/time/request filtering and redaction. |
+| #31 | done | Runner heartbeat/state events, PID/uptime/WS/signing health and stale detection; background deposit polling. |
