@@ -38,7 +38,7 @@ Locked decisions: hybrid custody (approveAgent once, Privy-managed agent, trade-
 - [ ] #34 `revoke` command
 
 ### Funding
-- [ ] #13 Builder code / builder fee configuration
+- [x] #13 Builder code / builder fee configuration
 - [ ] #14 Relay quote client for HyperCore deposit addresses
 - [ ] #15 USDC decimal conversion: 6 (EVM) vs 8 (HyperCore perps)
 - [ ] #16 Terminal QR rendering

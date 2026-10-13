@@ -1,0 +1,23 @@
+name: Install smoke
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  install:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: oven-sh/setup-bun@v2
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:package
+        env:
+          BLOXWAP_SMOKE_BUN: '1'
