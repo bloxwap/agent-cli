@@ -12,6 +12,7 @@ const environment = vi.hoisted(() => ({
     limitPx: string;
   }[],
   agents: [] as { address: string; validUntil: number }[],
+  builderFee: 0,
   balance: '0',
 }));
 vi.mock('node:os', async (importOriginal) => ({
@@ -38,6 +39,8 @@ vi.mock('../src/wallet/privy.js', async (importOriginal) => {
       path?: string,
     ) => {
       const { saveConfig } = await import('../src/core/config.js');
+      if (config.agentAddress && config.privyWalletId)
+        return { id: config.privyWalletId, address: config.agentAddress };
       config.agentAddress = '0x' + String(++environment.wallets).repeat(40);
       config.privyWalletId = 'wallet-' + environment.wallets;
       config.authorizationKeyRef = 'env:BLOXWAP_E2E_AUTH';
@@ -90,6 +93,7 @@ beforeEach(async () => {
   environment.orders = [];
   environment.agents = [];
   environment.balance = '0';
+  environment.builderFee = 0;
   await saveConfig(
     migrate({ privyAppId: 'mock', masterAddress: '0x' + 'a'.repeat(40) }),
     path,
@@ -130,7 +134,22 @@ beforeEach(async () => {
           });
         return Response.json({ status: 'ok', response: { type: 'default' } });
       }
+      if (action?.type === 'approveBuilderFee') {
+        expect(action).toMatchObject({
+          builder: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
+          maxFeeRate: '0.01%',
+        });
+        environment.builderFee = 10;
+        return Response.json({ status: 'ok', response: { type: 'default' } });
+      }
+      if (body.type === 'maxBuilderFee')
+        return Response.json(environment.builderFee);
       if (action) {
+        if (action.type === 'order')
+          expect(action.builder).toEqual({
+            b: '0x71b09a08257078a4d642f7dd7315e656c837329a',
+            f: 10,
+          });
         const statuses =
           action.type === 'order' ? [{ resting: { oid: 1 } }] : ['success'];
         if (action.type === 'order')
@@ -190,10 +209,25 @@ async function command(name: string, input: Record<string, unknown> = {}) {
 test('mocked full account lifecycle through real CLI router, SDK and runner RPC', async () => {
   const initialized = await command('init', { qr: false });
   expect(initialized.requiresSignature).toBe(true);
-  await command('init', {
-    qr: false,
-    signature: '0x' + '11'.repeat(64) + '1b',
+  expect(initialized.approvals).toMatchObject({
+    builder: { typedData: { message: { maxFeeRate: '0.01%' } } },
   });
+  expect(
+    (
+      await command('init', {
+        qr: false,
+        signature: '0x' + '11'.repeat(64) + '1b',
+      })
+    ).approved,
+  ).toBe(false);
+  expect(
+    (
+      await command('init', {
+        qr: false,
+        builderSignature: '0x' + '11'.repeat(64) + '1b',
+      })
+    ).approved,
+  ).toBe(true);
   const deposit = await command('fund', { qr: false, amount: '10' });
   expect(deposit.depositId).toBe('deposit-1');
   environment.balance = '10';
@@ -208,12 +242,16 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   expect(await rpcCall('balance', {}, socketPath())).toMatchObject({
     accountValue: '10',
   });
-  await command('order', {
+  const placed = await command('order', {
     coin: 'BTC',
     side: 'buy',
     size: '0.001',
     price: '20000',
     intentId: 'lifecycle',
+  });
+  expect(placed).toMatchObject({
+    builderFeeRate: '0.01%',
+    builderAddress: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
   });
   await command('modify', { oid: 1, price: '20100' });
   await command('cancel', { all: true });

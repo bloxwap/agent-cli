@@ -42,10 +42,13 @@ export const configSchema = z
     allowedMarkets: z.array(z.string()).default([]),
     builder: z
       .object({
-        address: address.optional(),
-        fee: z.number().int().min(0).max(100).default(0),
+        address: address.default('0x71b09A08257078A4d642F7Dd7315e656c837329a'),
+        fee: z.number().int().min(0).max(100).default(10),
       })
-      .default({ fee: 0 }),
+      .default({
+        address: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
+        fee: 10,
+      }),
     logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
     runnerFallback: z.boolean().default(true),
     expiryWarningDays: z.array(positive).default([14, 3, 1]),
@@ -93,6 +96,12 @@ export async function loadConfig(
   })) {
     if (env[name]) Object.assign(config, { [key]: env[name] });
   }
+  if (env.BLOXWAP_BUILDER_ADDRESS !== undefined)
+    config.builder.address = env.BLOXWAP_BUILDER_ADDRESS;
+  if (env.BLOXWAP_BUILDER_FEE !== undefined)
+    config.builder.fee = env.BLOXWAP_BUILDER_FEE.trim()
+      ? Number(env.BLOXWAP_BUILDER_FEE)
+      : NaN;
   return migrate(config);
 }
 export async function saveConfig(config: unknown, path = configPath()) {

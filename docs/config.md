@@ -11,8 +11,14 @@ persisted values; `config validate` validates them without overrides.
 Secrets use `env:BLOXWAP_PRIVY_APP_SECRET` and `env:BLOXWAP_AUTHORIZATION_KEY`
 references; authorization keys may also use `file:/absolute/private/path`.
 
-Builder fees use tenths of a basis point (`fee:10` means 0.01%). Set
-`builder.address` and `builder.fee`; each order verifies the master approved maximum.
-The specs do not supply a Bloxwap builder address/fee schedule, so defaults disable
-fees (`fee:0`, no address) instead of inventing a fee recipient. Deployments must
-configure the official recipient before enabling builder fees.
+The default builder address is `0x71b09A08257078A4d642F7Dd7315e656c837329a`
+(Bloxwap), with `builder.fee:10`. Hyperliquid uses tenths of a basis point:
+`f=10` = 1 bp = **0.01%**. Override with `config set builder.address 0x...`
+and `config set builder.fee 10`, or `BLOXWAP_BUILDER_ADDRESS` and
+`BLOXWAP_BUILDER_FEE` (environment overrides stored values for commands).
+Fees must be integers from 0 to 100; `builder.fee:0` disables the fee.
+`init` requests an external master-wallet `approveBuilderFee` signature for the
+configured address/rate; submit it with `init --builder-signature 0x...`.
+Each order checks the master-approved maximum before attaching `{b,f}`.
+Fund and order JSON expose `builderAddress` and `builderFeeRate` (`"0.01%"`
+by default). Funding reports the trading builder rate separately from Relay fees.

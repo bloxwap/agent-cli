@@ -53,8 +53,10 @@ limits. Read [custody limits](docs/custody.md) before using a funded account.
 
 State: `~/.bloxwap`; config: `~/.bloxwap/config.json`; IPC:
 `~/.bloxwap/run.sock`; env prefix: `BLOXWAP_`. All local state is private to the OS
-user. Configure the official builder address/rate explicitly when available;
-defaults charge zero fees instead of inventing a recipient.
+user. The default Bloxwap builder address is
+`0x71b09A08257078A4d642F7Dd7315e656c837329a`, with `f=10` (0.01%).
+Override via `config set builder.address` / `config set builder.fee` or
+`BLOXWAP_BUILDER_ADDRESS` / `BLOXWAP_BUILDER_FEE`; init requests builder approval.
 
 ## Development and docs
 

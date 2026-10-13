@@ -312,6 +312,9 @@ Quote funding with address, QR and transparent fees
               "builderFeeRate": {
                 "type": "string"
               },
+              "builderAddress": {
+                "type": "string"
+              },
               "expiresAt": {
                 "type": "number"
               },
@@ -341,6 +344,7 @@ Quote funding with address, QR and transparent fees
               "expectedReceived",
               "fees",
               "builderFeeRate",
+              "builderAddress",
               "expiresAt",
               "qrAscii"
             ]
@@ -1141,6 +1145,9 @@ Place limit, IOC market or TP/SL order
               "builderFeeRate": {
                 "type": "string"
               },
+              "builderAddress": {
+                "type": "string"
+              },
               "cloid": {
                 "type": [
                   "string",
@@ -1151,6 +1158,7 @@ Place limit, IOC market or TP/SL order
             "required": [
               "result",
               "builderFeeRate",
+              "builderAddress",
               "cloid"
             ]
           }

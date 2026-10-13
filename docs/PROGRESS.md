@@ -15,7 +15,7 @@
 | #10 | done | Privy server SDK create/link, P-256 owner, private authorization storage and typed-data signer; sandbox test env-gated. |
 | #11 | partial | Versioned domain/network Privy policy and local trade allowlist; L1 action hash prevents Privy per-action/notional inspection. Exchange agent permissions enforce withdrawal boundary. |
 | #12 | done | Idempotent managed-wallet onboarding, persisted external master EIP-712 approvals/deeplink, expiry bound, agent/builder verification and master-key rejection. |
-| #13 | partial | Builder attachment helper checks approved maximum; fee reporting. No official builder address/rate supplied in specs, so default is zero fee until configured. |
+| #13 | done | Default Bloxwap builder address with f=10 (0.01%); config/env overrides, init approval, approved-maximum checks and fund/order address/rate reporting. |
 | #14 | done | Typed validated Relay quote/status adapter, perps USDC destination, multiple origin routes and fee parsing; mocked fixtures. |
 | #15 | done | Exact bigint decimal parse/format and loss-detecting 6↔8 conversions with property-style round trips. |
 | #16 | done | Terminal QR on stderr and JSON field, optional PNG/SVG, no-qr support and snapshot. |
@@ -46,4 +46,4 @@
 | #41 | partial | Changesets/version PR workflow, gated tag publish with npm provenance, generated release notes and binary/skill assets; publishing not run without registry credentials. |
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
 
-Final local verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. Sandbox/testnet scripts skip without credentials. npm audit reports zero vulnerabilities. Official builder defaults remain unspecified; fees stay disabled until configured.
+Final local verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. Sandbox/testnet scripts skip without credentials. npm audit reports zero vulnerabilities. Bloxwap builder defaults to f=10 (0.01%), with config/env overrides.

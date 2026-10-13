@@ -112,6 +112,7 @@ export async function placeOrder(
   return {
     result,
     builderFeeRate: builderRate(config),
+    builderAddress: config.builder.address,
     cloid: input.cloid ?? null,
   };
 }

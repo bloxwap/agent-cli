@@ -86,6 +86,7 @@ export const outputSchemas: Record<string, unknown> = {
       expectedReceivedHuman: string,
       fees: unknown,
       builderFeeRate: string,
+      builderAddress: string,
       expiresAt: { type: 'number' },
       state: string,
       signatureSteps: array(unknown),
@@ -98,6 +99,7 @@ export const outputSchemas: Record<string, unknown> = {
       'expectedReceived',
       'fees',
       'builderFeeRate',
+      'builderAddress',
       'expiresAt',
       'qrAscii',
     ],
@@ -166,9 +168,10 @@ export const outputSchemas: Record<string, unknown> = {
     {
       result: unknown,
       builderFeeRate: string,
+      builderAddress: string,
       cloid: { type: ['string', 'null'] },
     },
-    ['result', 'builderFeeRate', 'cloid'],
+    ['result', 'builderFeeRate', 'builderAddress', 'cloid'],
   ),
   cancel: object({ cancelled: array(string), result: unknown }, [
     'cancelled',

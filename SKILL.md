@@ -16,12 +16,14 @@ Use `--network testnet` during testing; never silently change to mainnet.
 
 1. Configure Privy app ID and secret reference, e.g. `config set privyAppId APP`
    and `config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET`. The user sets
-   the environment secret outside the conversation. Configure published builder
-   address/fee if applicable; unset defaults charge no builder fee.
+   the environment secret outside the conversation. The default Bloxwap builder is
+   `0x71b09A08257078A4d642F7Dd7315e656c837329a`, with `f=10` (1 bp = 0.01%).
+   Override with `config set builder.address` / `config set builder.fee` or
+   `BLOXWAP_BUILDER_ADDRESS` / `BLOXWAP_BUILDER_FEE`.
 2. Run `init --master-address 0x... --network testnet`. Show the returned approval
    payload/deeplink/QR. The user signs in their master wallet; submit only the
    resulting signature with `init --signature 0x...`. Submit builder approval
-   separately if requested. Continue only after `approved:true`.
+   separately with `init --builder-signature 0x...` for the configured 0.01% default. Continue only after `approved:true`.
 3. Run `fund --amount 10 --origin-chain 42161`. Show `qrAscii`/deposit address,
    origin chain/token, minimum, fees, expected received amount and expiry. On
    testnet, do not treat the default Arbitrum mainnet chain/token as a test route:
@@ -55,7 +57,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `config set limits.maxLeverage 5` | `{"ok":true,"data":{"version":1,"limits":{"maxLeverage":5}}}` |
 | `config validate` | `{"ok":true,"data":{"valid":true,"version":1}}` |
 | `init --master-address 0x...` | `{"ok":true,"data":{"approved":false,"requiresSignature":true,"approvals":{"agent":{"typedData":{}}},"qrAscii":"..."}}` |
-| `fund --amount 10 --no-qr` | `{"ok":true,"data":{"depositId":"...","depositAddress":"0x...","expectedReceived":"100000000","builderFeeRate":"0%","state":"awaiting_funds","qrAscii":null}}` |
+| `fund --amount 10 --no-qr` | `{"ok":true,"data":{"depositId":"...","depositAddress":"0x...","expectedReceived":"100000000","builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","state":"awaiting_funds","qrAscii":null}}` |
 | `deposit --deposit-id ID` | `{"ok":true,"data":{"depositId":"ID","steps":[{"id":"step:0","requiresSignature":true,"payload":{}}]}}` |
 | `deposit --deposit-id ID --step-id step:0 --signature 0x...` | `{"ok":true,"data":{"depositId":"ID","steps":[]}}` |
 | `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"1"},"runner":{"pid":"123"}}}` |
@@ -63,7 +65,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `market --coin BTC` | `{"ok":true,"data":{"coin":"BTC","asset":"0","szDecimals":"5","maxLeverage":"40","mid":"20000"}}` |
 | `positions` | `{"ok":true,"data":[{"coin":"BTC","size":"0.001","entryPrice":"20000","leverage":"5","marginMode":"cross"}]}` |
 | `orders` | `{"ok":true,"data":[{"coin":"BTC","oid":"123","sz":"0.001","limitPx":"20000","side":"B"}]}` |
-| `order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc","cloid":"0x11111111111111111111111111111111"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"resting":{"oid":123}}]}}},"builderFeeRate":"0%","cloid":"0x..."}}` |
+| `order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc","cloid":"0x11111111111111111111111111111111"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"resting":{"oid":123}}]}}},"builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":"0x..."}}` |
 | `order --json '{"coin":"BTC","side":"sell","size":"0.001","type":"market","slippage":0.01,"reduceOnly":true}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"filled":{"oid":123}}]}}}}}` |
 | `cancel --oid 123` or `cancel --all` | `{"ok":true,"data":{"cancelled":["123"],"result":{"status":"ok"}}}` |
 | `modify --json '{"modifications":[{"oid":123,"price":"20100","size":"0.001"}]}'` | `{"ok":true,"data":{"status":"ok"}}` |

@@ -19,6 +19,10 @@ test('fund persists and reuses unexpired quotes', async () => {
     };
     const input = fundSchema.parse({ amount: '10', qr: false });
     const first = await fund(config, input, dependencies);
+    expect(first).toMatchObject({
+      builderFeeRate: '0.01%',
+      builderAddress: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
+    });
     expect(first.expectedReceived).toBe('100000000');
     expect((await fund(config, input, dependencies)).depositAddress).toBe(
       first.depositAddress,

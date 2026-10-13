@@ -108,6 +108,7 @@ export async function fund(
     originCurrency: input.originCurrency,
     minDeposit: formatUsdc(BigInt(parsed.minAmount), input.originDecimals),
     builderFeeRate: builderRate(config),
+    builderAddress: config.builder.address,
     state: deposit.state,
     signatureSteps: signatureSteps(deposit),
     ...(await (dependencies.qr ?? renderQr)(parsed.depositAddress, {
