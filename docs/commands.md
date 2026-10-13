@@ -56,7 +56,24 @@ Get, set or validate local configuration
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -119,7 +136,46 @@ Create agent and emit resumable master-wallet approvals
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "masterAddress": {
+                "type": "string"
+              },
+              "agentAddress": {
+                "type": "string"
+              },
+              "expiry": {
+                "type": "number"
+              },
+              "policyId": {
+                "type": "string"
+              },
+              "approved": {
+                "type": "boolean"
+              },
+              "requiresSignature": {
+                "type": "boolean"
+              },
+              "approvals": {},
+              "deeplink": {
+                "type": "string"
+              },
+              "qrAscii": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "masterAddress",
+              "agentAddress",
+              "expiry",
+              "policyId",
+              "approved"
+            ]
+          }
         }
       },
       {
@@ -136,7 +192,24 @@ Create agent and emit resumable master-wallet approvals
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -211,7 +284,67 @@ Quote funding with address, QR and transparent fees
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "depositId": {
+                "type": "string"
+              },
+              "depositAddress": {
+                "type": "string"
+              },
+              "originChain": {
+                "type": "number"
+              },
+              "originCurrency": {
+                "type": "string"
+              },
+              "minDeposit": {
+                "type": "string"
+              },
+              "expectedReceived": {
+                "type": "string"
+              },
+              "expectedReceivedHuman": {
+                "type": "string"
+              },
+              "fees": {},
+              "builderFeeRate": {
+                "type": "string"
+              },
+              "expiresAt": {
+                "type": "number"
+              },
+              "state": {
+                "type": "string"
+              },
+              "signatureSteps": {
+                "type": "array",
+                "items": {}
+              },
+              "qrAscii": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "qrPath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "depositId",
+              "depositAddress",
+              "expectedReceived",
+              "fees",
+              "builderFeeRate",
+              "expiresAt",
+              "qrAscii"
+            ]
+          }
         }
       },
       {
@@ -228,7 +361,24 @@ Quote funding with address, QR and transparent fees
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -281,7 +431,22 @@ Resume deposit steps or submit a master-wallet signature
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "depositId": {
+                "type": "string"
+              },
+              "steps": {
+                "type": "array",
+                "items": {}
+              },
+              "complete": {
+                "type": "boolean"
+              }
+            },
+            "required": []
+          }
         }
       },
       {
@@ -298,7 +463,24 @@ Resume deposit steps or submit a master-wallet signature
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -338,7 +520,161 @@ Read account status
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "balance": {
+                "type": "object",
+                "properties": {
+                  "accountValue": {
+                    "type": "string"
+                  },
+                  "accountValueUnits": {
+                    "type": "string"
+                  },
+                  "withdrawable": {
+                    "type": "string"
+                  },
+                  "marginUsed": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "accountValue",
+                  "accountValueUnits",
+                  "withdrawable",
+                  "marginUsed"
+                ]
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "coin": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "string"
+                    },
+                    "entryPrice": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "unrealizedPnl": {
+                      "type": "string"
+                    },
+                    "liquidationPrice": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "leverage": {
+                      "type": "string"
+                    },
+                    "marginMode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "coin",
+                    "size",
+                    "leverage"
+                  ]
+                }
+              },
+              "agent": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "approved": {
+                    "type": "boolean"
+                  },
+                  "revoked": {
+                    "type": "boolean"
+                  },
+                  "expiry": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "daysRemaining": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": []
+              },
+              "policy": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": []
+              },
+              "deposits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "awaiting_funds",
+                        "pending",
+                        "settled",
+                        "failed",
+                        "refunded"
+                      ]
+                    }
+                  },
+                  "required": []
+                }
+              },
+              "approvedMaxBuilderFee": {
+                "type": "string"
+              },
+              "runner": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "balance",
+              "positions",
+              "agent",
+              "policy",
+              "deposits",
+              "approvedMaxBuilderFee",
+              "runner"
+            ]
+          }
         }
       },
       {
@@ -355,7 +691,24 @@ Read account status
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -395,7 +748,29 @@ Read account balance
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "accountValue": {
+                "type": "string"
+              },
+              "accountValueUnits": {
+                "type": "string"
+              },
+              "withdrawable": {
+                "type": "string"
+              },
+              "marginUsed": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "accountValue",
+              "accountValueUnits",
+              "withdrawable",
+              "marginUsed"
+            ]
+          }
         }
       },
       {
@@ -412,7 +787,24 @@ Read account balance
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -452,7 +844,46 @@ Read account positions
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "coin": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "string"
+                },
+                "entryPrice": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "unrealizedPnl": {
+                  "type": "string"
+                },
+                "liquidationPrice": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "leverage": {
+                  "type": "string"
+                },
+                "marginMode": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "coin",
+                "size",
+                "leverage"
+              ]
+            }
+          }
         }
       },
       {
@@ -469,7 +900,24 @@ Read account positions
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -509,7 +957,42 @@ Read account orders
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "coin": {
+                  "type": "string"
+                },
+                "oid": {
+                  "type": "string"
+                },
+                "sz": {
+                  "type": "string"
+                },
+                "limitPx": {
+                  "type": "string"
+                },
+                "side": {
+                  "enum": [
+                    "A",
+                    "B"
+                  ]
+                },
+                "cloid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "coin",
+                "oid",
+                "sz",
+                "limitPx",
+                "side"
+              ]
+            }
+          }
         }
       },
       {
@@ -526,7 +1009,24 @@ Read account orders
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -634,7 +1134,26 @@ Place limit, IOC market or TP/SL order
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "result": {},
+              "builderFeeRate": {
+                "type": "string"
+              },
+              "cloid": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "result",
+              "builderFeeRate",
+              "cloid"
+            ]
+          }
         }
       },
       {
@@ -651,7 +1170,24 @@ Place limit, IOC market or TP/SL order
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -730,7 +1266,22 @@ Cancel by oid/cloid, coin or all
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "cancelled": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "result": {}
+            },
+            "required": [
+              "cancelled",
+              "result"
+            ]
+          }
         }
       },
       {
@@ -747,7 +1298,24 @@ Cancel by oid/cloid, coin or all
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -833,7 +1401,18 @@ Modify price/size of single or batch resting orders
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "response": {}
+            },
+            "required": [
+              "status"
+            ]
+          }
         }
       },
       {
@@ -850,7 +1429,24 @@ Modify price/size of single or batch resting orders
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -918,7 +1514,18 @@ Set market leverage and cross/isolated margin mode
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "response": {}
+            },
+            "required": [
+              "status"
+            ]
+          }
         }
       },
       {
@@ -935,7 +1542,24 @@ Set market leverage and cross/isolated margin mode
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -988,7 +1612,34 @@ Start persistent signing runner (foreground or detach)
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "startedAt": {
+                "type": "number"
+              },
+              "network": {
+                "enum": [
+                  "mainnet",
+                  "testnet"
+                ]
+              },
+              "ready": {
+                "type": "boolean"
+              },
+              "existing": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "pid",
+              "startedAt",
+              "network"
+            ]
+          }
         }
       },
       {
@@ -1005,7 +1656,24 @@ Start persistent signing runner (foreground or detach)
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -1077,7 +1745,40 @@ Replay or follow JSON-line runner events
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "seq": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "type": {
+                  "enum": [
+                    "fill",
+                    "order_update",
+                    "position_change",
+                    "deposit",
+                    "error",
+                    "agent_expiry_warning",
+                    "runner_state"
+                  ]
+                },
+                "data": {}
+              },
+              "required": [
+                "seq",
+                "timestamp",
+                "type",
+                "data"
+              ]
+            }
+          }
         }
       },
       {
@@ -1094,7 +1795,24 @@ Replay or follow JSON-line runner events
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -1159,7 +1877,10 @@ Read/follow redacted JSON-line runner logs
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "description": "JSON-line stream of redacted log objects",
+            "type": "object"
+          }
         }
       },
       {
@@ -1176,7 +1897,24 @@ Read/follow redacted JSON-line runner logs
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -1229,7 +1967,34 @@ Approve new agent, hot-swap signer, then revoke old agent
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "oldAgent": {
+                "type": "string"
+              },
+              "newAgent": {
+                "type": "string"
+              },
+              "swapped": {
+                "type": "boolean"
+              },
+              "oldRevoked": {
+                "type": "boolean"
+              },
+              "requiresSignature": {
+                "type": "boolean"
+              },
+              "approval": {},
+              "revokeApproval": {}
+            },
+            "required": [
+              "oldAgent",
+              "newAgent",
+              "swapped",
+              "oldRevoked"
+            ]
+          }
         }
       },
       {
@@ -1246,7 +2011,24 @@ Approve new agent, hot-swap signer, then revoke old agent
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -1303,7 +2085,31 @@ Disable local agent and prepare master-signed exchange revocation
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "object",
+            "properties": {
+              "agentAddress": {
+                "type": "string"
+              },
+              "locallyRevoked": {
+                "type": "boolean"
+              },
+              "exchangeRevoked": {
+                "type": "boolean"
+              },
+              "requiresSignature": {
+                "type": "boolean"
+              },
+              "approval": {}
+            },
+            "required": [
+              "agentAddress",
+              "locallyRevoked",
+              "exchangeRevoked",
+              "requiresSignature",
+              "approval"
+            ]
+          }
         }
       },
       {
@@ -1320,7 +2126,24 @@ Disable local agent and prepare master-signed exchange revocation
             "const": false
           },
           "code": {
-            "type": "string"
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"
@@ -1370,7 +2193,48 @@ Verify and query the hash-chained trading audit
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "seq": {
+                  "type": "integer"
+                },
+                "timestamp": {
+                  "type": "string"
+                },
+                "intentId": {
+                  "type": "string"
+                },
+                "requestId": {
+                  "type": "string"
+                },
+                "cloid": {
+                  "type": "string"
+                },
+                "stage": {
+                  "type": "string"
+                },
+                "data": {},
+                "previousHash": {
+                  "type": "string"
+                },
+                "hash": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "seq",
+                "timestamp",
+                "intentId",
+                "stage",
+                "data",
+                "previousHash",
+                "hash"
+              ]
+            }
+          }
         }
       },
       {
@@ -1387,7 +2251,257 @@ Verify and query the hash-chained trading audit
             "const": false
           },
           "code": {
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
+          },
+          "message": {
             "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {}
+        }
+      }
+    ]
+  }
+}
+```
+
+## skill
+
+Install packaged version-matched skill for Claude Code or Codex
+
+```json
+{
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "args": {
+        "default": [
+          "install"
+        ],
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "target": {
+        "default": "codex",
+        "type": "string",
+        "enum": [
+          "claude",
+          "codex"
+        ]
+      },
+      "force": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "args",
+      "target",
+      "force"
+    ],
+    "additionalProperties": false
+  },
+  "output": {
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "data"
+        ],
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "enum": [
+                  "claude",
+                  "codex"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "changed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "target",
+              "path",
+              "version",
+              "changed"
+            ]
+          }
+        }
+      },
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "code",
+          "message",
+          "retryable",
+          "details"
+        ],
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "code": {
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {}
+        }
+      }
+    ]
+  }
+}
+```
+
+## market
+
+Discover market asset, precision, leverage ceiling and current mid
+
+```json
+{
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "coin": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "coin"
+    ],
+    "additionalProperties": false
+  },
+  "output": {
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "data"
+        ],
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "coin": {
+                "type": "string"
+              },
+              "asset": {
+                "type": "string"
+              },
+              "szDecimals": {
+                "type": "string"
+              },
+              "maxLeverage": {
+                "type": "string"
+              },
+              "mid": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "coin",
+              "asset",
+              "szDecimals",
+              "maxLeverage",
+              "mid"
+            ]
+          }
+        }
+      },
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "code",
+          "message",
+          "retryable",
+          "details"
+        ],
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "code": {
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
           },
           "message": {
             "type": "string"

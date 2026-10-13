@@ -2,6 +2,7 @@
 
 Each JSON line is `{seq,timestamp,type,data}`. Sequence numbers strictly increase
 across restarts; timestamps are ISO UTC. Types: `fill` (upstream fill with tid),
+Fill fees additionally have exact 8-decimal `feeUnits` strings.
 `order_update`, `position_change`, `deposit` (id/state), `error` (normalized
 failure), `agent_expiry_warning`, `runner_state`. Secret fields are redacted.
 

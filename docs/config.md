@@ -1,6 +1,7 @@
 # Configuration
 
 Default path: `~/.bloxwap/config.json`. `--config` selects another file.
+All command JSON objects reject unknown fields to catch intent-changing typos.
 Version 1 is validated on read and write; versionless config migrates to version 1.
 Unknown versions fail closed. Writes use a private temporary file and atomic rename.
 

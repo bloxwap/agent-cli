@@ -14,16 +14,17 @@
     "policies"
   ],
   "scripts": {
-    "build": "tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
+    "build": "node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "docs:generate": "npm run build && node scripts/generate-docs.mjs",
     "test:e2e": "node scripts/e2e-testnet.mjs",
     "test:package": "node scripts/package-smoke.mjs",
-    "build:binaries": "node scripts/build-binaries.mjs",
+    "build:binaries": "node scripts/generate-skill.mjs && node scripts/build-binaries.mjs",
     "changeset": "changeset",
-    "version:packages": "changeset version && node scripts/sync-skill-version.mjs"
+    "version:packages": "changeset version && node scripts/sync-skill-version.mjs && node scripts/generate-skill.mjs",
+    "test:sandbox": "vitest run --config vitest.integration.config.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",
@@ -37,7 +38,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.2",
     "viem": "^2.57.5",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.4"
   },
   "dependencies": {
     "@bloxwap/hyperliquid": "^0.6.0",
@@ -51,5 +52,8 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
   }
 }

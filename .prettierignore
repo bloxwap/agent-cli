@@ -1,0 +1,8 @@
+node_modules/
+dist/
+site/
+binaries/
+src/core/skill-content.ts
+docs/issues/
+docs/commands.md
+test/__snapshots__/

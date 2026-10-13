@@ -1,2 +1,2 @@
-import {chmodSync} from 'node:fs';
-chmodSync('dist/cli.js',0o755);
+import { chmodSync } from 'node:fs';
+chmodSync('dist/cli.js', 0o755);

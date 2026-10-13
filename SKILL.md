@@ -23,15 +23,22 @@ Use `--network testnet` during testing; never silently change to mainnet.
    resulting signature with `init --signature 0x...`. Submit builder approval
    separately if requested. Continue only after `approved:true`.
 3. Run `fund --amount 10 --origin-chain 42161`. Show `qrAscii`/deposit address,
-   origin chain/token, minimum, fees, expected received amount and expiry. The user
+   origin chain/token, minimum, fees, expected received amount and expiry. On
+   testnet, do not treat the default Arbitrum mainnet chain/token as a test route:
+   use an explicitly supported test chain/token and `originDecimals`, or the
+   credential-gated CI harness with mocked Relay and pre-funded test collateral.
+   If no test route is known, stop funding and report the missing route. The user
    transfers the quoted origin token. If `signatureSteps` require signatures,
    show the exact payload and submit each via `deposit` in returned order.
-4. Poll `status` with bounded backoff until each active deposit is `settled`.
+4. Poll `status` until each active deposit is `settled`, for at most 12 polls
+   or 5 minutes, whichever comes first. Start with 1-second delays, double to a
+   15-second cap, and stop with an explicit pending report if the budget expires.
    Settlement requires Relay success and Hyperliquid balance receipt. Stop on
    failed/refunded deposits and explain their status. Do not place orders while
    any deposit is awaiting funds or pending.
 5. Run `run --detach`, then monitor `events --follow --since SEQ`. Persist the
-   last handled sequence; replay after reconnect. A fill updates the trading
+   last handled sequence; replay after reconnect. An unfilled or rejected order
+   remains incomplete: do not claim the requested trade succeeded. A fill updates the trading
    plan, an error follows the catalog below, and expiry warnings prompt rotation
    using external master-wallet approval.
 
@@ -53,6 +60,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `deposit --deposit-id ID --step-id step:0 --signature 0x...` | `{"ok":true,"data":{"depositId":"ID","steps":[]}}` |
 | `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"1"},"runner":{"pid":"123"}}}` |
 | `balance` | `{"ok":true,"data":{"accountValue":"100","accountValueUnits":"10000000000","withdrawable":"96","marginUsed":"4"}}` |
+| `market --coin BTC` | `{"ok":true,"data":{"coin":"BTC","asset":"0","szDecimals":"5","maxLeverage":"40","mid":"20000"}}` |
 | `positions` | `{"ok":true,"data":[{"coin":"BTC","size":"0.001","entryPrice":"20000","leverage":"5","marginMode":"cross"}]}` |
 | `orders` | `{"ok":true,"data":[{"coin":"BTC","oid":"123","sz":"0.001","limitPx":"20000","side":"B"}]}` |
 | `order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc","cloid":"0x11111111111111111111111111111111"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"resting":{"oid":123}}]}}},"builderFeeRate":"0%","cloid":"0x..."}}` |
@@ -71,6 +79,11 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `audit --intent ID` | `{"ok":true,"data":[{"intentId":"ID","stage":"decision","data":{"allowed":true},"previousHash":"...","hash":"..."}]}` |
 | `skill install --target codex` | `{"ok":true,"data":{"target":"codex","path":".../agent-cli/SKILL.md","version":"0.1.0"}}` |
 
+Before an order, query `market --coin BTC` for `mid`, `szDecimals`, asset and
+market leverage ceiling. Compute size/notional with decimal strings/bigints,
+using the user-approved limit or the bounded IOC execution price. A valid schema
+alone does not establish that an order is tradable or within the budget.
+
 Use `--intent-id ID --intent "reason"` on trading actions to connect the user's
 reasoning to the audit. Keep cloid stable when retrying a known order intent.
 For TP/SL use `type:"tp"|"sl"` and `triggerPrice` with size/price/reduceOnly;
@@ -80,7 +93,7 @@ market orders use an explicit slippage-bounded IOC, not an unbounded market orde
 
 | Code | Action |
 | --- | --- |
-| RATE_LIMIT, NETWORK_ERROR | Bounded exponential backoff; stop after configured attempts |
+| RATE_LIMIT, NETWORK_ERROR | At most 3 read retries with exponential backoff; for uncertain mutations, reconcile order state/cloid before retrying. Stop and report unresolved results |
 | NONCE_COLLISION | Retry using a newly issued nonce; inspect a stale lock if persistent |
 | DEPOSIT_PENDING | Poll status until settled; stop on terminal funding failure |
 | RUNNER_NOT_RUNNING | Start runner or use configured direct fallback |

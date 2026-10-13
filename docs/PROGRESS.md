@@ -9,7 +9,7 @@
 | #4 | done | Validated JSON/flags/stdin router, JSON schemas, envelopes and exit codes. |
 | #5 | done | Versioned validated config, atomic private writes, migration, commands and env overrides. |
 | #6 | done | JSON logging, recursive redaction, correlation IDs and size/day rotation. |
-| #7 | done | Requested SDK adapter, lazy WS factory, cached metadata, decimal rounding and remote signer abstraction. SDK requires Node 22.12+; runtime smoke checked on Node 20. |
+| #7 | done | Requested SDK adapter, lazy WS factory, cached metadata, decimal rounding and remote signer abstraction. SDK requires Node 22.12+; final verification uses supported Node 22 and Bun. Shared metadata cache is exposed via market discovery. |
 | #8 | done | Service error adapters, redacted upstream detail, fixture-driven classification and retry defaults. |
 | #9 | done | Bounded jittered retries and per-signer persisted monotonic nonces guarded by exclusive locks. Stale locks fail closed. |
 | #10 | done | Privy server SDK create/link, P-256 owner, private authorization storage and typed-data signer; sandbox test env-gated. |
@@ -28,7 +28,7 @@
 | #23 | done | Batch cancellation by oid/cloid, coin or account; unknown order normalization and mocked tests. |
 | #24 | done | Single/batch modification by oid/cloid with rounding and pre-signing risk checks. |
 | #25 | done | Cross/isolated leverage updates enforce market and configured ceilings with mocked tests. |
-| #26 | done | Private exclusive PID lock, managed signer session, foreground/detach, idempotency and graceful shutdown; persistent stores survive restart. Stale locks fail closed. |
+| #26 | done | Private exclusive PID lock, managed signer session, foreground/detach, idempotency and graceful shutdown; persistent stores survive restart. Dead PID recovery and explicit readiness; stale startup locks fail closed. |
 | #27 | done | Bounded newline JSON-RPC socket with private mode, method aliases, serialized trading, normalized errors and configurable direct fallback. |
 | #28 | done | SDK reconnect/resubscribe + heartbeat transport, user/market subscriptions, info gap-fill and persisted tid dedupe; simulated drop tests. |
 | #29 | done | Typed persisted monotonic event journal, replay/filter/follow stream, subscription/deposit emission and shutdown flush. |
@@ -39,8 +39,11 @@
 | #34 | done | Optional cancel-all, resumable master revocation payload, immediate local blocking and config/session clearing after exchange submission. |
 | #35 | done | Cross-process locked fsynced hash-chain audit, intent/decision/signature digest/response/fill linkage, rotation/revoke records and filters; tamper/redaction tests. |
 | #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |
-| #37 | partial | Validated self-contained skill with every command example, ordered funding/custody flow and complete error table; real agent testnet execution requires credentials (#39 gate). |
+| #37 | partial | Independently forward-tested, schema-validated self-contained skill with every command example, ordered funding/custody flow and complete error table; real agent testnet execution requires credentials (#39 gate). |
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
 | #39 | partial | Full mocked CLI/SDK/RPC lifecycle passes; opt-in real testnet lifecycle with mocked Relay, nightly secrets gate and journal artifacts. Real execution skipped without credentials. |
 | #40 | partial | Postinstall-free executable package, supported Node 22.12+ engine and global/Bun install smoke pass locally; macOS/Linux CI and optional compiled binaries. Registry install awaits publication. |
 | #41 | partial | Changesets/version PR workflow, gated tag publish with npm provenance, generated release notes and binary/skill assets; publishing not run without registry credentials. |
+| #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
+
+Final local verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. Sandbox/testnet scripts skip without credentials. npm audit reports zero vulnerabilities. Official builder defaults remain unspecified; fees stay disabled until configured.

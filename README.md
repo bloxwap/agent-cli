@@ -24,6 +24,7 @@ node dist/cli.js fund --network testnet --amount 10 --origin-chain 42161
 node dist/cli.js status --network testnet
 # Continue only when active deposits report settled.
 node dist/cli.js run --network testnet --detach
+node dist/cli.js market --coin BTC
 node dist/cli.js order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc"}'
 node dist/cli.js events --follow
 ```
@@ -58,7 +59,7 @@ defaults charge zero fees instead of inventing a recipient.
 ## Development and docs
 
 `npm run build`, `npm run lint`, `npm run typecheck`, `npm test` must pass before
-committing. Unit tests mock services. Credential-dependent tests are gated.
+committing. Unit tests mock services. Credential-dependent tests are gated: `npm run test:sandbox` and `npm run test:e2e` skip without the required environment. The master-key testnet harness is CI-only; unit tests never access the network.
 
 `npm run docs:generate` creates [command schemas](docs/commands.md) and a static
 site in `site/`. [Docs index](docs/index.md), [security](docs/security.md),
