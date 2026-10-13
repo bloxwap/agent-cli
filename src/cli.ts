@@ -1,3 +1,7 @@
 #!/usr/bin/env node
-export const version = '0.1.0';
-console.log(JSON.stringify({ ok: true, data: { version } }));
+import { dispatch } from './core/router.js';
+let stdin='';
+if (!process.stdin.isTTY) for await (const chunk of process.stdin) stdin += String(chunk);
+const result=await dispatch(process.argv.slice(2),stdin);
+process.stdout.write(JSON.stringify(result.body,null,result.context.pretty ? 2 : undefined)+'\n');
+process.exitCode=result.exitCode;
