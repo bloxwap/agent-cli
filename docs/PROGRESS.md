@@ -28,3 +28,4 @@
 | #23 | done | Batch cancellation by oid/cloid, coin or account; unknown order normalization and mocked tests. |
 | #24 | done | Single/batch modification by oid/cloid with rounding and pre-signing risk checks. |
 | #25 | done | Cross/isolated leverage updates enforce market and configured ceilings with mocked tests. |
+| #26 | done | Private exclusive PID lock, managed signer session, foreground/detach, idempotency and graceful shutdown; persistent stores survive restart. Stale locks fail closed. |
