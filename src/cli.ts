@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { dispatch } from './core/router.js';
+import './commands/config.js';
 let stdin='';
 if (!process.stdin.isTTY) for await (const chunk of process.stdin) stdin += String(chunk);
 const result=await dispatch(process.argv.slice(2),stdin);
