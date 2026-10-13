@@ -21,9 +21,12 @@
     "docs:generate": "npm run build && node scripts/generate-docs.mjs",
     "test:e2e": "node scripts/e2e-testnet.mjs",
     "test:package": "node scripts/package-smoke.mjs",
-    "build:binaries": "node scripts/build-binaries.mjs"
+    "build:binaries": "node scripts/build-binaries.mjs",
+    "changeset": "changeset",
+    "version:packages": "changeset version && node scripts/sync-skill-version.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.3",
     "@types/node": "^26.6.5",
     "@types/qrcode": "^1.5.6",
     "@types/ws": "^8.18.2",

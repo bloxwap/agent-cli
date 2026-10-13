@@ -43,3 +43,4 @@
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
 | #39 | partial | Full mocked CLI/SDK/RPC lifecycle passes; opt-in real testnet lifecycle with mocked Relay, nightly secrets gate and journal artifacts. Real execution skipped without credentials. |
 | #40 | partial | Postinstall-free executable package, supported Node 22.12+ engine and global/Bun install smoke pass locally; macOS/Linux CI and optional compiled binaries. Registry install awaits publication. |
+| #41 | partial | Changesets/version PR workflow, gated tag publish with npm provenance, generated release notes and binary/skill assets; publishing not run without registry credentials. |
