@@ -40,3 +40,4 @@
 | #35 | done | Cross-process locked fsynced hash-chain audit, intent/decision/signature digest/response/fill linkage, rotation/revoke records and filters; tamper/redaction tests. |
 | #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |
 | #37 | partial | Validated self-contained skill with every command example, ordered funding/custody flow and complete error table; real agent testnet execution requires credentials (#39 gate). |
+| #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
