@@ -10,3 +10,4 @@
 | #5 | done | Versioned validated config, atomic private writes, migration, commands and env overrides. |
 | #6 | done | JSON logging, recursive redaction, correlation IDs and size/day rotation. |
 | #7 | done | Requested SDK adapter, lazy WS factory, cached metadata, decimal rounding and remote signer abstraction. SDK requires Node 22.12+; runtime smoke checked on Node 20. |
+| #8 | done | Service error adapters, redacted upstream detail, fixture-driven classification and retry defaults. |
