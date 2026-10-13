@@ -1,3 +1,4 @@
+import {auditFill} from '../core/audit.js';
 import {appendFile,mkdir,readFile,chmod} from 'node:fs/promises';
 import {dirname,join} from 'node:path';
 import {z} from 'zod';
@@ -15,6 +16,7 @@ export class EventStore {
  private queue=Promise.resolve();
  constructor(readonly path=join(stateDir(),'events.jsonl')){}
  append(type:EventType,data:unknown){let event:RunnerEvent;const operation=this.queue.then(async()=>{
+ if(type==='fill'&&data&&typeof data==='object') await auditFill(data as Record<string,unknown>);
  const previous=(await readEvents(this.path)).at(-1)?.seq??0;event=eventSchema.parse({seq:previous+1,timestamp:new Date().toISOString(),type,data:redact(data)});
  await mkdir(dirname(this.path),{recursive:true,mode:0o700});await appendFile(this.path,JSON.stringify(event)+'\n',{mode:0o600});await chmod(this.path,0o600);return event;
  });this.queue=operation.then(()=>{});return operation;

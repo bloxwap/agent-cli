@@ -14,6 +14,7 @@ import './commands/events.js';
 import './commands/logs.js';
 import './commands/rotate.js';
 import './commands/revoke.js';
+import './commands/audit.js';
 import {routeToRunner} from './runner/rpc.js';
 setRouting(routeToRunner);
 let stdin='';

@@ -1,3 +1,4 @@
+import {signatureAudit} from '../core/audit.js';
 import { PrivyClient, generateP256KeyPair } from '@privy-io/node';
 import { readFile,stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -29,7 +30,7 @@ export async function privySigner(config:Config,client:PrivyClient):Promise<Sign
  return {address:config.agentAddress as `0x${string}`,signTypedData:async data=>{
   try {
    const signed=await client.wallets().ethereum().signTypedData(config.privyWalletId!,{params:{typed_data:{domain:data.domain,types:Object.fromEntries(Object.entries(data.types).map(([key,fields])=>[key,[...fields]])),primary_type:data.primaryType,message:data.message}},authorization_context:{authorization_private_keys:[authorizationKey]}});
-   return signed.signature as `0x${string}`;
+   await signatureAudit(signed.signature);return signed.signature as `0x${string}`;
   }catch(error){throw mapPrivyError(error);}
  }};
 }

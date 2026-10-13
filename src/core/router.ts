@@ -1,3 +1,4 @@
+import {auditedAction} from './audit.js';
 import { z } from 'zod';
 import { AgentCliError, normalizeError, success } from '../errors/index.js';
 export interface Context { configPath?: string; network?: 'mainnet' | 'testnet'; pretty: boolean; runner?: boolean; streaming?:boolean; }
@@ -5,7 +6,10 @@ export interface Command { description: string; schema: z.ZodType; execute: (inp
 export let routing:((name:string,input:Record<string,unknown>,context:Context)=>Promise<{routed:boolean;data?:unknown}>)|undefined;
 export function setRouting(value:typeof routing){routing=value;}
 export const commands = new Map<string, Command>();
-export function register(name: string, command: Command) { commands.set(name, command); }
+export function register(name: string, command: Command) {
+ if(['order','cancel','modify','leverage','rotate','revoke'].includes(name)){const original=command.execute;command={...command,schema:command.schema instanceof z.ZodObject?command.schema.extend({intentId:z.string().optional(),intent:z.string().optional()}):command.schema,execute:(input,context)=>auditedAction(name,input,()=>original(input,context))};}
+ commands.set(name,command);
+}
 export function schemas(name: string) {
  const command = commands.get(name);
  if (!command) throw new AgentCliError('CONFIG_INVALID', `Unknown command: ${name}`);

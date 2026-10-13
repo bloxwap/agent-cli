@@ -37,3 +37,4 @@
 | #32 | done | Persisted once-per-expiry threshold warnings in runner events and nonretryable expiry trading block; mocked clock tests. |
 | #33 | done | Persisted two-approval rotation, verified new agent before serialized runner hot-swap, old revocation only after handoff; rotation audit hook in #35. |
 | #34 | done | Optional cancel-all, resumable master revocation payload, immediate local blocking and config/session clearing after exchange submission. |
+| #35 | done | Cross-process locked fsynced hash-chain audit, intent/decision/signature digest/response/fill linkage, rotation/revoke records and filters; tamper/redaction tests. |

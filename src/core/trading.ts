@@ -1,3 +1,4 @@
+import {decisionAudit} from './audit.js';
 import {assertAgentValid} from '../wallet/expiry.js';
 import {activeRunner} from '../runner/lifecycle.js';
 import {randomUUID} from 'node:crypto';
@@ -31,7 +32,7 @@ export async function checkRisk(config:Config,intent:RiskIntent,services:Trading
  try{return evaluateRisk(config,intent,{positionSize:position?.szi??'0',dailyLoss:String(Math.max(0,-state.assetPositions.reduce((sum,p)=>sum+Number(p.position.unrealizedPnl),0))),openOrders:open.length,marketMaxLeverage:market.maxLeverage,pendingSize:String(pending)});}catch(error){logger.log('warn','Risk rejected',{error:mapHyperliquidError(error).toJSON()});await logger.flush();throw error;}
 }
 export async function exchangeAction(action:string,operation:()=>Promise<unknown>){
- assertTradeAction(action);try{
+ assertTradeAction(action);await decisionAudit({allowed:true,action});try{
  const response=await operation();const data=response as {status?:string;response?:{data?:{statuses?:unknown[]}}};
  if(data.status==='err') throw mapHyperliquidError(response);
  for(const status of data.response?.data?.statuses??[]) if(status&&typeof status==='object'&&'error' in status) throw mapHyperliquidError((status as {error:string}).error);
