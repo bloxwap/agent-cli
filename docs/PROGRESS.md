@@ -23,3 +23,4 @@
 | #18 | done | Resumable ordered master-signature steps, trusted Relay submission endpoints and funding flow docs. |
 | #19 | done | Persisted terminal deposit lifecycle, Relay + exact balance settlement, retryable trading gate and runner emission hook. |
 | #20 | done | Account read commands, numeric strings, deposits/approval/policy/expiry status; runner preference wired in #27. |
+| #21 | done | Exact decimal risk evaluation covers markets, size/notional/position/leverage/loss/open-order limits; trade hooks and audit wired in #22/#35. |
