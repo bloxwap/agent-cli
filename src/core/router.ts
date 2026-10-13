@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AgentCliError, normalizeError, success } from '../errors/index.js';
-export interface Context { configPath?: string; network?: 'mainnet' | 'testnet'; pretty: boolean; runner?: boolean; }
+export interface Context { configPath?: string; network?: 'mainnet' | 'testnet'; pretty: boolean; runner?: boolean; streaming?:boolean; }
 export interface Command { description: string; schema: z.ZodType; execute: (input: Record<string, unknown>, context: Context) => Promise<unknown>; }
 export let routing:((name:string,input:Record<string,unknown>,context:Context)=>Promise<{routed:boolean;data?:unknown}>)|undefined;
 export function setRouting(value:typeof routing){routing=value;}
