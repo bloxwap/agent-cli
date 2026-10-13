@@ -34,3 +34,4 @@
 | #29 | done | Typed persisted monotonic event journal, replay/filter/follow stream, subscription/deposit emission and shutdown flush. |
 | #30 | done | JSON-line log replay/follow across rotated files, minimum-level/time/request filtering and redaction. |
 | #31 | done | Runner heartbeat/state events, PID/uptime/WS/signing health and stale detection; background deposit polling. |
+| #32 | done | Persisted once-per-expiry threshold warnings in runner events and nonretryable expiry trading block; mocked clock tests. |

@@ -1,3 +1,4 @@
+import {expiryWarnings} from '../wallet/expiry.js';
 import {activeRunner,runningInfo,type Runner} from './lifecycle.js';
 import type {Subscriptions} from './subscriptions.js';
 import {events} from './events.js';
@@ -11,7 +12,7 @@ export async function runnerHealth(){if(activeRunner) return health(activeRunner
 export function startHeartbeat(runner:Runner,subscriptions:Subscriptions){
  runner.subscriptions=subscriptions;let queue=Promise.resolve();
  const tick=()=>{queue=queue.then(async()=>{
- await events.append('runner_state',health(runner));
+ await events.append('runner_state',health(runner));await expiryWarnings(runner.config);
  if(runner.config.masterAddress){const state=await hlInfo<{marginSummary:{accountValue:string}}>(runner.config.network,'clearinghouseState',{user:runner.config.masterAddress});await pollDeposits(runner.config.network,runner.config.masterAddress,state.marginSummary.accountValue,{emit:async deposit=>{await events.append('deposit',{id:deposit.id,state:deposit.state});}});}
  }).catch(async error=>{await events.append('error',normalizeError(error).toJSON());});};
  tick();const timer=setInterval(tick,30_000);runner.onShutdown(async()=>{clearInterval(timer);await queue;});

@@ -1,3 +1,4 @@
+import {assertAgentValid} from '../wallet/expiry.js';
 import {activeRunner} from '../runner/lifecycle.js';
 import {randomUUID} from 'node:crypto';
 import {type Config} from './config.js';
@@ -19,7 +20,7 @@ export async function tradingServices(config:Config):Promise<TradingServices>{
 }
 export async function assertCanTrade(config:Config){
  if(config.revoked||!config.approved||!config.masterAddress) throw new AgentCliError('AGENT_NOT_APPROVED','Agent approval required');
- if(!config.agentExpiry||config.agentExpiry<=Date.now()) throw new AgentCliError('AGENT_EXPIRED','Rotate expired agent');
+ assertAgentValid(config);
  await assertDepositsSettled(config.network,config.masterAddress);
 }
 export async function checkRisk(config:Config,intent:RiskIntent,services:TradingServices,ignoreOid?:number){
