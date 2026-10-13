@@ -24,3 +24,4 @@
 | #19 | done | Persisted terminal deposit lifecycle, Relay + exact balance settlement, retryable trading gate and runner emission hook. |
 | #20 | done | Account read commands, numeric strings, deposits/approval/policy/expiry status; runner preference wired in #27. |
 | #21 | done | Exact decimal risk evaluation covers markets, size/notional/position/leverage/loss/open-order limits; trade hooks and audit wired in #22/#35. |
+| #22 | done | Limit Gtc/Ioc/Alo, slippage IOC market, TP/SL, rounding, cloid, risk/deposit/expiry gates, builder and Privy signing; runner routing in #27. |

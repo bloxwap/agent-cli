@@ -24,7 +24,8 @@ export async function dispatch(argv: string[], stdin = '') {
    if (arg.startsWith('--no-')) { input[arg.slice(5).replace(/-([a-z])/g,(_,c: string)=>c.toUpperCase())]=false; continue; }
    if (arg.startsWith('--')) {
     const [flag,inline] = arg.slice(2).split('=',2); const key=flag.replace(/-([a-z])/g,(_,c: string)=>c.toUpperCase());
-    input[key]=inline !== undefined ? parseValue(inline) : argv[i+1] && !argv[i+1].startsWith('--') ? parseValue(argv[++i]) : true; continue;
+    const raw=inline !== undefined ? inline : argv[i+1] && !argv[i+1].startsWith('--') ? argv[++i] : undefined;
+    input[key]=raw===undefined?true:['size','price','amount','triggerPrice','signature','builderSignature','cloid'].includes(key)?raw:parseValue(raw);continue;
    }
    positional.push(arg);
   }
