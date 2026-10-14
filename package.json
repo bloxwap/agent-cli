@@ -1,57 +1,30 @@
 {
-  "name": "@bloxwap/agent-cli",
-  "version": "0.1.0",
+  "name": "bloxwap-agent-cli-workspace",
+  "private": true,
   "type": "module",
-  "bin": {
-    "agent-cli": "dist/cli.js"
-  },
-  "engines": {
-    "node": ">=22.12.0"
-  },
-  "files": [
-    "dist",
-    "SKILL.md",
-    "policies"
+  "workspaces": [
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
-    "build": "node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "docs:generate": "npm run build && node scripts/generate-docs.mjs",
-    "test:e2e": "node scripts/e2e-testnet.mjs",
-    "test:package": "node scripts/package-smoke.mjs",
-    "build:binaries": "node scripts/generate-skill.mjs && node scripts/build-binaries.mjs",
+    "build": "npm --workspace @bloxwap/agent-cli run build",
+    "lint": "npm --workspace @bloxwap/agent-cli run lint",
+    "typecheck": "npm --workspace @bloxwap/agent-cli run typecheck",
+    "test": "npm --workspace @bloxwap/agent-cli run test",
+    "docs:generate": "npm --workspace @bloxwap/agent-cli run docs:generate",
+    "test:e2e": "npm --workspace @bloxwap/agent-cli run test:e2e",
+    "test:package": "npm --workspace @bloxwap/agent-cli run test:package",
+    "build:binaries": "npm --workspace @bloxwap/agent-cli run build:binaries",
+    "test:sandbox": "npm --workspace @bloxwap/agent-cli run test:sandbox",
     "changeset": "changeset",
-    "version:packages": "changeset version && node scripts/sync-skill-version.mjs && node scripts/generate-skill.mjs",
-    "test:sandbox": "vitest run --config vitest.integration.config.ts"
+    "version:packages": "changeset version && npm --workspace @bloxwap/agent-cli exec -- node scripts/sync-skill-version.mjs && npm --workspace @bloxwap/agent-cli exec -- node scripts/generate-skill.mjs",
+    "pack:cli": "npm pack --workspace @bloxwap/agent-cli --pack-destination packages/agent-cli"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "devDependencies": {
-    "@changesets/cli": "^3.0.3",
-    "@types/node": "^26.6.5",
-    "@types/qrcode": "^1.5.6",
-    "@types/ws": "^8.18.2",
-    "eslint": "^9.39.5",
-    "marked": "^18.1.1",
-    "prettier": "^3.9.10",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.71.2",
-    "viem": "^2.57.5",
-    "vitest": "^5.0.4"
-  },
-  "dependencies": {
-    "@bloxwap/hyperliquid": "^0.6.0",
-    "@privy-io/node": "^0.35.0",
-    "@scure/bip39": "^2.4.0",
-    "qrcode": "^1.5.4",
-    "ws": "^8.22.0",
-    "zod": "^4.6.7"
-  },
-  "description": "Agent-native Hyperliquid trading CLI with Privy custody and Relay funding",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
+    "@changesets/cli": "^3.0.3"
   },
   "overrides": {
     "esbuild": "^0.28.1"

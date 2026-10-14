@@ -47,3 +47,7 @@
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
 
 Final local verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. Sandbox/testnet scripts skip without credentials. npm audit reports zero vulnerabilities. Bloxwap builder defaults to f=10 (0.01%), with config/env overrides.
+
+## Workspace and Fumadocs migration
+
+- Workspace migration: done — CLI sources, tests, skill, policies and release tooling live in `packages/agent-cli`; root scripts delegate, publish targets the CLI workspace.

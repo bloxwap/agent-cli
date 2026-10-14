@@ -1,0 +1,53 @@
+{
+  "name": "@bloxwap/agent-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "agent-cli": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "dist",
+    "SKILL.md",
+    "policies"
+  ],
+  "scripts": {
+    "build": "node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "docs:generate": "npm run build && node scripts/generate-docs.mjs",
+    "test:e2e": "node scripts/e2e-testnet.mjs",
+    "test:package": "node scripts/package-smoke.mjs",
+    "build:binaries": "node scripts/generate-skill.mjs && node scripts/build-binaries.mjs",
+    "test:sandbox": "vitest run --config vitest.integration.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/ws": "^8.18.2",
+    "eslint": "^9.39.5",
+    "marked": "^18.1.1",
+    "prettier": "^3.9.10",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.2",
+    "viem": "^2.57.5",
+    "vitest": "^5.0.4"
+  },
+  "dependencies": {
+    "@bloxwap/hyperliquid": "^0.6.0",
+    "@privy-io/node": "^0.35.0",
+    "@scure/bip39": "^2.4.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "description": "Agent-native Hyperliquid trading CLI with Privy custody and Relay funding",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

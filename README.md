@@ -12,21 +12,21 @@ or current Bun. No postinstall script. Publishing is release-gated.
 ```sh
 npm ci
 npm run build
-node dist/cli.js --help
-node dist/cli.js config set privyAppId YOUR_APP_ID
-node dist/cli.js config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
+node packages/agent-cli/dist/cli.js --help
+node packages/agent-cli/dist/cli.js config set privyAppId YOUR_APP_ID
+node packages/agent-cli/dist/cli.js config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
 # Set BLOXWAP_PRIVY_APP_SECRET securely outside the CLI/conversation.
-node dist/cli.js init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
+node packages/agent-cli/dist/cli.js init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
 # Sign returned EIP-712 approval externally, then submit its 65-byte signature:
-node dist/cli.js init --network testnet --signature 0xYOUR_SIGNATURE
-node dist/cli.js fund --network testnet --amount 10 --origin-chain 42161
+node packages/agent-cli/dist/cli.js init --network testnet --signature 0xYOUR_SIGNATURE
+node packages/agent-cli/dist/cli.js fund --network testnet --amount 10 --origin-chain 42161
 # Show QR/address and exact origin token/fees to user; complete any deposit steps.
-node dist/cli.js status --network testnet
+node packages/agent-cli/dist/cli.js status --network testnet
 # Continue only when active deposits report settled.
-node dist/cli.js run --network testnet --detach
-node dist/cli.js market --coin BTC
-node dist/cli.js order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc"}'
-node dist/cli.js events --follow
+node packages/agent-cli/dist/cli.js run --network testnet --detach
+node packages/agent-cli/dist/cli.js market --coin BTC
+node packages/agent-cli/dist/cli.js order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc"}'
+node packages/agent-cli/dist/cli.js events --follow
 ```
 
 Testnet onboarding/trades require Privy sandbox credentials, an externally signed
@@ -65,4 +65,4 @@ committing. Unit tests mock services. Credential-dependent tests are gated: `npm
 
 `npm run docs:generate` creates [command schemas](docs/commands.md) and a static
 site in `site/`. [Docs index](docs/index.md), [security](docs/security.md),
-[error catalog](docs/errors.md), and [SKILL.md](SKILL.md) explain operation.
+[error catalog](docs/errors.md), and [SKILL.md](packages/agent-cli/SKILL.md) explain operation.

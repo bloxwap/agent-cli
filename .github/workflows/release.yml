@@ -15,21 +15,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
       - uses: oven-sh/setup-bun@v2
       - run: npm ci
       - name: Verify tag and package version
         if: startsWith(github.ref, 'refs/tags/')
-        run: node -e 'const p=require("./package.json");if(process.env.GITHUB_REF_NAME!==`v${p.version}`)throw Error("Tag/version mismatch")'
+        run: node -e 'const p=require("./packages/agent-cli/package.json");if(process.env.GITHUB_REF_NAME!==`v${p.version}`)throw Error("Tag/version mismatch")'
       - run: npm run build
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:package
       - run: npm run build:binaries
-      - run: npm publish --provenance --access public
+      - run: npm publish --workspace @bloxwap/agent-cli --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - uses: softprops/action-gh-release@v2
@@ -37,6 +37,6 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            binaries/*
-            SKILL.md
-            CHANGELOG.md
+            packages/agent-cli/binaries/*
+            packages/agent-cli/SKILL.md
+            packages/agent-cli/CHANGELOG.md
