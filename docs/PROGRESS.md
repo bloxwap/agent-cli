@@ -52,4 +52,6 @@ Final local verification: supported Node 22, strict build/lint/typecheck and iso
 
 - Workspace migration: done — CLI sources, tests, skill, policies and release tooling live in `packages/agent-cli`; root scripts delegate, publish targets the CLI workspace.
 - Fumadocs site: done — Chart conventions, HIG assets, local fonts, static search/social cards, MDX operating guides, generated schemas/skill, and main-only Pages deployment.
+- Local docs URLs: done — development defaults to `http://localhost:3903/` with documentation under `/docs/`; the Pages workflow explicitly retains `/agent-cli` as its deployment base path.
+- Landing workflow panel: done — shared code-window toolbar and copy control, highlighted shell commands, muted comments, and HIG-backed blue syntax colors.
 - Verification: Node 24; clean `npm ci`; root build/lint/typecheck/tests (71 tests), docs build/check, export link/social checks, static preview 200/404 checks, CLI pack and global-install smoke passed. No push or publish.

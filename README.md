@@ -70,16 +70,16 @@ The published CLI still supports Node.js **22.12+**.
 
 ```sh
 npm ci
-npm run docs:dev       # http://localhost:3903/agent-cli/
+npm run docs:dev       # http://localhost:3903/
 npm run docs:build     # static export at apps/docs/out
 npm run docs:check
 npm run docs:preview   # previews the export at port 3903
 npm run pack:cli       # packs only @bloxwap/agent-cli
 ```
 
-The site defaults to `/agent-cli`; override `NEXT_PUBLIC_BASE_PATH` for another
-host (use an empty value for a root deployment). Pages CI builds and checks pull
-requests and deploys main. Command schemas and the skill guide are generated
+The site defaults to the host root; the docs are under `/docs/`. Pages CI sets
+`NEXT_PUBLIC_BASE_PATH=/agent-cli` for its deployment, builds and checks pull
+requests, and deploys main. Command schemas and the skill guide are generated
 from the CLI with `npm run docs:generate` and before docs builds.
 
 [Docs index](docs/index.md), [security](docs/security.md),

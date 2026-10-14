@@ -6,7 +6,7 @@ const withMDX = createMDX();
 export default withMDX({
   output: 'export',
   trailingSlash: true,
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH ?? '/agent-cli',
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH ?? '',
   images: { unoptimized: true },
   reactStrictMode: true,
   // Resolve dependencies from the npm workspace root.

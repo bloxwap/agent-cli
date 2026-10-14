@@ -228,21 +228,26 @@ html > body[data-scroll-locked] {
 .install-feedback { display: block; }
 
 /* Hero code window: zero-stroke fill card with the Bloxwap code palette (as on the Hyperliquid SDK site). */
-.code-window { min-width: 0; margin: 0; overflow: hidden; border-radius: var(--radius-xl); background: var(--card); color: var(--foreground); }
+.code-window {
+  --code-keyword: color-mix(in oklab, #ff479c 70%, var(--foreground));
+  --code-type: color-mix(in oklab, var(--hig-info) 60%, var(--foreground));
+  min-width: 0; margin: 0; overflow: hidden; border-radius: var(--radius-xl); background: var(--card); color: var(--foreground);
+}
 .code-toolbar {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-md);
-  padding: var(--space-lg) var(--space-2xl) 0; font: var(--text-2xs) / 1.5 var(--font-mono); color: var(--muted-foreground);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-md);
+  padding: var(--space-md) var(--space-2xl) 0; font: var(--text-2xs) / 1.5 var(--font-mono); color: var(--muted-foreground);
 }
 .window-dots { display: flex; gap: var(--space-xs); }
 .window-dots > i { width: 6px; height: 6px; border-radius: var(--radius-full); background: var(--muted); }
-.code-language { color: color-mix(in oklab, var(--bloxwap-blue) 60%, var(--foreground)); }
+.code-caption { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-language { color: var(--code-type); }
 .code-actions { display: flex; align-items: center; gap: var(--space-xs); margin-right: calc(-1 * var(--space-md)); }
 .code-toolbar { min-height: var(--control-h-sm); }
 .code-window pre { margin: 0; overflow-x: auto; padding: var(--space-xl) var(--space-2xl); font: var(--text-xs) / 1.85 var(--font-mono); tab-size: 2; scrollbar-width: none; }
 .code-window pre::-webkit-scrollbar { display: none; }
-.syntax-keyword { color: color-mix(in oklab, var(--bloxwap-pink) 70%, var(--foreground)); }
+.syntax-keyword { color: var(--code-keyword); }
 .syntax-string { color: var(--bloxwap-green); }
-.syntax-type { color: color-mix(in oklab, var(--bloxwap-blue) 60%, var(--foreground)); }
+.syntax-type { color: var(--code-type); }
 .syntax-muted { color: var(--muted-foreground); }
 .code-status {
   display: flex; align-items: center; gap: var(--space-sm); margin: 0;

@@ -3,7 +3,7 @@ import { resolve, join, dirname, extname, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../out/', import.meta.url));
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/agent-cli';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bloxwap.github.io';
 const failures = [];
 const exists = async (path) => { try { return (await stat(path)).isFile(); } catch { return false; } };
