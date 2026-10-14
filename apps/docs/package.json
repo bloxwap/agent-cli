@@ -1,0 +1,38 @@
+{
+  "name": "@bloxwap/agent-cli-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3903",
+    "build": "next build",
+    "postbuild": "node scripts/check-export.mjs",
+    "check": "node scripts/check-content.mjs --check && node scripts/hig-tokens.mjs --check && next typegen && tsc --noEmit",
+    "preview": "node scripts/preview.mjs",
+    "postinstall": "fumadocs-mdx",
+    "predev": "npm --workspace @bloxwap/agent-cli run build && node scripts/generate-content.mjs && node scripts/prepare-public.mjs",
+    "prebuild": "npm --workspace @bloxwap/agent-cli run build && node scripts/generate-content.mjs && node scripts/prepare-public.mjs"
+  },
+  "dependencies": {
+    "@bloxwap/font": "0.1.2",
+    "fumadocs-core": "16.15.14",
+    "fumadocs-mdx": "15.4.5",
+    "fumadocs-ui": "16.15.14",
+    "lucide-react": "0.545.0",
+    "next": "16.3.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.0",
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.2.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

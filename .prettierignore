@@ -2,7 +2,10 @@ node_modules/
 dist/
 site/
 binaries/
-src/core/skill-content.ts
+.next/
+.source/
+out/
+packages/agent-cli/src/core/skill-content.ts
 docs/issues/
 docs/commands.md
-test/__snapshots__/
+packages/agent-cli/test/__snapshots__/

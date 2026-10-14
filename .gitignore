@@ -7,3 +7,9 @@ site/
 artifacts/
 .bloxwap/
 binaries/
+
+.next/
+.source/
+out/
+*.tsbuildinfo
+apps/docs/next-env.d.ts

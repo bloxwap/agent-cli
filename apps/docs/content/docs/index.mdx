@@ -1,0 +1,37 @@
+---
+title: "Overview and installation"
+description: "An agent-native Hyperliquid trading CLI with JSON input and output."
+---
+
+The CLI combines a persistent signing runner, Privy managed agents, Relay funding,
+and a packaged agent skill. Master custody stays external.
+
+## Install
+
+```sh
+npm install -g @bloxwap/agent-cli
+agent-cli --help
+# Or run with Bun:
+bunx @bloxwap/agent-cli --help
+```
+
+The published CLI requires Node.js **22.12+** or current Bun. It has no postinstall
+script. The repository and docs use **Node.js 24+**.
+
+## JSON contract
+
+Arguments can be flags, `--json '{...}'`, or a JSON object on stdin. Ordinary
+commands return `{ok:true,data}` or `{ok:false,code,message,retryable,details}`.
+QR output and logs use stderr. `events --follow` and `logs` stream JSON lines.
+Global flags: `--config PATH`, `--network mainnet|testnet`, `--pretty`, `--json OBJECT`.
+
+```sh
+agent-cli schema order
+agent-cli market --coin BTC --network testnet
+```
+
+Start with [Quickstart](/docs/quickstart), inspect the [Command reference](/docs/commands),
+and read [Custody](/docs/custody) before operating a funded account.
+
+Local state always lives in `~/.bloxwap`. Environment variables use `BLOXWAP_`.
+The default Bloxwap builder rate is `f=10`, **0.01%**, and requires master approval.

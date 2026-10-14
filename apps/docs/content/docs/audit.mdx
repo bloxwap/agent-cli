@@ -1,0 +1,25 @@
+---
+title: "Audit trail"
+description: "Connect user intent, risk decisions, signatures, responses, and fills."
+---
+
+```sh
+agent-cli audit
+agent-cli audit --intent YOUR_INTENT_ID
+agent-cli audit --cloid 0x11111111111111111111111111111111
+```
+
+Trading actions accept `intentId` and `intent` (or `--intent-id` and `--intent`).
+Use a stable `cloid` to reconcile retries. The journal at `~/.bloxwap/audit.jsonl`
+records intent, decision, signature digest, response, and linked fill stages.
+Entries include `seq`, UTC `timestamp`, `intentId`, optional `cloid` and `requestId`,
+`stage`, redacted `data`, `previousHash`, and SHA-256 `hash`.
+
+`audit` verifies the complete chain before filtering. Each entry hashes its payload
+and references the previous hash; sequence numbers are checked. Appends use a
+private lock and sync the file. Raw signatures are never recorded, only digests.
+
+The chain detects edits to a retained journal. It cannot detect deletion of the
+whole journal or replacement with a newly valid chain without an external
+checkpoint. Back up checkpoints separately. Same-user malware and root can change
+local files and configuration; see [Security](/docs/security).

@@ -51,3 +51,5 @@ Final local verification: supported Node 22, strict build/lint/typecheck and iso
 ## Workspace and Fumadocs migration
 
 - Workspace migration: done — CLI sources, tests, skill, policies and release tooling live in `packages/agent-cli`; root scripts delegate, publish targets the CLI workspace.
+- Fumadocs site: done — Chart conventions, HIG assets, local fonts, static search/social cards, MDX operating guides, generated schemas/skill, and main-only Pages deployment.
+- Verification: Node 24; clean `npm ci`; root build/lint/typecheck/tests (71 tests), docs build/check, export link/social checks, static preview 200/404 checks, CLI pack and global-install smoke passed. No push or publish.

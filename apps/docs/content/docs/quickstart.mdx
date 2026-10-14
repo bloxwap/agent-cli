@@ -1,0 +1,75 @@
+---
+title: "Quickstart"
+description: "Initialize, show the funding QR, confirm settlement, and start the runner."
+---
+
+Use a dedicated testnet account and Privy sandbox credentials. Replace address
+and signature placeholders with values from the external wallet. Never supply a
+private key, seed, or mnemonic to the CLI.
+
+## 1. Initialize
+
+```sh
+agent-cli config set privyAppId YOUR_APP_ID
+agent-cli config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
+# Set the secret securely outside the CLI and conversation.
+agent-cli init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
+```
+
+Show the returned EIP-712 agent approval payload, deeplink, and QR to the user.
+The master wallet signs externally. Submit the resulting 65-byte signature and
+complete the separate builder fee approval:
+
+```sh
+agent-cli init --network testnet --signature 0xYOUR_AGENT_SIGNATURE
+agent-cli init --network testnet --builder-signature 0xYOUR_BUILDER_SIGNATURE
+```
+
+Continue only when `approved:true`. The default builder fee is `f=10` (0.01%).
+
+## 2. Fund and show the QR
+
+For a **mainnet** account initialized with mainnet approvals, an Arbitrum USDC quote is:
+
+```sh
+agent-cli fund --network mainnet --amount 10 --origin-chain 42161
+```
+
+For **testnet**, use an explicitly supported test origin chain/token and its
+`originDecimals` from `agent-cli schema fund`. Chain 42161 and the default origin
+token are mainnet values; do not send real funds to a testnet example. Relay
+HyperCore testnet routes may be unavailable. If no route is known, stop funding.
+The CI lifecycle harness uses mocked Relay and pre-funded test collateral.
+
+Show the returned `qrAscii`, deposit address, origin chain/token, minimum, fees,
+expected receipt, and expiry. The user transfers only the quoted origin token.
+Some routes need two external master signatures. Resume the stored steps with:
+
+```sh
+agent-cli deposit --deposit-id ID --network testnet
+agent-cli deposit --deposit-id ID --step-id STEP_ID --signature 0xSIGNATURE --network testnet
+```
+
+Submit each exact payload in returned order. See [Funding](/docs/funding).
+
+## 3. Confirm settlement
+
+```sh
+agent-cli status --network testnet
+```
+
+Wait until all active deposits report `settled`. Relay success alone is insufficient;
+settlement also checks the Hyperliquid balance increase. Stop on failed or refunded
+deposits. Use bounded polling and report a pending deposit when the budget expires.
+
+## 4. Start and monitor
+
+```sh
+agent-cli run --network testnet --detach
+agent-cli market --network testnet --coin BTC
+agent-cli events --follow --since 0
+```
+
+Before placing an authorized order, inspect market precision and leverage ceilings,
+configure local limits, and use decimal strings. Preserve `cloid` for reconciliation
+and attach `intentId` for the audit. A resting order is not a completed fill.

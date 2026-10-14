@@ -1,0 +1,19 @@
+---
+title: "Custody"
+description: "Master-wallet and managed-agent trust boundaries."
+---
+
+The master wallet approves a separate Hyperliquid API agent. Its key stays in Privy;
+the CLI holds a P-256 authorization key, never the master private key. Hyperliquid
+agent permissions prevent withdrawals and master-only user-signed actions.
+
+The versioned Privy policy permits only EIP-712 Agent messages in the Hyperliquid
+L1 domain (chain 1337, zero verifying contract, correct network source). Unmatched
+RPC methods are denied by default. User-signed withdrawal and approval messages
+have a different domain/type. Local dispatch allows only trading operations.
+
+Privy sees the L1 action hash, not its preimage: it cannot independently distinguish
+an order from another L1 action or enforce notional limits inside that hash.
+Local limits and exchange agent permissions supply those checks. Do not describe
+this policy as independent server-side per-action/notional enforcement. Confirm
+policy behavior in the credential-gated sandbox before production use.

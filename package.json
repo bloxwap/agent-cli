@@ -11,14 +11,18 @@
     "lint": "npm --workspace @bloxwap/agent-cli run lint",
     "typecheck": "npm --workspace @bloxwap/agent-cli run typecheck",
     "test": "npm --workspace @bloxwap/agent-cli run test",
-    "docs:generate": "npm --workspace @bloxwap/agent-cli run docs:generate",
+    "docs:generate": "npm run build && node apps/docs/scripts/generate-content.mjs",
     "test:e2e": "npm --workspace @bloxwap/agent-cli run test:e2e",
     "test:package": "npm --workspace @bloxwap/agent-cli run test:package",
     "build:binaries": "npm --workspace @bloxwap/agent-cli run build:binaries",
     "test:sandbox": "npm --workspace @bloxwap/agent-cli run test:sandbox",
     "changeset": "changeset",
-    "version:packages": "changeset version && npm --workspace @bloxwap/agent-cli exec -- node scripts/sync-skill-version.mjs && npm --workspace @bloxwap/agent-cli exec -- node scripts/generate-skill.mjs",
-    "pack:cli": "npm pack --workspace @bloxwap/agent-cli --pack-destination packages/agent-cli"
+    "version:packages": "changeset version && npm --workspace @bloxwap/agent-cli run skill:sync-version && npm --workspace @bloxwap/agent-cli run skill:generate",
+    "pack:cli": "npm pack --workspace @bloxwap/agent-cli --pack-destination packages/agent-cli",
+    "docs:dev": "npm --workspace @bloxwap/agent-cli-docs run dev",
+    "docs:build": "npm --workspace @bloxwap/agent-cli-docs run build",
+    "docs:check": "npm --workspace @bloxwap/agent-cli-docs run check",
+    "docs:preview": "npm --workspace @bloxwap/agent-cli-docs run preview"
   },
   "engines": {
     "node": ">=24"
@@ -27,6 +31,7 @@
     "@changesets/cli": "^3.0.3"
   },
   "overrides": {
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "mdast-util-to-markdown": "2.1.2"
   }
 }

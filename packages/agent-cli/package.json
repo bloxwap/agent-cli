@@ -18,18 +18,18 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "docs:generate": "npm run build && node scripts/generate-docs.mjs",
     "test:e2e": "node scripts/e2e-testnet.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "build:binaries": "node scripts/generate-skill.mjs && node scripts/build-binaries.mjs",
-    "test:sandbox": "vitest run --config vitest.integration.config.ts"
+    "test:sandbox": "vitest run --config vitest.integration.config.ts",
+    "skill:sync-version": "node scripts/sync-skill-version.mjs",
+    "skill:generate": "node scripts/generate-skill.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/qrcode": "^1.5.6",
     "@types/ws": "^8.18.2",
     "eslint": "^9.39.5",
-    "marked": "^18.1.1",
     "prettier": "^3.9.10",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
