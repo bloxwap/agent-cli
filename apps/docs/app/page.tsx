@@ -4,6 +4,7 @@ import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { baseOptions } from '@/lib/layout.shared';
 import { InstallCommand } from '@/components/install-command';
 import { SiteFooter } from '@/components/site-footer';
+import { HeroCode } from '@/components/hero-code';
 
 export default function Home() {
   return <HomeLayout {...baseOptions()}>
@@ -16,17 +17,7 @@ export default function Home() {
           <div className="hero-actions"><Link href="/docs/quickstart" className="btn">Get started <ArrowRight aria-hidden="true" /></Link><Link href="/docs/commands" className="btn btn--secondary">Command reference <ArrowRight aria-hidden="true" /></Link></div>
           <InstallCommand />
         </div>
-        <figure className="code-window">
-          <figcaption className="code-toolbar"><span>init → fund → status → run</span><span className="code-language">Shell</span></figcaption>
-          <pre><code>{`agent-cli schema order
-agent-cli init --network testnet
-# Complete external wallet approvals.
-# Fund using a supported test route and show the QR.
-agent-cli status --network testnet
-# Wait for deposits to settle.
-agent-cli run --network testnet --detach
-agent-cli events --follow --since 0`}</code></pre>
-        </figure>
+        <HeroCode />
       </section>
       <section className="principles" aria-label="CLI features">
         <div><span className="feature-number">01</span><h2>JSON in. JSON out.</h2><p>Discover input and output schemas for every command. Handle stable error codes and exact decimal strings.</p></div>

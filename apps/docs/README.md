@@ -14,9 +14,11 @@ npm run docs:check
 npm run docs:preview
 ```
 
-Development and preview use port **3903**. The default base path is `/agent-cli`,
-so open http://localhost:3903/agent-cli/. Set `NEXT_PUBLIC_BASE_PATH` to override it,
-including an empty string for a root deployment. Set `NEXT_PUBLIC_SITE_URL` for
+Development and preview use port **3903**. The default base path is empty,
+so open http://localhost:3903/ for the landing page and http://localhost:3903/docs/
+for the documentation. The Pages workflow sets `NEXT_PUBLIC_BASE_PATH=/agent-cli`
+for deployment; set it explicitly when building or previewing that path locally.
+Set `NEXT_PUBLIC_SITE_URL` for
 canonical and social URLs (default `https://bloxwap.github.io`). The static preview
 reads the base path from the built artifact and needs no Next.js server.
 

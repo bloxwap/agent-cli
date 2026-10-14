@@ -1,5 +1,5 @@
 import { writeFileSync, readFileSync } from 'node:fs';
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/agent-cli';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://bloxwap.github.io';
 const absolute = (path) => new URL(`${basePath}${path}`, siteUrl).href;
 const pages = JSON.parse(readFileSync(new URL('../content/docs/meta.json', import.meta.url), 'utf8')).pages;
