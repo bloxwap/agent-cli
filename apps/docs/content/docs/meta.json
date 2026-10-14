@@ -1,0 +1,17 @@
+{
+  "title": "Agent CLI",
+  "pages": [
+    "index",
+    "quickstart",
+    "commands",
+    "config",
+    "errors",
+    "runner",
+    "events",
+    "funding",
+    "custody",
+    "security",
+    "skill",
+    "audit"
+  ]
+}

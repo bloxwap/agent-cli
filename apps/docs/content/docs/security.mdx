@@ -1,0 +1,29 @@
+---
+title: "Security"
+description: "Private local state, secret handling, and custody limitations."
+---
+
+State is always `~/.bloxwap`, directory 0700, config/auth keys/logs/events/audit 0600.
+P-256 Privy authorization keys are PKCS8 base64 in private files or environment
+references. The CLI does not import master keys, seeds or mnemonic phrases.
+External master-wallet signatures are accepted only as 65-byte signatures.
+Every CLI and RPC input is scanned before schema parsing so unknown fields cannot
+smuggle key material. Hex 32-byte secrets and BIP39-like phrases are refused.
+
+Trust boundaries: master wallet → one-time Hyperliquid agent approval → Privy
+managed wallet → restricted local signing runner. Read [Custody](/docs/custody) for the hash
+preimage limitation of server policies. Anyone controlling this OS user can use
+the authorization key and change limits. Socket/file modes exclude other users,
+not same-user malware or root. Windows named pipes require current-user ACLs;
+use direct mode in environments unable to enforce private IPC.
+
+Logs and error envelopes recursively scrub sensitive fields, long hex values,
+Bearer tokens and known secret environment values. Signature hashes, never raw
+signatures, appear in the audit chain. A hash chain detects edits inside a retained
+journal; it cannot detect deletion of the entire journal without an external
+checkpoint. Back up checkpoints separately for stronger evidence.
+
+Never put secrets in command args, repository files or issue reports. Environment
+references avoid plaintext config but do not protect against privileged process
+inspection. Revoke and rotate after suspected compromise. Unit tests use service
+mocks; real signing tests require explicit testnet/sandbox environment gates.

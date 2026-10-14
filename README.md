@@ -12,21 +12,22 @@ or current Bun. No postinstall script. Publishing is release-gated.
 ```sh
 npm ci
 npm run build
-node dist/cli.js --help
-node dist/cli.js config set privyAppId YOUR_APP_ID
-node dist/cli.js config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
+node packages/agent-cli/dist/cli.js --help
+node packages/agent-cli/dist/cli.js config set privyAppId YOUR_APP_ID
+node packages/agent-cli/dist/cli.js config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
 # Set BLOXWAP_PRIVY_APP_SECRET securely outside the CLI/conversation.
-node dist/cli.js init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
+node packages/agent-cli/dist/cli.js init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
 # Sign returned EIP-712 approval externally, then submit its 65-byte signature:
-node dist/cli.js init --network testnet --signature 0xYOUR_SIGNATURE
-node dist/cli.js fund --network testnet --amount 10 --origin-chain 42161
+node packages/agent-cli/dist/cli.js init --network testnet --signature 0xYOUR_SIGNATURE
+# Fund only with a supported test origin chain/token; inspect schema fund.
+# Chain 42161 and the default origin token are mainnet values.
 # Show QR/address and exact origin token/fees to user; complete any deposit steps.
-node dist/cli.js status --network testnet
+node packages/agent-cli/dist/cli.js status --network testnet
 # Continue only when active deposits report settled.
-node dist/cli.js run --network testnet --detach
-node dist/cli.js market --coin BTC
-node dist/cli.js order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc"}'
-node dist/cli.js events --follow
+node packages/agent-cli/dist/cli.js run --network testnet --detach
+node packages/agent-cli/dist/cli.js market --coin BTC
+node packages/agent-cli/dist/cli.js order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc"}'
+node packages/agent-cli/dist/cli.js events --follow
 ```
 
 Testnet onboarding/trades require Privy sandbox credentials, an externally signed
@@ -63,6 +64,24 @@ Override via `config set builder.address` / `config set builder.fee` or
 `npm run build`, `npm run lint`, `npm run typecheck`, `npm test` must pass before
 committing. Unit tests mock services. Credential-dependent tests are gated: `npm run test:sandbox` and `npm run test:e2e` skip without the required environment. The master-key testnet harness is CI-only; unit tests never access the network.
 
-`npm run docs:generate` creates [command schemas](docs/commands.md) and a static
-site in `site/`. [Docs index](docs/index.md), [security](docs/security.md),
-[error catalog](docs/errors.md), and [SKILL.md](SKILL.md) explain operation.
+The npm workspace keeps the publishable CLI in `packages/agent-cli` and the
+Fumadocs app in `apps/docs`. Use Node.js **24+** for repository development.
+The published CLI still supports Node.js **22.12+**.
+
+```sh
+npm ci
+npm run docs:dev       # http://localhost:3903/agent-cli/
+npm run docs:build     # static export at apps/docs/out
+npm run docs:check
+npm run docs:preview   # previews the export at port 3903
+npm run pack:cli       # packs only @bloxwap/agent-cli
+```
+
+The site defaults to `/agent-cli`; override `NEXT_PUBLIC_BASE_PATH` for another
+host (use an empty value for a root deployment). Pages CI builds and checks pull
+requests and deploys main. Command schemas and the skill guide are generated
+from the CLI with `npm run docs:generate` and before docs builds.
+
+[Docs index](docs/index.md), [security](docs/security.md),
+[error catalog](docs/errors.md), and [SKILL.md](packages/agent-cli/SKILL.md) remain
+available as repository Markdown. See [docs app README](apps/docs/README.md).

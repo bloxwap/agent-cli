@@ -9,8 +9,11 @@ try {
       encoding: 'utf8',
     }),
   )[0];
-  if (!packed.files.some((file) => file.path === 'SKILL.md'))
-    throw new Error('Package missing skill');
+  for (const required of ['SKILL.md', 'dist/cli.js', 'policies/agent-trade-only.json'])
+    if (!packed.files.some((file) => file.path === required))
+      throw new Error(`Package missing ${required}`);
+  if (packed.files.some((file) => /^(apps|src|test|scripts)\//.test(file.path)))
+    throw new Error('Package includes development files');
   execFileSync(
     'npm',
     [

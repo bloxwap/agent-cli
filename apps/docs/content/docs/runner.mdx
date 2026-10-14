@@ -1,0 +1,58 @@
+---
+title: "Runner and JSON-RPC"
+description: "Persistent signing, private IPC, routing, and shutdown."
+---
+
+```sh
+agent-cli run --network testnet --detach
+# Foreground mode:
+agent-cli run --network testnet
+```
+
+The runner owns signing and nonce sequencing, subscribes to account updates,
+maintains a heartbeat, and records events. State is `~/.bloxwap`; Unix IPC is
+`~/.bloxwap/run.sock` (0600 inside a 0700 directory). Never expose it on a network.
+Windows uses a home-derived named pipe; deployment must enforce current-user ACLs.
+
+The CLI routes market, status, balance, positions, orders, order, cancel, modify,
+leverage, rotate, and revoke through the runner. A config/network mismatch fails.
+`runnerFallback:true` (default) permits direct mode only when no runner is running.
+
+## Wire format
+
+Each UTF-8 line is a JSON-RPC 2.0 request or response. Requests require `id` and
+`method`; `params` defaults to an object. Frames are bounded to 1 MiB and queued
+serially. Send a newline after the object:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"status.get","params":{}}
+```
+
+Success returns `{"jsonrpc":"2.0","id":1,"result":...}`. Failure returns JSON-RPC
+error code `-32000`, with the CLI failure envelope in `error.data`.
+
+| Method | CLI operation |
+| --- | --- |
+| `market.get` | `market` |
+| `status.get` | `status` |
+| `balance.get` | `balance` |
+| `positions.get` | `positions` |
+| `orders.get` | `orders` |
+| `order.place` | `order` |
+| `order.cancel` | `cancel` |
+| `order.modify` | `modify` |
+| `leverage.set` | `leverage` |
+| `config.get` | Read persisted config |
+| `runner.shutdown` | Graceful shutdown |
+
+Short command names are accepted, including `rotate` and `revoke`. The RPC config
+operation is read-only. Unknown methods and unsafe inputs fail before signing.
+
+```json
+{"jsonrpc":"2.0","id":2,"method":"runner.shutdown","params":{}}
+```
+
+Shutdown returns `result:{stopping:true}`, flushes queued events, and releases
+runner state. Client timeout or disconnect leaves mutation results uncertain:
+reconcile exchange state before retrying. [Events](/docs/events) are read through
+the CLI journal, not a socket streaming method.
