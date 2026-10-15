@@ -13,11 +13,12 @@ const { colors } = tokens;
 const ink = colors.text.srgb;
 const muted = colors.muted.srgb;
 const bar: [color: string, share: number][] = [[colors.action.srgb, 62], [colors.info.srgb, 14], ['#b300ff', 10], ['#ff479c', 8], ['#fffb38', 6]];
-// Approved static Bloxwap Sans instances (derived from @bloxwap/font 0.1.2, OFL) shipped by the HIG tokens package.
+// Satori reads static TTFs, which @bloxwap/font (WOFF2 only) does not ship. These approved static Bloxwap Sans instances
+// (derived from @bloxwap/font 0.1.2, OFL) come from @bloxwap/hig-native-fonts, a build-time dependency of this renderer.
 const hig = createRequire(join(process.cwd(), 'package.json'));
 const assets = Promise.all([
-  readFile(hig.resolve('@bloxwap/hig-tokens/fonts/BloxwapSans-Bold.ttf')),
-  readFile(hig.resolve('@bloxwap/hig-tokens/fonts/BloxwapSans-Black.ttf')),
+  readFile(hig.resolve('@bloxwap/hig-native-fonts/fonts/BloxwapSans-Bold.ttf')),
+  readFile(hig.resolve('@bloxwap/hig-native-fonts/fonts/BloxwapSans-Black.ttf')),
   readFile(join(process.cwd(), '../../packages/agent-cli/package.json'), 'utf8'),
 ]);
 

@@ -54,6 +54,26 @@ try {
     assert.deepEqual(errors, []);
   });
 
+  await check('HIG controls and code render loaded Bloxwap faces through --hig-font-* (no host font bridge)', async () => {
+    await page.evaluate(() => document.fonts.ready);
+    const faces = await page.evaluate(() => {
+      const loaded = new Set([...document.fonts].filter((face) => face.status === 'loaded').map((face) => face.family.replace(/["']/g, '')));
+      return [
+        ['Get started', document.querySelector('.hero-actions .hig-button')],
+        ['install tab', document.querySelector('.package-install [role=tab]')],
+        ['code window', document.querySelector('.code-window pre')],
+      ].map(([name, el]) => {
+        const family = el ? getComputedStyle(el).fontFamily.split(',')[0].trim().replace(/["']/g, '') : '';
+        return { name, family, loaded: loaded.has(family), check: el ? document.fonts.check(`600 16px "${family}"`) : false };
+      });
+    });
+    for (const { name, family, loaded, check } of faces) {
+      assert.ok(/bloxwap/i.test(family) && loaded && check, `${name} renders ${family || 'nothing'} (loaded ${loaded}, check ${check})`);
+    }
+    const [sans, , mono] = faces.map((face) => face.family);
+    assert.notEqual(sans, mono, 'code uses Bloxwap Mono, controls use Bloxwap Sans');
+  });
+
   await check('install tabs: arrow/Home/End keys move selection and focus', async () => {
     const tabs = page.getByRole('tablist', { name: 'Package manager' });
     const npm = tabs.getByRole('tab', { name: 'npm' });
@@ -139,6 +159,13 @@ try {
     await noHorizontalScroll(phone);
     await capture(phone, 'home-mobile');
   });
+  await check('390 px touch: compact HIG copy controls keep a 48 px target', async () => {
+    await phone.goto(url('/'));
+    for (const name of ['Copy workflow commands', /copy install command/i]) {
+      const box = await phone.getByRole('button', { name }).filter({ visible: true }).first().boundingBox();
+      assert.ok(box && box.height >= 48 && box.width >= 48, `${name}: ${box?.width}x${box?.height}`);
+    }
+  });
   await check('390 px sidebar navigation reaches a deep link', async () => {
     await phone.goto(url('/docs/'));
     await noHorizontalScroll(phone);
@@ -152,6 +179,19 @@ try {
     await noHorizontalScroll(phone);
   });
   await mobile.close();
+
+  const reduced = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+  const still = await reduced.newPage();
+  await check('reduced motion: HIG motion roles drop to 0 ms', async () => {
+    await still.goto(url('/'));
+    const motion = await still.evaluate(() => ({
+      role: getComputedStyle(document.documentElement).getPropertyValue('--hig-motion-duration-fast').trim(),
+      link: getComputedStyle(document.querySelector('.guide-links a')).transitionDuration,
+    }));
+    assert.match(motion.role, /^0m?s$/, `--hig-motion-duration-fast is ${motion.role}`); // the CSS minifier writes 0ms as 0s
+    assert.match(motion.link, /^0s(, 0s)*$/);
+  });
+  await reduced.close();
 } finally {
   await browser.close();
   server.kill();
