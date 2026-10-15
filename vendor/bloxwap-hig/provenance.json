@@ -1,0 +1,31 @@
+{
+  "repository": "bloxwap/hig",
+  "commit": "19c75619fa5020c015aa639172c83fd02f2bc0a2",
+  "version": "0.1.0-candidate.sha19c75619",
+  "producedBy": "npm ci && npm run generate:fonts && npm run build && npm run release:dry-run -- --channel candidate",
+  "dryRun": {
+    "published": false,
+    "tagsCreated": false,
+    "releasesCreated": false
+  },
+  "artifacts": [
+    {
+      "package": "@bloxwap/hig-tokens",
+      "file": "bloxwap-hig-tokens-0.1.0-candidate.sha19c75619.tgz",
+      "bytes": 4428740,
+      "sha256": "55542394d90b4b8eef0fd17c413595152032195aab24e3bcd55060041d28830e"
+    },
+    {
+      "package": "@bloxwap/hig-react",
+      "file": "bloxwap-hig-react-0.1.0-candidate.sha19c75619.tgz",
+      "bytes": 16726,
+      "sha256": "3a5e6b7a014900df339737feafa7458077aaf8a512881dc58a98a623dbd1fc3d"
+    },
+    {
+      "package": "@bloxwap/hig-contracts",
+      "file": "bloxwap-hig-contracts-0.1.0-candidate.sha19c75619.tgz",
+      "bytes": 3056,
+      "sha256": "9c61c4b82f64335bb1b7ce1bfcf25e2e5f060e0e19c52fce3b99b17a96f410c7"
+    }
+  ]
+}

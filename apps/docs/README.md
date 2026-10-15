@@ -34,14 +34,21 @@ uses a static `search.json` index in the browser. `llms.txt`, robots, and sitema
 are generated for the configured deployment URL. The Pages workflow builds and
 checks PRs and deploys only main.
 
-The design mirrors Chart's dark surfaces, green accents, typography, navigation,
-footer, and HIG controls. `app/global.css`, `styles/hig.generated.css`, and
-`vendor/hig/` are copied from Chart, including the upstream license and provenance.
-`hig-tokens.mjs --check` verifies the pinned hashes and adapter; update vendor files
-from the upstream source rather than hand-editing generated tokens.
+The design mirrors Chart's dark surfaces, green accents, typography, navigation and
+footer. Shared presentation comes from the Bloxwap HIG packages, installed from the
+packed candidates in [`vendor/bloxwap-hig/`](../../vendor/bloxwap-hig/README.md):
+`@bloxwap/hig-tokens/css` and `@bloxwap/hig-react/css` supply the `--hig-*` roles and
+control recipes, and the install tabs, copy buttons, search states and MDX callouts
+use HIG `Tabs`, `InstallCommand`, `IconButton`, `Alert`, `EmptyState` and `Callout`.
+`app/global.css` maps Fumadocs onto the HIG roles and keeps only site layout. Never
+copy HIG CSS, palettes or fonts into this app. `hig-tokens.mjs --check` (part of
+`docs:check`) verifies the vendored hashes, the installed versions and the few
+JS-only HIG values `global.css` repeats. CI also runs HIG's scoped drift check
+(`hig-drift.json`) and `npm run docs:smoke`, a Playwright pass over install/copy,
+keyboard, search, 404 and 390 px navigation against the static export.
 
 Bloxwap Sans and Mono are self-hosted by `@bloxwap/font@0.1.2`. The social renderer
-uses local Bold/Black TTF instances; see `fonts/README.md` and the font license.
+uses the static Bold/Black instances shipped in `@bloxwap/hig-tokens/fonts`.
 Brand marks in `public/logos/` are supplied artwork, never typeset replacements.
 Every MDX page receives a static social card via `app/og/[...slug]/route.tsx`.
 

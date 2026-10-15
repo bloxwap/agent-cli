@@ -1,18 +1,23 @@
-import hig from '@/vendor/hig/manifest.json';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { tokens } from '@bloxwap/hig-tokens';
 import { ImageResponse } from 'next/og';
 import { socialImageSize } from './social';
 
 // Modeled on GitHub's repository cards, in the site's dark theme (the same card as bloxwap/sfx): the Bloxwap black
 // canvas, owner/repo title, muted description, the logo tile top right, a stats row, and a color bar along the
-// bottom (the Bloxwap brand palette).
-const ink = hig.colors.text.srgb; // --foreground
-const muted = hig.colors.muted.srgb; // --muted-foreground
-const bar: [color: string, share: number][] = [[hig.colors.action.srgb, 62], [hig.colors.info.srgb, 14], ['#b300ff', 10], ['#ff479c', 8], ['#fffb38', 6]];
+// bottom (the Bloxwap brand palette). Shared colors come from HIG tokens; purple, pink and yellow are brand-bar
+// accents outside HIG's semantic palette.
+const { colors } = tokens;
+const ink = colors.text.srgb;
+const muted = colors.muted.srgb;
+const bar: [color: string, share: number][] = [[colors.action.srgb, 62], [colors.info.srgb, 14], ['#b300ff', 10], ['#ff479c', 8], ['#fffb38', 6]];
+// Approved static Bloxwap Sans instances (derived from @bloxwap/font 0.1.2, OFL) shipped by the HIG tokens package.
+const hig = createRequire(join(process.cwd(), 'package.json'));
 const assets = Promise.all([
-  readFile(join(process.cwd(), 'fonts/BloxwapSans-Bold.ttf')),
-  readFile(join(process.cwd(), 'fonts/BloxwapSans-Black.ttf')),
+  readFile(hig.resolve('@bloxwap/hig-tokens/fonts/BloxwapSans-Bold.ttf')),
+  readFile(hig.resolve('@bloxwap/hig-tokens/fonts/BloxwapSans-Black.ttf')),
   readFile(join(process.cwd(), '../../packages/agent-cli/package.json'), 'utf8'),
 ]);
 
@@ -62,7 +67,7 @@ export async function renderSocialCard(options: {
   const fontSize = options.home || title.length <= 20 ? 84 : title.length <= 34 ? 72 : 60;
 
   return new ImageResponse(
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: hig.colors.background.srgb, color: ink, fontFamily: 'Bloxwap Sans' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: colors.background.srgb, color: ink, fontFamily: 'Bloxwap Sans' }}>
       <div style={{ display: 'flex', flex: 1, padding: '76px 80px 0' }}>
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: 64 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', fontSize, lineHeight: 1.12, letterSpacing: -1 }}>
@@ -73,8 +78,8 @@ export async function renderSocialCard(options: {
           <div style={{ display: 'flex', marginTop: 28, fontSize: 34, fontWeight: 700, lineHeight: 1.4, color: muted }}>{description}</div>
         </div>
         <svg width={200} height={200} viewBox="0 0 100 100">
-          <rect width="100" height="100" rx="22.37" fill={hig.colors.action.srgb} />
-          <g fill="none" stroke={hig.colors.onAction.srgb} strokeWidth="16" strokeLinecap="round">
+          <rect width="100" height="100" rx="22.37" fill={colors.action.srgb} />
+          <g fill="none" stroke={colors.onAction.srgb} strokeWidth="16" strokeLinecap="round">
             <path d="M25 75L75 25" /><path d="M24 24L35 35" /><path d="M65 65L76 76" />
           </g>
         </svg>

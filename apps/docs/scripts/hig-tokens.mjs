@@ -1,46 +1,59 @@
-import { readFile, writeFile } from 'node:fs/promises';
+// Verifies the HIG package install: vendored candidate tarballs match their recorded hashes, the docs depend on
+// exactly those files, the installed packages are the same build, and the few JS-only HIG numbers that
+// app/global.css copies (radius, motion, type, density) still equal the installed @bloxwap/hig-tokens.
+import { readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-const vendor = new URL('../vendor/hig/', import.meta.url);
-export const manifest = JSON.parse(await readFile(new URL('manifest.json', vendor), 'utf8'));
-export const colors = Object.fromEntries(Object.entries(manifest.colors).map(([key, value]) => [key, value.srgb]));
-export const chartTheme = {
-  theme: { background: colors.surface, textColor: colors.text, borderColor: colors.border, fontFamily: '"Bloxwap Sans", system-ui, sans-serif', monoFamily: '"Bloxwap Mono", monospace', scaleFontFamily: '"Bloxwap Mono", monospace' },
-  grid: { color: colors.border },
-  crosshair: { color: colors.muted, labelBackground: colors.action, labelColor: colors.onAction },
-  series: { upColor: colors.buy, downColor: colors.sell, wickUpColor: colors.buy, wickDownColor: colors.sell, borderUpColor: colors.buy, borderDownColor: colors.sell },
-};
-const aliases = { 'bloxwap-black': 'background', 'bloxwap-green': 'action', background: 'background', foreground: 'text', card: 'surface', 'card-foreground': 'text', popover: 'nested', 'popover-foreground': 'text', primary: 'action', 'primary-foreground': 'onAction', secondary: 'nested', 'secondary-foreground': 'text', muted: 'nested', 'muted-foreground': 'muted', accent: 'nested', 'accent-foreground': 'text', destructive: 'negative', border: 'border', input: 'border', ring: 'focus' };
-const vars = Object.entries(aliases).map(([key, role]) => `  --${key}: var(--hig-${role});`);
-for (const [key, value] of Object.entries(manifest.radius)) vars.push(`  --radius-${key === 'pill' ? 'full' : key}: ${value / 16}rem;`);
-vars.push('  --radius: var(--radius-lg);', '  --radius-2xl: var(--radius-xl);');
-for (const [key, role] of Object.entries({ xs:'xs', sm:'sm', md:'md', lg:'lg', xl:'xl', '2xl':'xxl', '3xl':'xxxl', '4xl':'section', '5xl':'section', '6xl':'section' })) vars.push(`  --space-${key}: var(--hig-space-${role});`);
-for (const [key, value] of Object.entries(manifest.motion)) vars.push(`  --duration-${key}: ${value}ms;`);
-for (const [key, role] of Object.entries(manifest.type)) {
-  vars.push(`  --type-${key}-size: ${role.size / 16}rem;`, `  --type-${key}-line: ${role.lineHeight / 16}rem;`, `  --type-${key}-weight: ${role.weight};`);
-}
-vars.push(`  --control-h: ${manifest.density.comfortable.control / 16}rem;`, `  --control-h-sm: ${manifest.density.compact.control / 16}rem;`, '  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);', '  --ease-standard: ease-out;', '  --icon-md: 16px;', '  --control-min-w: 6rem;');
-const css = `/* Generated from pinned HIG manifest by scripts/hig-tokens.mjs. */\n:root {\n${vars.join('\n')}\n}\n@media (prefers-reduced-motion: reduce) {\n  :root { --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }\n}\n`;
-const output = new URL('../styles/hig.generated.css', import.meta.url);
-if (process.argv.includes('--write')) await writeFile(output, css);
-if (process.argv.includes('--check')) {
-  assert.equal(await readFile(output, 'utf8'), css, 'HIG adapter drift: run node apps/docs/scripts/hig-tokens.mjs --write');
-  const provenance = JSON.parse(await readFile(new URL('provenance.json', vendor), 'utf8'));
-  for (const [file, hash] of Object.entries(provenance.sha256)) assert.equal(createHash('sha256').update(await readFile(new URL(file, vendor))).digest('hex'), hash, `Pinned HIG artifact changed: ${file}`);
-  const { readdir } = await import('node:fs/promises');
-  assert.deepEqual((await readdir(new URL('../styles/', import.meta.url))).sort(), ['hig.generated.css']);
-  const { readdir: list } = await import('node:fs/promises');
-  async function checkSurface(dir) {
-    for (const entry of await list(dir, { withFileTypes: true })) {
-      const path = new URL(entry.name + (entry.isDirectory() ? '/' : ''), dir);
-      if (entry.isDirectory()) await checkSurface(path);
-      else if (/\.(css|tsx?)$/.test(entry.name)) {
-        const source = await readFile(path, 'utf8');
-        assert.ok(!/@workspace\/(tokens|ui)|tokens\.generated\.css|--bloxwap-\w+\s*:\s*(#|oklch|color\()/.test(source), `Obsolete imports or copied palette: ${path}`);
-      }
-    }
+import { tokens } from '@bloxwap/hig-tokens';
+
+const root = new URL('../../../', import.meta.url);
+const docs = new URL('../', import.meta.url);
+const vendor = new URL('vendor/bloxwap-hig/', root);
+const provenance = JSON.parse(await readFile(new URL('provenance.json', vendor), 'utf8'));
+const manifest = JSON.parse(await readFile(new URL('package.json', docs), 'utf8'));
+/** npm workspaces install a package in apps/docs/node_modules or hoist it to the root. */
+async function installedManifest(name) {
+  for (const base of [docs, root]) {
+    try { return JSON.parse(await readFile(new URL(`node_modules/${name}/package.json`, base), 'utf8')); } catch { /* try the next location */ }
   }
-  await checkSurface(new URL('../app/', import.meta.url));
-  await checkSurface(new URL('../components/', import.meta.url));
-  console.log('HIG provenance, generated adapter and copied-palette drift checks passed.');
+  throw new Error(`${name} is not installed; run npm install`);
 }
+
+for (const { package: name, file, sha256 } of provenance.artifacts) {
+  const digest = createHash('sha256').update(await readFile(new URL(file, vendor))).digest('hex');
+  assert.equal(digest, sha256, `Vendored HIG tarball changed: ${file}`);
+  assert.equal(manifest.dependencies[name], `file:../../vendor/bloxwap-hig/${file}`, `${name} must install from vendor/bloxwap-hig/${file}`);
+  const installed = await installedManifest(name);
+  assert.equal(installed.version, provenance.version, `${name}: installed ${installed.version}, vendored ${provenance.version}; run npm install`);
+}
+assert.equal(tokens.version, provenance.version.split('-')[0]);
+
+const css = await readFile(new URL('app/global.css', docs), 'utf8');
+const px = (value) => `${value}px`;
+const rem = (value) => `${value / 16}rem`;
+const expected = {
+  '--docs-radius': px(tokens.radius.xl),
+  '--docs-radius-pill': px(tokens.radius.pill),
+  '--docs-duration': `${tokens.motion.fast}ms`,
+  '--docs-control-compact': px(tokens.density.compact.control),
+  '--docs-control-touch': px(tokens.density.comfortable.control),
+  '--docs-type-caption': rem(tokens.type.caption.size),
+  '--docs-type-body': rem(tokens.type.body.size),
+  '--docs-type-body-line': rem(tokens.type.body.lineHeight),
+  '--docs-type-title': rem(tokens.type.title.size),
+  '--docs-type-title-line': rem(tokens.type.title.lineHeight),
+  '--docs-type-display': rem(tokens.type.display.size),
+  '--docs-type-weight': String(tokens.type.title.weight),
+};
+assert.equal(tokens.type.display.weight, tokens.type.title.weight, '--docs-type-weight serves both title and display');
+for (const [name, value] of Object.entries(expected)) {
+  const match = css.match(new RegExp(`^\\s*${name}:\\s*([^;]+);`, 'm'));
+  assert.equal(match?.[1].trim(), value, `app/global.css ${name} must equal @bloxwap/hig-tokens (${value})`);
+}
+
+// The copied HIG folder, alias layer and committed fonts must not come back.
+for (const path of ['vendor/hig', 'styles', 'fonts']) {
+  await assert.rejects(stat(new URL(path, docs)), `apps/docs/${path} must not exist; use the HIG packages`);
+}
+assert.ok(!/--bloxwap-[\w-]+\s*:/.test(css), 'app/global.css must not define --bloxwap-* aliases; use --hig-* roles');
+console.log(`HIG ${provenance.version}: ${provenance.artifacts.length} vendored tarballs, installed packages and ${Object.keys(expected).length} host token values verified.`);

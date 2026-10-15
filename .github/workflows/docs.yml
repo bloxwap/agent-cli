@@ -3,9 +3,9 @@ name: Documentation
 on:
   push:
     branches: [main]
-    paths: ['apps/**', 'packages/**', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
+    paths: ['apps/**', 'packages/**', 'vendor/**', 'hig-drift.json', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
   pull_request:
-    paths: ['apps/**', 'packages/**', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
+    paths: ['apps/**', 'packages/**', 'vendor/**', 'hig-drift.json', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
   workflow_dispatch:
 
 permissions:
@@ -33,6 +33,17 @@ jobs:
       - run: npm run docs:build
       - run: npm run docs:check
       - run: npm run lint
+      # Scoped HIG anti-drift check from the same HIG commit as vendor/bloxwap-hig (bloxwap/hig#58).
+      - uses: actions/checkout@v7
+        with:
+          repository: bloxwap/hig
+          ref: 19c75619fa5020c015aa639172c83fd02f2bc0a2
+          path: .hig
+          sparse-checkout: scripts/drift.mjs
+          sparse-checkout-cone-mode: false
+      - run: node .hig/scripts/drift.mjs --root . --config hig-drift.json
+      - run: npx playwright install --with-deps chromium
+      - run: npm run docs:smoke
       - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/docs/out

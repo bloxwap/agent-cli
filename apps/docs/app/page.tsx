@@ -14,7 +14,7 @@ export default function Home() {
           <p className="eyebrow"><span className="status-dot" /> HYPERLIQUID · AGENT CLI</p>
           <h1>Trading tools.<br /><span>For your agent.</span></h1>
           <p className="hero-description">JSON commands, a persistent signing runner, Privy managed agents, and Relay funding. Keep master custody in your wallet and give your agent the tools to trade.</p>
-          <div className="hero-actions"><Link href="/docs/quickstart" className="btn">Get started <ArrowRight aria-hidden="true" /></Link><Link href="/docs/commands" className="btn btn--secondary">Command reference <ArrowRight aria-hidden="true" /></Link></div>
+          <div className="hero-actions"><Link href="/docs/quickstart" className="hig-button" data-intent="primary">Get started <ArrowRight aria-hidden="true" /></Link><Link href="/docs/commands" className="hig-button" data-intent="secondary">Command reference <ArrowRight aria-hidden="true" /></Link></div>
           <InstallCommand />
         </div>
         <HeroCode />

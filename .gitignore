@@ -13,3 +13,4 @@ binaries/
 out/
 *.tsbuildinfo
 apps/docs/next-env.d.ts
+.hig/
