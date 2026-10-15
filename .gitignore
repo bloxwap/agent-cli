@@ -14,3 +14,4 @@ out/
 *.tsbuildinfo
 apps/docs/next-env.d.ts
 .hig/
+!vendor/bloxwap-hig/*.tgz
