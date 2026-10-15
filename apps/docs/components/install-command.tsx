@@ -1,7 +1,7 @@
 'use client';
 
 import { Tabs } from '@bloxwap/hig-react/navigation';
-import { InstallCommand as HIGInstallCommand } from '@bloxwap/hig-react/recipes';
+import { InstallCommand as HIGInstallCommand } from '@bloxwap/hig-react/recipes/install-command';
 
 const managers = [
   { name: 'npm', command: 'npm install -g @bloxwap/agent-cli' },

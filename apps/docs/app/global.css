@@ -5,36 +5,20 @@
 @import '@bloxwap/hig-react/css';
 
 @theme inline {
-  --font-sans: var(--font-bloxwap-sans), ui-rounded, system-ui, sans-serif;
-  --font-mono: var(--font-bloxwap-mono), ui-monospace, monospace;
+  --font-sans: var(--hig-font-sans);
+  --font-mono: var(--hig-font-mono);
   --text-3xs: 0.625rem;
   --text-2xs: 0.6875rem;
 }
 
 /*
- * Colors, spacing and control heights come from @bloxwap/hig-tokens/css as --hig-* roles. The package
- * publishes radius, motion, type and compact density only in JS (`tokens`), so this host copies those
- * numbers once; `scripts/hig-tokens.mjs --check` fails if they stop matching the installed package.
+ * Every HIG value comes from @bloxwap/hig-tokens/css as a --hig-* role: colors, spacing, control heights, radius
+ * (--hig-radius-*), motion (--hig-motion-*, already 0ms under prefers-reduced-motion), type (--hig-type-*), density
+ * (--hig-density-*) and the font families (--hig-font-sans/mono resolve the @bloxwap/font loader variables on <html>).
+ * The host keeps only its own icon size.
  */
 :root {
-  --docs-radius: 14px; /* tokens.radius.xl */
-  --docs-radius-pill: 9999px; /* tokens.radius.pill */
-  --docs-duration: 180ms; /* tokens.motion.fast */
-  --docs-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --docs-control-compact: 36px; /* tokens.density.compact.control */
-  --docs-control-touch: 48px; /* tokens.density.comfortable.control */
-  --docs-control-min: 6rem;
   --docs-icon: 16px;
-  --docs-type-caption: 0.75rem; /* tokens.type.caption.size */
-  --docs-type-body: 1rem; /* tokens.type.body.size */
-  --docs-type-body-line: 1.5rem; /* tokens.type.body.lineHeight */
-  --docs-type-title: 1.5rem; /* tokens.type.title.size */
-  --docs-type-title-line: 1.875rem; /* tokens.type.title.lineHeight */
-  --docs-type-display: 3rem; /* tokens.type.display.size */
-  --docs-type-weight: 600; /* tokens.type.title.weight and tokens.type.display.weight */
-}
-@media (prefers-reduced-motion: reduce) {
-  :root { --docs-duration: 0ms; }
 }
 
 /* Fumadocs surfaces and states read the HIG semantic roles directly. */
@@ -94,8 +78,8 @@ html > body[data-scroll-locked] {
 }
 
 #nd-page > p {
-  font-size: var(--docs-type-body);
-  line-height: var(--docs-type-body-line);
+  font-size: var(--hig-type-body-size);
+  line-height: var(--hig-type-body-line-height);
 }
 
 .prose {
@@ -161,8 +145,8 @@ html > body[data-scroll-locked] {
   justify-content: space-between;
   min-height: 2.5rem;
   padding: 0.5rem 0.75rem;
-  border-radius: var(--docs-radius-pill);
-  transition: background-color var(--docs-duration) var(--docs-ease), color var(--docs-duration) var(--docs-ease);
+  border-radius: var(--hig-radius-pill);
+  transition: background-color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard), color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard);
   font-size: 0.875rem;
   font-weight: 600;
 }
@@ -173,18 +157,16 @@ html > body[data-scroll-locked] {
 }
 
 /*
- * HIG buttons (@bloxwap/hig-react/css) supply paint, height and states. The host adds layout only: icon
- * slots, anchors rendered as buttons, and the font loader's family names. @bloxwap/font registers
- * Bloxwap Sans under a generated name, so the recipe's 'Bloxwap Sans' family is mapped to its variable.
+ * HIG buttons (@bloxwap/hig-react/css) supply paint, height, font and states. The host adds layout only: icon
+ * slots and anchors rendered as buttons.
  */
 .hig-button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--hig-space-sm);
-  font-family: var(--font-sans); text-decoration: none; touch-action: manipulation;
+  text-decoration: none; touch-action: manipulation;
 }
 .hig-button svg { flex: none; width: var(--docs-icon); height: var(--docs-icon); }
-.hig-button[data-shape='icon'] { width: var(--hig-control); min-width: 0; padding: 0; }
+.hig-button[data-shape='icon'] { width: var(--hig-button); min-width: 0; padding: 0; }
 .hig-button[data-shape='icon'] > span { display: inline-flex; }
-.hig-number { font-family: var(--font-mono); }
 
 /* Chart-specific layout on the scale above; typography, surfaces, and states follow workers/docs. */
 .brand { display: inline-flex; align-items: center; gap: var(--hig-space-md); }
@@ -199,7 +181,7 @@ html > body[data-scroll-locked] {
 .hero--single { grid-template-columns: minmax(0, 1fr); max-width: 47.5rem; }
 .hero-copy { min-width: 0; }
 .eyebrow { display: flex; align-items: center; gap: var(--hig-space-sm); color: var(--color-fd-muted-foreground); font: var(--text-2xs) / 1.5 var(--font-mono); letter-spacing: .09em; }
-.status-dot { width: 6px; height: 6px; border-radius: var(--docs-radius-pill); background: var(--color-fd-primary); }
+.status-dot { width: 6px; height: 6px; border-radius: var(--hig-radius-pill); background: var(--color-fd-primary); }
 .hero h1 { margin: var(--hig-space-xl) 0 0; font-size: clamp(var(--text-5xl), 4.4vw, 4rem); line-height: 1.07; font-weight: 600; letter-spacing: -.04em; }
 .hero h1 span { color: var(--color-fd-foreground); }
 .hero-description { max-width: 35rem; margin-top: var(--hig-space-xl); color: var(--color-fd-muted-foreground); line-height: 1.5; font-size: var(--text-lg); }
@@ -207,12 +189,12 @@ html > body[data-scroll-locked] {
 .package-install { width: fit-content; max-width: 100%; margin-top: var(--hig-space-xxl); }
 .package-install [role='tablist'] { gap: var(--hig-space-xs); }
 .package-install [role='tab'] { min-width: 4.5rem; font-family: var(--font-mono); }
-.package-install [role='tabpanel'] { margin-top: var(--hig-space-md); border-radius: var(--docs-radius); }
+.package-install [role='tabpanel'] { margin-top: var(--hig-space-md); border-radius: var(--hig-radius-xl); }
 /* Layout for the HIG InstallCommand recipe (surface, command, copy button, status). */
 .package-install .hig-surface { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--hig-space-md) var(--hig-space-lg); }
 .package-install pre { margin: 0; font: 600 var(--text-sm) / 1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .package-install pre code::before { content: '$ '; color: var(--hig-muted); user-select: none; }
-.package-install [role='status'] { grid-column: 1 / -1; margin: 0; color: var(--hig-muted); font-size: var(--docs-type-caption); }
+.package-install [role='status'] { grid-column: 1 / -1; margin: 0; color: var(--hig-muted); font-size: var(--hig-type-caption-size); }
 .package-install [role='status']:empty { display: none; }
 .install-platforms { margin-top: var(--hig-space-lg); color: var(--hig-muted); font-size: var(--text-sm); line-height: 1.5; }
 
@@ -220,18 +202,18 @@ html > body[data-scroll-locked] {
 .code-window {
   --code-keyword: color-mix(in oklab, #ff479c 70%, var(--hig-text));
   --code-type: color-mix(in oklab, var(--hig-info) 60%, var(--hig-text));
-  min-width: 0; margin: 0; overflow: hidden; border-radius: var(--docs-radius); background: var(--hig-surface); color: var(--hig-text);
+  min-width: 0; margin: 0; overflow: hidden; border-radius: var(--hig-radius-xl); background: var(--hig-surface); color: var(--hig-text);
 }
 .code-toolbar {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--hig-space-md);
   padding: var(--hig-space-md) var(--hig-space-xxl) 0; font: var(--text-2xs) / 1.5 var(--font-mono); color: var(--hig-muted);
 }
 .window-dots { display: flex; gap: var(--hig-space-xs); }
-.window-dots > i { width: 6px; height: 6px; border-radius: var(--docs-radius-pill); background: var(--hig-nested); }
+.window-dots > i { width: 6px; height: 6px; border-radius: var(--hig-radius-pill); background: var(--hig-nested); }
 .code-caption { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .code-language { color: var(--code-type); }
 .code-actions { display: flex; align-items: center; gap: var(--hig-space-xs); margin-right: calc(-1 * var(--hig-space-md)); }
-.code-toolbar { min-height: var(--docs-control-compact); }
+.code-toolbar { min-height: var(--hig-density-compact-control); }
 .code-window pre { margin: 0; overflow-x: auto; padding: var(--hig-space-xl) var(--hig-space-xxl); font: var(--text-xs) / 1.85 var(--font-mono); tab-size: 2; scrollbar-width: none; }
 .code-window pre::-webkit-scrollbar { display: none; }
 .syntax-keyword { color: var(--code-keyword); }
@@ -242,7 +224,7 @@ html > body[data-scroll-locked] {
   display: flex; align-items: center; gap: var(--hig-space-sm); margin: 0;
   padding: 0 var(--hig-space-xxl) var(--hig-space-lg); font: var(--text-2xs) / 1.5 var(--font-mono); color: var(--hig-muted);
 }
-.code-status > span { width: 6px; height: 6px; border-radius: var(--docs-radius-pill); background: var(--hig-action); }
+.code-status > span { width: 6px; height: 6px; border-radius: var(--hig-radius-pill); background: var(--hig-action); }
 
 /*
  * Entrance: three attention layers ~200 ms apart on one curve (MOT-2), as on the Hyperliquid SDK site:
@@ -251,7 +233,7 @@ html > body[data-scroll-locked] {
 @keyframes landing-rise {
   from { opacity: 0; translate: 0 8px; }
 }
-.hero-copy > *, .code-window, .hero-preview { animation: landing-rise 600ms var(--docs-ease) both; }
+.hero-copy > *, .code-window, .hero-preview { animation: landing-rise 600ms var(--hig-motion-easing-standard) both; }
 .hero-copy > h1 { animation-delay: 60ms; }
 .hero-copy > :not(.eyebrow, h1) { animation-delay: 200ms; }
 .code-window { animation-delay: 360ms; }
@@ -262,14 +244,14 @@ html > body[data-scroll-locked] {
 
 /* Search (header and docs sidebar): a zero-stroke filled pill at the small control height, with key chips one step lighter than the box. */
 button[data-search-full] {
-  height: var(--docs-control-compact); gap: var(--hig-space-sm); padding: 0 var(--hig-space-xs) 0 var(--hig-space-md);
-  border: 0; border-radius: var(--docs-radius-pill); background: var(--hig-surface); color: var(--hig-muted); font-size: var(--text-sm);
-  transition: background-color var(--docs-duration) var(--docs-ease), color var(--docs-duration) var(--docs-ease);
+  height: var(--hig-density-compact-control); gap: var(--hig-space-sm); padding: 0 var(--hig-space-xs) 0 var(--hig-space-md);
+  border: 0; border-radius: var(--hig-radius-pill); background: var(--hig-surface); color: var(--hig-muted); font-size: var(--text-sm);
+  transition: background-color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard), color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard);
 }
 button[data-search-full]:hover { background: var(--hig-nested); color: var(--hig-text); }
 button[data-search-full] kbd {
   display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.5rem; padding: 0 var(--hig-space-xs);
-  border: 0; border-radius: var(--docs-radius-pill); background: color-mix(in oklab, var(--hig-surface) 80%, var(--hig-text)); color: var(--hig-text);
+  border: 0; border-radius: var(--hig-radius-pill); background: color-mix(in oklab, var(--hig-surface) 80%, var(--hig-text)); color: var(--hig-text);
   font: var(--text-2xs) / 1 var(--font-mono);
 }
 .hero-preview {
@@ -287,7 +269,7 @@ button[data-search-full] kbd {
   overflow: hidden;
   width: 100%;
   border: 1px solid var(--hig-border);
-  border-radius: var(--docs-radius);
+  border-radius: var(--hig-radius-xl);
   background: var(--hig-background);
   color: var(--hig-text);
   font-family: var(--font-sans);
@@ -306,7 +288,7 @@ button[data-search-full] kbd {
 .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--hig-space-md); padding: var(--hig-space-lg) 0 var(--hig-space-xxxl); }
 .principles > div, .guide-links a {
   background: var(--hig-surface);
-  border-radius: var(--docs-radius);
+  border-radius: var(--hig-radius-xl);
   padding: var(--hig-space-xl);
 }
 .feature-number { color: var(--color-fd-primary); font: var(--text-2xs) var(--font-mono); }
@@ -318,13 +300,13 @@ button[data-search-full] kbd {
 .guide-links { display: grid; gap: var(--hig-space-md); }
 .guide-links a {
   display: flex; align-items: center; gap: var(--hig-space-xl);
-  transition: background-color var(--docs-duration) var(--docs-ease);
+  transition: background-color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard);
 }
 .guide-links a:hover { background: var(--hig-nested); }
 .guide-links a > span { font: var(--text-2xs) var(--font-mono); color: var(--color-fd-muted-foreground); }
-.guide-links a > svg { flex: none; margin-left: auto; width: var(--docs-icon); height: var(--docs-icon); color: var(--color-fd-muted-foreground); transition: color var(--docs-duration) var(--docs-ease), transform var(--docs-duration) var(--docs-ease); }
+.guide-links a > svg { flex: none; margin-left: auto; width: var(--docs-icon); height: var(--docs-icon); color: var(--color-fd-muted-foreground); transition: color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard), transform var(--hig-motion-duration-fast) var(--hig-motion-easing-standard); }
 .guide-links a:hover > svg { color: var(--color-fd-primary); transform: translateX(2px); }
-.guide-links h3 { font-size: var(--text-sm); margin-bottom: var(--hig-space-xs); font-weight: 600; transition: color var(--docs-duration) var(--docs-ease); }
+.guide-links h3 { font-size: var(--text-sm); margin-bottom: var(--hig-space-xs); font-weight: 600; transition: color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard); }
 .guide-links a:hover h3 { color: var(--color-fd-primary); }
 .guide-links p { color: var(--color-fd-muted-foreground); font-size: var(--text-xs); }
 /* Full-bleed rule; content inset to the header's box so both edges line up with the nav. */
@@ -332,14 +314,14 @@ button[data-search-full] kbd {
 .site-footer { margin-top: auto; padding: var(--hig-space-section) max(var(--hig-space-lg), calc((100% - var(--fd-layout-width, 1400px)) / 2 + var(--hig-space-lg))) var(--hig-space-section); }
 /* Page end: Edit on GitHub as a quiet ghost pill, prev/next as zero-stroke fill cards (the landing's card style). */
 #nd-page .edit-on-github {
-  align-self: flex-start; height: var(--docs-control-compact); padding: 0 var(--hig-space-md); border: 0; border-radius: var(--docs-radius-pill);
+  align-self: flex-start; height: var(--hig-density-compact-control); padding: 0 var(--hig-space-md); border: 0; border-radius: var(--hig-radius-pill);
   background: transparent; color: var(--hig-muted); font-size: var(--text-sm);
-  transition: background-color var(--docs-duration) var(--docs-ease), color var(--docs-duration) var(--docs-ease);
+  transition: background-color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard), color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard);
 }
 #nd-page .edit-on-github:hover { background: var(--hig-surface); color: var(--hig-text); }
 .page-nav > a {
-  padding: var(--hig-space-xl) var(--hig-space-xxl); border: 0; border-radius: var(--docs-radius); background: var(--hig-surface);
-  transition: background-color var(--docs-duration) var(--docs-ease), color var(--docs-duration) var(--docs-ease);
+  padding: var(--hig-space-xl) var(--hig-space-xxl); border: 0; border-radius: var(--hig-radius-xl); background: var(--hig-surface);
+  transition: background-color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard), color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard);
 }
 .page-nav > a:hover { background: var(--hig-nested); color: var(--hig-action); }
 .footer-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--hig-space-xxl); row-gap: var(--hig-space-section); }
@@ -350,7 +332,7 @@ button[data-search-full] kbd {
 /* The wordmark's box reserves descender room for the "p"; shift it so the cap height (not the box) centers on the icon: (143/2 - (149-74.6)/2) / 223.6 of the viewBox. */
 .footer-wordmark { width: auto; height: 32px; transform: translateY(15.3%); }
 .footer-col h2 { margin: 0 0 var(--hig-space-md); color: var(--color-fd-muted-foreground); font: 700 var(--text-2xs) / 1.5 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; }
-.footer-col a, .footer-base a { transition: color var(--docs-duration) var(--docs-ease), opacity var(--docs-duration) var(--docs-ease); }
+.footer-col a, .footer-base a { transition: color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard), opacity var(--hig-motion-duration-fast) var(--hig-motion-easing-standard); }
 .footer-col a { display: block; width: fit-content; padding: var(--hig-space-xs) 0; color: var(--color-fd-foreground); font-size: var(--text-sm); opacity: .8; }
 .footer-col a:hover, .footer-base a:hover { color: var(--color-fd-primary); opacity: 1; }
 .footer-base { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--hig-space-sm); margin-top: var(--hig-space-section); color: var(--color-fd-muted-foreground); font-size: var(--text-xs); }
@@ -362,13 +344,13 @@ button[data-search-full] kbd {
 }
 @media (max-width: 480px) { .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .docs-sidebar-links { display: flex; align-items: center; gap: var(--hig-space-lg); padding-top: var(--hig-space-lg); font-size: var(--text-xs); color: var(--color-fd-muted-foreground); }
-.docs-sidebar-links a { transition: color var(--docs-duration) var(--docs-ease); }
+.docs-sidebar-links a { transition: color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard); }
 .docs-sidebar-links a:hover { color: var(--color-fd-foreground); }
 .not-found { max-width: 37.5rem; padding: 7.5rem var(--hig-space-xxl); margin: 0 auto; }
 .not-found h1 { font-size: var(--text-4xl); margin: var(--hig-space-xxl) 0; }
 .not-found .hig-button { margin-top: var(--hig-space-xxxl); }
 .not-found-links { display: flex; flex-wrap: wrap; gap: var(--hig-space-sm) var(--hig-space-xl); margin-top: var(--hig-space-xxxl); font: var(--text-2xs) / 1.5 var(--font-mono); letter-spacing: .09em; }
-.not-found-links a { color: var(--color-fd-muted-foreground); transition: color var(--docs-duration) var(--docs-ease); }
+.not-found-links a { color: var(--color-fd-muted-foreground); transition: color var(--hig-motion-duration-fast) var(--hig-motion-easing-standard); }
 .not-found-links a:hover { color: var(--color-fd-foreground); }
 @media (max-width: 800px) {
   .home { padding-top: var(--hig-space-xxxl); }
@@ -389,14 +371,14 @@ button[data-search-full] kbd {
 }
 
 /* HIG type roles and adaptive targets; the dense chart keeps compact controls. */
-body { font-size: var(--docs-type-body); line-height: var(--docs-type-body-line); }
-.hero h1 { font-size: clamp(var(--docs-type-title), 4.4vw, var(--docs-type-display)); line-height: 1.0833; font-weight: var(--docs-type-weight); }
-#nd-page h1 { font-size: var(--docs-type-title); line-height: var(--docs-type-title-line); font-weight: var(--docs-type-weight); }
-.copy-feedback { color: var(--hig-negative); font-size: var(--docs-type-caption); }
+body { font-size: var(--hig-type-body-size); line-height: var(--hig-type-body-line-height); }
+.hero h1 { font-size: clamp(var(--hig-type-title-size), 4.4vw, var(--hig-type-display-size)); line-height: 1.0833; font-weight: var(--hig-type-display-weight); }
+#nd-page h1 { font-size: var(--hig-type-title-size); line-height: var(--hig-type-title-line-height); font-weight: var(--hig-type-title-weight); }
+.copy-feedback { color: var(--hig-negative); font-size: var(--hig-type-caption-size); }
 @media (pointer: coarse) {
   .docs-app-link, #nd-page .edit-on-github { min-height: var(--hig-control); }
   /* Compact HIG controls keep the comfortable 48 px target on touch screens. */
-  [data-hig-density='compact'] { --hig-control: var(--docs-control-touch); }
+  [data-hig-density='compact'] { --hig-control: var(--hig-density-comfortable-target); --hig-button: var(--hig-density-comfortable-target); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; scroll-behavior: auto !important; }

@@ -40,15 +40,21 @@ packed candidates in [`vendor/bloxwap-hig/`](../../vendor/bloxwap-hig/README.md)
 `@bloxwap/hig-tokens/css` and `@bloxwap/hig-react/css` supply the `--hig-*` roles and
 control recipes, and the install tabs, copy buttons, search states and MDX callouts
 use HIG `Tabs`, `InstallCommand`, `IconButton`, `Alert`, `EmptyState` and `Callout`.
-`app/global.css` maps Fumadocs onto the HIG roles and keeps only site layout. Never
-copy HIG CSS, palettes or fonts into this app. `hig-tokens.mjs --check` (part of
-`docs:check`) verifies the vendored hashes, the installed versions and the few
-JS-only HIG values `global.css` repeats. CI also runs HIG's scoped drift check
-(`hig-drift.json`) and `npm run docs:smoke`, a Playwright pass over install/copy,
-keyboard, search, 404 and 390 px navigation against the static export.
+`app/global.css` maps Fumadocs onto the HIG roles and keeps only site layout; radius,
+motion, type, density and font families are read from the `--hig-radius-*`,
+`--hig-motion-*`, `--hig-type-*`, `--hig-density-*` and `--hig-font-*` roles. Never
+copy HIG CSS, token values, palettes or fonts into this app. `hig-tokens.mjs --check`
+(part of `docs:check`) verifies the vendored hashes, the `file:` specs and overrides,
+the installed versions, that every `--hig-*` role `global.css` reads exists in the
+installed HIG CSS, and that no token numbers or font bridge come back. CI also runs
+HIG's scoped drift check (`hig-drift.json`) and `npm run docs:smoke`, a Playwright pass
+over install/copy, keyboard, search, 404, 390 px navigation and touch targets, loaded
+Bloxwap faces on HIG controls, and reduced motion against the static export.
 
-Bloxwap Sans and Mono are self-hosted by `@bloxwap/font@0.1.2`. The social renderer
-uses the static Bold/Black instances shipped in `@bloxwap/hig-tokens/fonts`.
+Bloxwap Sans and Mono are self-hosted by `@bloxwap/font@0.1.2`; its Next loader variables
+sit on `<html>`, where `--hig-font-sans`/`--hig-font-mono` pick them up. The social
+renderer needs static TTFs, which `@bloxwap/font` does not ship, so it reads the Bold/Black
+instances from `@bloxwap/hig-native-fonts/fonts` (a build-time dev dependency).
 Brand marks in `public/logos/` are supplied artwork, never typeset replacements.
 Every MDX page receives a static social card via `app/og/[...slug]/route.tsx`.
 
