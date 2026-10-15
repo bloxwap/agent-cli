@@ -1,0 +1,104 @@
+{
+  "note": "Static export with NEXT_PUBLIC_BASE_PATH=/agent-cli; emitted file sizes on disk (gzip = per-file gzip -9 default level sum), not transfer sizes. Measured by a Node script over apps/docs/out, the tracked apps/docs sources and package-lock.json.",
+  "hig": {
+    "commit": "19c75619fa5020c015aa639172c83fd02f2bc0a2",
+    "version": "0.1.0-candidate.sha19c75619"
+  },
+  "before": {
+    "label": "before",
+    "commit": "19ebad0",
+    "basePath": "/agent-cli",
+    "source": {
+      "css": {
+        "files": 3,
+        "bytes": 25447,
+        "gzip": 6098,
+        "lines": 530,
+        "paths": [
+          "apps/docs/app/global.css",
+          "apps/docs/styles/hig.generated.css",
+          "apps/docs/vendor/hig/tokens.css"
+        ]
+      },
+      "fonts": {
+        "files": 2,
+        "bytes": 892964,
+        "gzip": 342654,
+        "paths": [
+          "apps/docs/fonts/BloxwapSans-Black.ttf",
+          "apps/docs/fonts/BloxwapSans-Bold.ttf"
+        ]
+      }
+    },
+    "emitted": {
+      "css": {
+        "files": 2,
+        "bytes": 142143,
+        "gzip": 22554
+      },
+      "js": {
+        "files": 27,
+        "bytes": 1262320,
+        "gzip": 404715
+      },
+      "fonts": {
+        "files": 22,
+        "bytes": 12965628,
+        "gzip": 12917806
+      },
+      "html": 16,
+      "total": 20535551
+    },
+    "dependencies": {
+      "docsDirect": 15,
+      "docsRuntime": 8,
+      "lockfilePackages": 703
+    }
+  },
+  "after": {
+    "label": "after",
+    "commit": "this PR (working tree on 19ebad0)",
+    "basePath": "/agent-cli",
+    "source": {
+      "css": {
+        "files": 1,
+        "bytes": 21885,
+        "gzip": 5235,
+        "lines": 408,
+        "paths": [
+          "apps/docs/app/global.css"
+        ]
+      },
+      "fonts": {
+        "files": 0,
+        "bytes": 0,
+        "gzip": 0,
+        "paths": []
+      }
+    },
+    "emitted": {
+      "css": {
+        "files": 2,
+        "bytes": 150822,
+        "gzip": 24357
+      },
+      "js": {
+        "files": 27,
+        "bytes": 1268249,
+        "gzip": 406679
+      },
+      "fonts": {
+        "files": 22,
+        "bytes": 12965628,
+        "gzip": 12917806
+      },
+      "html": 16,
+      "total": 20552717
+    },
+    "dependencies": {
+      "docsDirect": 21,
+      "docsRuntime": 13,
+      "lockfilePackages": 764
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "paths": ["apps/docs/app", "apps/docs/components", "apps/docs/lib", "apps/docs/mdx-components.tsx", "apps/docs/scripts", "apps/docs/public", "apps/docs/fonts", "apps/docs/styles", "apps/docs/vendor"],
+  "canonical": [],
+  "obsoleteImports": [],
+  "exceptions": []
+}

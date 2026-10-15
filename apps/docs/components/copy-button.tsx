@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
+import { IconButton } from '@bloxwap/hig-react/button';
 
-/** A quiet icon button that copies `text`, with a check mark and a screen-reader status on success. */
+/** A compact HIG icon button that copies `text`, with a check mark and a screen-reader status on success. */
 export function CopyButton({ text, label }: { text: string; label: string }) {
   const pending = useRef(false);
-  const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<'copied' | 'failed' | null>(null);
 
   useEffect(() => {
@@ -18,7 +18,6 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
   async function copy() {
     if (pending.current) return;
     pending.current = true;
-    setBusy(true);
     try {
       await navigator.clipboard.writeText(text);
       setResult('copied');
@@ -26,15 +25,14 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
       setResult('failed');
     } finally {
       pending.current = false;
-      setBusy(false);
     }
   }
 
   return <>
-    <button type="button" className="btn btn--ghost btn--icon" aria-label={label} disabled={busy} aria-busy={busy} title={result === 'copied' ? 'Copied!' : label} onClick={copy}>
-      {result === 'copied' ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-    </button>
-    <span role="status" className={result === 'failed' ? 'copy-feedback' : 'sr-only'}>
+    <IconButton intent="ghost" label={label} data-shape="icon" data-hig-density="compact" title={result === 'copied' ? 'Copied!' : label} onClick={copy}>
+      {result === 'copied' ? <Check /> : <Copy />}
+    </IconButton>
+    <span role="status" className={result === 'failed' ? 'copy-feedback' : 'hig-sr-only'}>
       {result === 'copied' ? 'Code copied to clipboard.' : result === 'failed' ? 'Could not copy. Select the code to copy it manually.' : ''}
     </span>
   </>;
