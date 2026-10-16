@@ -13,7 +13,7 @@
 | #8 | done | Service error adapters, redacted upstream detail, fixture-driven classification and retry defaults. |
 | #9 | done | Bounded jittered retries and per-signer persisted monotonic nonces guarded by exclusive locks. Stale locks fail closed. |
 | #10 | done | Privy server SDK create/link, P-256 owner, private authorization storage and typed-data signer; sandbox test env-gated. |
-| #11 | partial | Versioned domain/network Privy policy and local trade allowlist; L1 action hash prevents Privy per-action/notional inspection. Exchange agent permissions enforce withdrawal boundary. |
+| #11 | partial | User-owned Privy app, v2 domain/network and no-export policy, authorized wallet attachment and init revalidation; local typed-data and withdrawal rejection tests pass. Direct live Privy rejection still needs a dedicated test app. L1 action hashes prevent Privy per-action/notional inspection; exchange agent permissions enforce the withdrawal boundary. |
 | #12 | done | Idempotent managed-wallet onboarding, persisted external master EIP-712 approvals/deeplink, expiry bound, agent/builder verification and master-key rejection. |
 | #13 | done | Default Bloxwap builder address with f=10 (0.01%); config/env overrides, init approval, approved-maximum checks and fund/order address/rate reporting. |
 | #14 | done | Typed validated Relay quote/status adapter, perps USDC destination, multiple origin routes and fee parsing; mocked fixtures. |
@@ -39,15 +39,15 @@
 | #34 | done | Optional cancel-all, resumable master revocation payload, immediate local blocking and config/session clearing after exchange submission. |
 | #35 | done | Cross-process locked fsynced hash-chain audit, intent/decision/signature digest/response/fill linkage, rotation/revoke records and filters; tamper/redaction tests. |
 | #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |
-| #37 | partial | Independently forward-tested, schema-validated self-contained skill with every command example, ordered funding/custody flow and complete error table; real agent testnet execution requires credentials (#39 gate). |
+| #37 | partial | User-owned Privy guidance, resumable approval/funding stages, exchange reconciliation and complete schema-validated command examples/error table. Offline forward tests pass; an actual coding-agent testnet session still needs dedicated QA credentials and evidence. |
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
-| #39 | partial | Full mocked CLI/SDK/RPC lifecycle passes; opt-in real testnet lifecycle with mocked Relay, nightly secrets gate and journal artifacts. Real execution skipped without credentials. |
-| #40 | partial | Postinstall-free executable package, supported Node 22.12+ engine and global/Bun install smoke pass locally; macOS/Linux CI and optional compiled binaries. Registry install awaits publication. |
-| #41 | partial | Changesets/version PR workflow, gated tag publish with npm provenance, generated release notes and binary/skill assets; publishing not run without registry credentials. |
+| #39 | partial | Full mocked CLI/SDK/RPC lifecycle and fail-closed testnet harness, with builder approval, exchange outcome reconciliation, runner/events, rotation/revoke and audit assertions. Nightly live execution and journals need a disposable funded QA account and QA Privy app; missing credentials cannot count as a pass. |
+| #40 | partial | Script-free tarball global install and actual installed bunx help/schema smoke pass locally; executable/skill/license checks and Node 22.12/24 macOS/Linux CI. Public registry installation awaits publication. |
+| #41 | partial | Validated Changesets patch workflow with optional version PR, native binary smoke/checksums, tagged-main version gates, exact tested tarball publication with provenance and registry verification. Manual candidates cannot publish. Actual release needs npm authentication and the publishing gate; organization policy blocks automatic version PRs, so the default workflow uploads a reviewable patch. |
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
 | #49 | done | Docs token guard checks declarations anywhere on a line; regression coverage includes formatted and minified radius, motion, density and type copies. The issue's same-line mutation makes docs:check fail. |
 
-Final local verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. Sandbox/testnet scripts skip without credentials. npm audit reports zero vulnerabilities. Bloxwap builder defaults to f=10 (0.01%), with config/env overrides.
+Original implementation verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. This did not establish live Privy/testnet or registry acceptance. Bloxwap builder defaults to f=10 (0.01%), with config/env overrides.
 
 ## Workspace and Fumadocs migration
 
@@ -56,3 +56,18 @@ Final local verification: supported Node 22, strict build/lint/typecheck and iso
 - Local docs URLs: done — development defaults to `http://localhost:3903/` with documentation under `/docs/`; the Pages workflow explicitly retains `/agent-cli` as its deployment base path.
 - Landing workflow panel: done — shared code-window toolbar and copy control, highlighted shell commands, muted comments, and HIG-backed blue syntax colors.
 - Verification: Node 24; clean `npm ci`; root build/lint/typecheck/tests (71 tests), docs build/check, export link/social checks, static preview 200/404 checks, CLI pack and global-install smoke passed. No push or publish.
+
+## Open-issue review — 2026-10-16
+
+Three agents reviewed policies (#11), the skill/testnet lifecycle (#37/#39),
+and installation/releases (#40/#41); the integration review fixed #49.
+The integrated local checks pass build, lint, typecheck, 103 CLI tests, two docs
+guard tests, docs build/check and the script-free global npm/installed bunx smoke.
+The exact same-line CSS mutation from #49 is rejected by `docs:check`.
+
+Live acceptance remains pending: the `testnet` environment has no QA credentials,
+the public npm package returns 404, and publication authentication/gating is not
+configured. GitHub also rejected the repository's Actions PR setting with an
+organization-policy 409; version dispatch therefore defaults to an uploaded
+reviewable patch. No production user credentials, package publication or live
+account trading were used for this review.
