@@ -5,6 +5,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { tokens } from '@bloxwap/hig-tokens';
+import { assertNoCopiedHigTokens } from './hig-css-guard.mjs';
 
 const root = new URL('../../../', import.meta.url);
 const docs = new URL('../', import.meta.url);
@@ -35,8 +36,7 @@ assert.equal(tokens.version, provenance.version.split('-')[0]);
 
 const css = await readFile(new URL('app/global.css', docs), 'utf8');
 // Radius, motion, type, density and font families are CSS roles in @bloxwap/hig-tokens/css; a host copy would drift.
-const copied = css.match(/^\s*--docs-(?:radius|duration|ease|control|type)[\w-]*\s*:/m);
-assert.ok(!copied, `app/global.css must use --hig-radius/motion/type/density roles, not copy ${copied?.[0].trim()}`);
+assertNoCopiedHigTokens(css);
 assert.ok(!/var\(--font-bloxwap-(?:sans|mono)\)/.test(css), 'app/global.css must read fonts through --hig-font-sans/--hig-font-mono');
 assert.ok(!/\.hig-(?:button|number)[^{]*\{[^}]*font-family/.test(css), 'HIG controls resolve the font roles themselves; no font-family bridge');
 const roles = ['--hig-radius-xl', '--hig-motion-duration-fast', '--hig-type-body-size', '--hig-density-compact-control', '--hig-font-sans'];

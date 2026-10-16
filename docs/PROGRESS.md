@@ -45,6 +45,7 @@
 | #40 | partial | Postinstall-free executable package, supported Node 22.12+ engine and global/Bun install smoke pass locally; macOS/Linux CI and optional compiled binaries. Registry install awaits publication. |
 | #41 | partial | Changesets/version PR workflow, gated tag publish with npm provenance, generated release notes and binary/skill assets; publishing not run without registry credentials. |
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
+| #49 | done | Docs token guard checks declarations anywhere on a line; regression coverage includes formatted and minified radius, motion, density and type copies. The issue's same-line mutation makes docs:check fail. |
 
 Final local verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. Sandbox/testnet scripts skip without credentials. npm audit reports zero vulnerabilities. Bloxwap builder defaults to f=10 (0.01%), with config/env overrides.
 
