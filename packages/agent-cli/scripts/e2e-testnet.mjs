@@ -1,135 +1,179 @@
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, copyFileSync, existsSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
+import { createConnection } from 'node:net';
 import { privateKeyToAccount } from 'viem/accounts';
-if (
-  process.env.BLOXWAP_E2E !== '1' ||
-  !process.env.BLOXWAP_TEST_MASTER_KEY ||
-  !process.env.BLOXWAP_PRIVY_APP_ID ||
-  !process.env.BLOXWAP_PRIVY_APP_SECRET
-) {
-  console.log(
-    'SKIP: set BLOXWAP_E2E=1 and dedicated testnet master/Privy credentials',
-  );
-  process.exit(0);
+import { requireTestnetEnvironment, requiredTestnetSecrets, testnetLifecycle } from './testnet-lifecycle.mjs';
+
+const directory = join(homedir(), '.bloxwap');
+const config = join(directory, 'e2e-config.json');
+const artifacts = resolve('artifacts');
+mkdirSync(artifacts, { recursive: true });
+const report = {
+  schemaVersion: 1, status: 'failed', network: 'testnet',
+  accountOwnership: 'company-owned disposable CI account; never a user wallet',
+  coverage: {
+    hyperliquid: { mode: 'live testnet', verified: false },
+    privy: { mode: 'live dedicated test app', verified: false },
+    relay: { mode: 'mocked zero-value route; pre-funded collateral', verified: false },
+  },
+  agentSession: { status: 'not-run', reason: 'Deterministic CI script; an independent coding-agent session is required for issue 37' },
+  commit: process.env.GITHUB_SHA ?? null,
+  workflowRun: process.env.GITHUB_RUN_ID ?? null,
+  startedAt: new Date().toISOString(), stages: [], cleanup: 'not-started',
+};
+let account;
+let childEnv;
+let ownedState = false;
+let follower;
+let followed = '';
+let followFailure = false;
+let stoppingFollower = false;
+function command(name, input = {}) {
+  const result = spawnSync(process.execPath, [
+    'dist/cli.js', name, '--config', config, '--network', 'testnet',
+  ], { input: JSON.stringify(input), encoding: 'utf8', env: childEnv, timeout: 60_000, maxBuffer: 4_194_304 });
+  let envelope;
+  try { envelope = JSON.parse(result.stdout); }
+  catch { throw new Error(`Command ${name} did not return one JSON envelope`); }
+  if (result.status !== 0 || !envelope.ok)
+    throw new Error(`Command ${name} failed (${envelope.code ?? 'PROCESS_ERROR'})`);
+  return envelope.data;
 }
-if (!['true', '1'].includes(process.env.CI ?? ''))
-  throw new Error(
-    'Master-key e2e signing is restricted to a dedicated CI account',
-  );
-const account = privateKeyToAccount(process.env.BLOXWAP_TEST_MASTER_KEY);
-const config = join(homedir(), '.bloxwap', 'e2e-config.json');
-if (existsSync(config))
-  throw new Error(
-    'Refusing to replace an existing e2e config; use a clean CI account',
-  );
-const hook = resolve('scripts/e2e-relay-hook.mjs');
-const env = {
-  ...process.env,
-  NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${hook}`,
-};
-const run = (name, input = {}) => {
-  const raw = execFileSync(
-    process.execPath,
-    [
-      'dist/cli.js',
-      name,
-      '--config',
-      config,
-      '--network',
-      'testnet',
-      '--json',
-      JSON.stringify(input),
-    ],
-    { input: '', encoding: 'utf8', env },
-  );
-  const result = JSON.parse(raw);
-  if (!result.ok) throw new Error(JSON.stringify(result));
-  return result.data;
-};
-const sign = (payload) => account.signTypedData(payload.typedData);
-const info = async (type, params = {}) =>
-  (
-    await fetch('https://api.hyperliquid-testnet.xyz/info', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type, ...params }),
-    })
-  ).json();
-try {
-  run('config', {
-    args: ['set', 'privyAppId', process.env.BLOXWAP_PRIVY_APP_ID],
+async function sign(approval) {
+  if (approval.typedData.domain.name !== 'HyperliquidSignTransaction' ||
+      approval.typedData.message.hyperliquidChain !== 'Testnet')
+    throw new Error('Refusing to sign approval outside Hyperliquid testnet');
+  return account.signTypedData(approval.typedData);
+}
+async function info(type, params = {}) {
+  const response = await fetch('https://api.hyperliquid-testnet.xyz/info', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type, ...params }), signal: AbortSignal.timeout(15_000),
   });
-  const init = run('init', { masterAddress: account.address, qr: false });
-  if (!init.approved)
-    run('init', { signature: await sign(init.approvals.agent), qr: false });
-  const state = await info('clearinghouseState', { user: account.address });
-  if (Number(state.withdrawable) < 30)
-    throw new Error(
-      'Dedicated testnet account needs at least 30 test USDC; no real funding is performed',
-    );
-  run('fund', { amount: '10', qr: false });
-  const status = run('status');
-  if (status.deposits.some((d) => d.state !== 'settled'))
-    throw new Error('Mocked Relay funding did not settle');
-  run('run', { detach: true });
-  const meta = await info('meta');
-  const market = meta.universe.find((m) => m.name === 'BTC');
-  const mids = await info('allMids');
-  const mid = Number(mids.BTC);
-  const size = (
-    Math.ceil((20 / mid) * 10 ** market.szDecimals) /
-    10 ** market.szDecimals
-  ).toFixed(market.szDecimals);
-  const cloid = '0x' + Date.now().toString(16).padStart(32, '0');
-  const order = run('order', {
-    coin: 'BTC',
-    side: 'buy',
-    size,
-    price: String(Math.floor(mid * 0.7)),
-    cloid,
-    intentId: 'nightly-lifecycle',
-  });
-  const oid = order.result.response.data.statuses[0].resting?.oid;
-  if (!oid) throw new Error('Expected resting test order');
-  run('modify', { oid, price: String(Math.floor(mid * 0.69)) });
-  run('cancel', { oid });
-  run('events', { since: 0 });
-  const rotation = run('rotate');
-  const swapped = run('rotate', { signature: await sign(rotation.approval) });
-  run('rotate', { revokeSignature: await sign(swapped.revokeApproval) });
-  const revoke = run('revoke', { cancelOrders: true });
-  run('revoke', { signature: await sign(revoke.approval) });
-  run('audit', { intent: 'nightly-lifecycle' });
-  console.log(
-    'PASS: testnet init/fund/run/order/modify/cancel/events/rotate/revoke',
-  );
-} finally {
-  mkdirSync('artifacts', { recursive: true });
-  for (const file of ['events.jsonl', 'audit.jsonl'])
-    if (existsSync(join(homedir(), '.bloxwap', file)))
-      copyFileSync(join(homedir(), '.bloxwap', file), join('artifacts', file));
-  // A failed run records its stage via journals; credentials are never exported.
-  writeFileSync('artifacts/network.txt', 'testnet\n');
-  const { createConnection } = await import('node:net');
+  if (!response.ok) throw new Error('Testnet info request failed');
+  return response.json();
+}
+async function stopRunner() {
   await new Promise((resolveStop) => {
-    const socket = createConnection(join(homedir(), '.bloxwap', 'run.sock'));
-    socket.on('connect', () =>
-      socket.end(
-        JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'shutdown',
-          params: {},
-        }) + '\n',
-      ),
-    );
+    const socket = createConnection(join(directory, 'run.sock'));
+    socket.on('connect', () => socket.end(JSON.stringify({
+      jsonrpc: '2.0', id: 1, method: 'shutdown', params: {},
+    }) + '\n'));
     socket.on('error', resolveStop);
     socket.on('close', resolveStop);
-    socket.setTimeout(5000, () => {
-      socket.destroy();
-      resolveStop();
-    });
+    socket.setTimeout(5000, () => { socket.destroy(); resolveStop(); });
   });
+}
+async function stopFollowing() {
+  if (!follower || follower.exitCode !== null) return;
+  const child = follower;
+  stoppingFollower = true;
+  await new Promise((resolveStop) => {
+    const timer = setTimeout(() => { followFailure = true; child.kill('SIGKILL'); }, 5000);
+    child.once('exit', () => { clearTimeout(timer); resolveStop(); });
+    child.kill('SIGTERM');
+  });
+}
+function safeArtifact(name, content) {
+  // Upload only the explicit journals, never configs, approval payloads, keys or
+  // arbitrary process errors. Drop the entire artifact if a known secret leaks.
+  for (const secretName of requiredTestnetSecrets) {
+    const secret = process.env[secretName];
+    if (secret && content.includes(secret)) throw new Error('Secret detected in test artifact');
+  }
+  if (/-----BEGIN [^-]*PRIVATE KEY-----/.test(content))
+    throw new Error('Private key detected in test artifact');
+  writeFileSync(join(artifacts, name), content, { mode: 0o600 });
+}
+try {
+  requireTestnetEnvironment(process.env);
+  // A different config path alone does not isolate journals or sockets. Refuse
+  // any existing state directory so cleanup can only touch this CI run.
+  if (existsSync(directory)) throw new Error('Use a clean CI home without ~/.bloxwap');
+  ownedState = true;
+  account = privateKeyToAccount(process.env.BLOXWAP_TEST_MASTER_KEY);
+  const hook = resolve('scripts/e2e-relay-hook.mjs');
+  childEnv = { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${hook}` };
+  delete childEnv.BLOXWAP_TEST_MASTER_KEY;
+  await testnetLifecycle({
+    command, info, sign, masterAddress: account.address, appId: process.env.BLOXWAP_PRIVY_APP_ID,
+    checkpoint: (stage) => {
+      report.stages.push({ ...stage, at: new Date().toISOString() });
+      if (stage.status === 'passed') {
+        if (stage.name === 'test-account-preflight') report.coverage.hyperliquid.verified = true;
+        if (stage.name === 'init-agent-and-builder-approvals') report.coverage.privy.verified = true;
+        if (stage.name === 'mock-relay-funding-and-settlement') report.coverage.relay.verified = true;
+      }
+    },
+    startFollow: async () => {
+      follower = spawn(process.execPath, [
+        'dist/cli.js', 'events', '--follow', '--since', '0', '--network', 'testnet', '--config', config,
+      ], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+      follower.on('error', () => { followFailure = true; });
+      follower.on('exit', (code) => { if (!stoppingFollower || code !== 0) followFailure = true; });
+      follower.stdout.setEncoding('utf8');
+      follower.stdout.on('data', (line) => {
+        followed += line;
+        if (Buffer.byteLength(followed) > 4_194_304) {
+          followFailure = true;
+          follower.kill('SIGTERM');
+        }
+      });
+      // Do not echo raw child errors or credentials into hosted logs.
+      follower.stderr.resume();
+      return async () => {
+        await stopFollowing();
+        if (followFailure) throw new Error('events --follow terminated unexpectedly');
+        const lines = followed.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+        if (!lines.some((event) => event.type === 'order_update'))
+          throw new Error('events --follow did not deliver order updates');
+      };
+    },
+  });
+  report.status = 'passed';
+} catch {
+  report.failure = report.stages.findLast((stage) => stage.status === 'failed')?.name ?? 'testnet-preflight';
+  report.missingSecrets = requiredTestnetSecrets.filter((name) => !process.env[name]);
+  // Never export arbitrary SDK errors: they can contain credentials or payloads.
+  console.error('FAIL: dedicated testnet lifecycle; inspect lifecycle-report.json');
+  process.exitCode = 1;
+} finally {
+  if (ownedState && existsSync(config)) {
+    try {
+      if ((await info('extraAgents', { user: account.address })).length) {
+        // Best effort cleanup is itself signed only by the disposable CI
+        // account. Remaining approvals are a failed run requiring review.
+        const pending = command('revoke', { cancelOrders: true });
+        command('revoke', { signature: await sign(pending.approval) });
+      }
+      const agents = await info('extraAgents', { user: account.address });
+      const orders = await info('frontendOpenOrders', { user: account.address });
+      if (agents.length || orders.length) throw new Error('Test approvals or orders remain');
+      report.cleanup = 'verified-no-orders-or-agents';
+    } catch {
+      report.cleanup = 'failed-manual-review-required';
+      report.status = 'failed';
+      process.exitCode = 1;
+    }
+    await stopFollowing();
+    await stopRunner();
+    try {
+      for (const file of ['events.jsonl', 'audit.jsonl'])
+        if (existsSync(join(directory, file))) safeArtifact(file, readFileSync(join(directory, file), 'utf8'));
+      if (followed) safeArtifact('events-follow.jsonl', followed);
+      const logs = join(directory, 'logs');
+      if (existsSync(logs)) for (const file of readdirSync(logs).filter((file) => file.endsWith('.jsonl')))
+        safeArtifact(file, readFileSync(join(logs, file), 'utf8'));
+    } catch {
+      report.status = 'failed';
+      report.artifacts = 'rejected-secret-or-unreadable-journal';
+      process.exitCode = 1;
+    }
+  }
+  report.finishedAt = new Date().toISOString();
+  // A failed preflight still produces an explicit failure artifact; never skip.
+  safeArtifact('lifecycle-report.json', JSON.stringify(report, null, 2) + '\n');
+  if (report.status === 'passed') console.log('PASS: dedicated testnet lifecycle (Relay mocked; see report)');
 }

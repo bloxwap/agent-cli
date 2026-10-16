@@ -83,7 +83,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `fund --amount 10 --no-qr` | `{"ok":true,"data":{"depositId":"...","depositAddress":"0x...","expectedReceived":"100000000","builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","state":"awaiting_funds","qrAscii":null}}` |
 | `deposit --deposit-id ID` | `{"ok":true,"data":{"depositId":"ID","steps":[{"id":"step:0","requiresSignature":true,"payload":{}}]}}` |
 | `deposit --deposit-id ID --step-id step:0 --signature 0x...` | `{"ok":true,"data":{"depositId":"ID","steps":[]}}` |
-| `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"1"},"runner":{"pid":"123"}}}` |
+| `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"2"},"runner":{"pid":"123"}}}` |
 | `balance` | `{"ok":true,"data":{"accountValue":"100","accountValueUnits":"10000000000","withdrawable":"96","marginUsed":"4"}}` |
 | `market --coin BTC` | `{"ok":true,"data":{"coin":"BTC","asset":"0","szDecimals":"5","maxLeverage":"40","mid":"20000"}}` |
 | `positions` | `{"ok":true,"data":[{"coin":"BTC","size":"0.001","entryPrice":"20000","leverage":"5","marginMode":"cross"}]}` |
@@ -146,9 +146,9 @@ those boundaries. State is always `~/.bloxwap`, env prefix `BLOXWAP_`.
 
 ## Verification boundaries
 
-The offline skill forward test validates the documented command examples against
-CLI schemas and exercises resumable approvals, pending funding, event reactions
-and failure handling with mocked services. It does **not** prove a live agent or
+Offline skill tests validate the documented command examples against CLI schemas.
+Mocked lifecycle tests exercise resumable approvals, pending funding, events
+and failure handling. These checks do **not** prove a live agent or
 exchange run. The nightly testnet lifecycle uses only a company-owned disposable
 CI master account and separate test Privy app, real Hyperliquid testnet and Privy,
 and an explicitly mocked Relay route backed by already funded test collateral.
