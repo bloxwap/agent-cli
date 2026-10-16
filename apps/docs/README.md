@@ -23,10 +23,16 @@ canonical and social URLs (default `https://bloxwap.github.io`). The static prev
 reads the base path from the built artifact and needs no Next.js server.
 
 Edit MDX in `content/docs/` and sidebar order in `meta.json`. `commands.mdx` and
-`skill.mdx` are generated from the built CLI and packaged SKILL.md. Run
+`skill.mdx`, plus the plain Markdown `public/SKILL.md`, are generated from the built
+CLI and packaged SKILL.md. Run
 `npm run docs:generate` after CLI changes. Dev/build also synchronize them;
 `docs:check` rejects stale generated content, checks sidebar/local MDX links,
 verifies HIG provenance, and checks Next.js/TypeScript types.
+
+The canonical skill is https://bloxwap.github.io/agent-cli/SKILL.md
+(`http://localhost:3903/SKILL.md` during local development). It preserves the
+packaged skill's frontmatter and is linked from the skill guide and `llms.txt`.
+The export and browser checks verify that the served file matches the source.
 
 Build output lives in `out/`. The postbuild checker validates local HTML links
 and assets, base-path containment, social metadata and 1200×630 PNG cards. Search

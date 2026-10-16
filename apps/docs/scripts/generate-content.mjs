@@ -14,11 +14,16 @@ for (const command of invoke('--help').commands) {
 }
 const skillSource = readFileSync(new URL('../../../packages/agent-cli/SKILL.md', import.meta.url), 'utf8');
 const skill = '---\ntitle: Agent skill guide\ndescription: Install and use the packaged SKILL.md with Codex or Claude Code.\n---\n\n' +
+  'import Link from \'next/link\';\n\n' +
+  '<Link href="/SKILL.md" download="SKILL.md" prefetch={false}>Download SKILL.md</Link> as plain Markdown, including the skill frontmatter.\n\n' +
   'The npm package ships `SKILL.md` and embeds the same content in the CLI. Install it with:\n\n```sh\nagent-cli skill install --target codex\nagent-cli skill install --target claude\n```\n\nCodex uses `$CODEX_HOME/skills/agent-cli/SKILL.md` (default `~/.codex/skills/agent-cli/SKILL.md`). Claude Code uses `~/.claude/skills/agent-cli/SKILL.md`. Reinstalling identical content is idempotent; replacing edited content requires `--force`.\n\nThe following guide comes directly from the packaged skill.\n\n' + skillSource.replace(/^---\n[\s\S]*?\n---\n/, '');
-for (const [name, text] of [['commands.mdx', commands], ['skill.mdx', skill]]) {
-  const target = new URL(name, pages);
+for (const [name, target, text] of [
+  ['commands.mdx', new URL('commands.mdx', pages), commands],
+  ['skill.mdx', new URL('skill.mdx', pages), skill],
+  ['public/SKILL.md', new URL('../public/SKILL.md', import.meta.url), skillSource],
+]) {
   if (process.argv.includes('--check')) {
     if (readFileSync(target, 'utf8') !== text) throw new Error(`${name} is stale: run npm run docs:generate`);
   } else writeFileSync(target, text);
 }
-console.log('Command schemas and packaged skill documentation synchronized.');
+console.log('Command schemas, skill guide and public SKILL.md synchronized.');

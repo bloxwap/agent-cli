@@ -93,6 +93,8 @@ The site defaults to the host root; the docs are under `/docs/`. Pages CI sets
 `NEXT_PUBLIC_BASE_PATH=/agent-cli` for its deployment, builds and checks pull
 requests, and deploys main. Command schemas and the skill guide are generated
 from the CLI with `npm run docs:generate` and before docs builds.
+Agents can fetch the same packaged skill as plain Markdown at
+[SKILL.md](https://bloxwap.github.io/agent-cli/SKILL.md).
 
 [Docs index](docs/index.md), [security](docs/security.md),
 [error catalog](docs/errors.md), and [SKILL.md](packages/agent-cli/SKILL.md) remain

@@ -1,6 +1,6 @@
 # Bloxwap Agent CLI
 
-Hyperliquid trading with Privy custody and Relay funding. Master keys stay external.
+Hyperliquid trading with user-owned Privy apps and Relay funding. Master keys stay external.
 
 - [Overview and installation](https://bloxwap.github.io/docs/)
 - [quickstart](https://bloxwap.github.io/docs/quickstart/)
@@ -15,6 +15,7 @@ Hyperliquid trading with Privy custody and Relay funding. Master keys stay exter
 - [skill](https://bloxwap.github.io/docs/skill/)
 - [audit](https://bloxwap.github.io/docs/audit/)
 
+- [SKILL.md — agent instructions](https://bloxwap.github.io/SKILL.md)
 - [Sitemap](https://bloxwap.github.io/sitemap.xml)
 - [Static search index](https://bloxwap.github.io/search.json)
-- [Source and packaged SKILL.md](https://github.com/bloxwap/agent-cli/tree/main/packages/agent-cli)
+- [SKILL.md source](https://github.com/bloxwap/agent-cli/blob/main/packages/agent-cli/SKILL.md)
