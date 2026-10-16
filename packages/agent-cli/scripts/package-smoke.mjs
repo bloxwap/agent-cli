@@ -1,56 +1,146 @@
+import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+
 const directory = mkdtempSync(join(tmpdir(), 'bloxwap-package-'));
-try {
-  const packed = JSON.parse(
-    execFileSync('npm', ['pack', '--json', '--pack-destination', directory], {
+const jsonCommand = (command, args, cwd = directory) =>
+  JSON.parse(
+    execFileSync(command, args, {
+      cwd,
+      input: '',
       encoding: 'utf8',
+      timeout: 120_000,
     }),
-  )[0];
-  for (const required of ['SKILL.md', 'dist/cli.js', 'policies/agent-trade-only.json'])
-    if (!packed.files.some((file) => file.path === required))
-      throw new Error(`Package missing ${required}`);
-  if (packed.files.some((file) => /^(apps|src|test|scripts)\//.test(file.path)))
-    throw new Error('Package includes development files');
+  );
+function smoke(command, prefix = [], cwd = directory) {
+  const help = jsonCommand(command, [...prefix, '--help'], cwd);
+  assert.equal(help.ok, true, 'CLI help failed');
+  assert.ok(
+    help.data.commands.some(({ name }) => name === 'order'),
+    'Order command missing',
+  );
+  const schema = jsonCommand(command, [...prefix, 'schema', 'order'], cwd);
+  assert.equal(schema.ok, true, 'Order schema failed');
+  assert.ok(schema.data.input.properties.coin, 'Order input schema missing');
+}
+
+try {
+  const tarball = process.env.BLOXWAP_SMOKE_TARBALL
+    ? resolve(process.env.BLOXWAP_SMOKE_TARBALL)
+    : join(
+        directory,
+        jsonCommand(
+          'npm',
+          [
+            'pack',
+            '--ignore-scripts',
+            '--json',
+            '--pack-destination',
+            directory,
+          ],
+          process.cwd(),
+        )[0].filename,
+      );
+  execFileSync('tar', ['-xzf', tarball, '-C', directory]);
+  const packedRoot = join(directory, 'package');
+  const manifest = JSON.parse(
+    readFileSync(join(packedRoot, 'package.json'), 'utf8'),
+  );
+  assert.equal(manifest.name, '@bloxwap/agent-cli');
+  assert.equal(manifest.bin['agent-cli'], 'dist/cli.js');
+  for (const lifecycle of ['preinstall', 'install', 'postinstall'])
+    assert.equal(
+      manifest.scripts?.[lifecycle],
+      undefined,
+      `Unexpected ${lifecycle} script`,
+    );
+  for (const required of [
+    'SKILL.md',
+    'dist/cli.js',
+    'policies/agent-trade-only.json',
+    'README.md',
+    'LICENSE',
+    'CHANGELOG.md',
+  ])
+    assert.ok(
+      statSync(join(packedRoot, required)).isFile(),
+      `Package missing ${required}`,
+    );
+  const files = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' })
+    .trim()
+    .split('\n');
+  assert.ok(
+    !files.some((file) =>
+      /^package\/(apps|src|test|scripts|node_modules)\//.test(file),
+    ),
+    'Package includes development files',
+  );
+  const cli = readFileSync(join(packedRoot, 'dist/cli.js'), 'utf8');
+  assert.ok(
+    cli.startsWith('#!/usr/bin/env node\n'),
+    'CLI must have a Node shebang',
+  );
+  if (process.platform !== 'win32')
+    assert.ok(
+      statSync(join(packedRoot, 'dist/cli.js')).mode & 0o111,
+      'CLI must be executable',
+    );
+  assert.ok(
+    readFileSync(join(packedRoot, 'SKILL.md'), 'utf8').includes(
+      `  version: "${manifest.version}"`,
+    ),
+    'Packaged skill version differs',
+  );
+
+  const globalRoot = join(directory, 'global');
   execFileSync(
     'npm',
     [
       'install',
       '--global',
+      '--ignore-scripts',
+      '--no-audit',
+      '--no-fund',
       '--prefix',
-      join(directory, 'global'),
-      join(directory, packed.filename),
+      globalRoot,
+      tarball,
     ],
-    { stdio: 'pipe' },
+    { cwd: directory, stdio: 'pipe', timeout: 180_000 },
   );
   const bin =
     process.platform === 'win32'
-      ? join(directory, 'global', 'agent-cli.cmd')
-      : join(directory, 'global', 'bin', 'agent-cli');
-  const help = JSON.parse(
-    execFileSync(bin, ['--help'], { input: '', encoding: 'utf8' }),
-  );
-  if (
-    !help.ok ||
-    !help.data.commands.some((command) => command.name === 'order')
-  )
-    throw new Error('Global CLI smoke failed');
-  const schema = JSON.parse(
-    execFileSync(bin, ['schema', 'order'], { input: '', encoding: 'utf8' }),
-  );
-  if (!schema.ok) throw new Error('Schema smoke failed');
+      ? join(globalRoot, 'agent-cli.cmd')
+      : join(globalRoot, 'bin', 'agent-cli');
+  smoke(bin);
+
   if (process.env.BLOXWAP_SMOKE_BUN === '1') {
-    const bun = JSON.parse(
-      execFileSync('bun', [resolve('dist/cli.js'), '--help'], {
-        input: '',
-        encoding: 'utf8',
-      }),
+    const fixture = join(directory, 'bun-consumer');
+    mkdirSync(fixture);
+    writeFileSync(
+      join(fixture, 'package.json'),
+      JSON.stringify({ name: 'agent-cli-install-smoke', private: true }),
     );
-    if (!bun.ok) throw new Error('Bun smoke failed');
+    execFileSync('bun', ['add', '--ignore-scripts', tarball], {
+      cwd: fixture,
+      stdio: 'pipe',
+      timeout: 180_000,
+    });
+    // Resolve the installed tarball through bunx, without falling back to source or the registry.
+    smoke('bun', ['x', '--no-install', '@bloxwap/agent-cli'], fixture);
+    smoke('bun', ['x', '--bun', '--no-install', '@bloxwap/agent-cli'], fixture);
   }
-  console.log('PASS: packed global install, CLI/schema and optional Bun smoke');
+  console.log(
+    `PASS: @bloxwap/agent-cli@${manifest.version} tarball, script-free global install, help/schema${process.env.BLOXWAP_SMOKE_BUN === '1' ? ', installed bunx with Node and Bun' : ''}`,
+  );
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }
