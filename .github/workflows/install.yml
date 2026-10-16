@@ -8,6 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
+        node: ['22.12.0', '24']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -16,8 +17,14 @@ jobs:
           node-version: 24
           cache: npm
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
       - run: npm ci
       - run: npm run build
-      - run: npm run test:package
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install the packed artifact with lifecycle scripts disabled
+        run: npm run test:package
         env:
           BLOXWAP_SMOKE_BUN: '1'

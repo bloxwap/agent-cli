@@ -9,13 +9,18 @@ or current Bun. No postinstall script. Publishing is release-gated.
 
 ## Testnet quickstart
 
+Create your own [Privy account and app](https://dashboard.privy.io/) first.
+Use your app ID and secret on your machine or infrastructure you control.
+Bloxwap does not provide a shared Privy app, receive these credentials, or operate
+a hosted signing service. Keep the master wallet separate from the Privy agent.
+
 ```sh
 npm ci
 npm run build
 node packages/agent-cli/dist/cli.js --help
 node packages/agent-cli/dist/cli.js config set privyAppId YOUR_APP_ID
 node packages/agent-cli/dist/cli.js config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
-# Set BLOXWAP_PRIVY_APP_SECRET securely outside the CLI/conversation.
+# Set your own app's BLOXWAP_PRIVY_APP_SECRET locally, outside the conversation.
 node packages/agent-cli/dist/cli.js init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
 # Sign returned EIP-712 approval externally, then submit its 65-byte signature:
 node packages/agent-cli/dist/cli.js init --network testnet --signature 0xYOUR_SIGNATURE
@@ -40,17 +45,21 @@ with addresses/signatures from your test environment. Never paste a private key.
 ```mermaid
 flowchart LR
   Agent[Agent / CLI] -->|private JSON-RPC| Runner[Persistent runner]
-  Runner -->|P-256 authorization| Privy[Privy managed agent]
+  Runner -->|P-256 authorization| Privy[Agent in user's Privy app]
   Privy -->|EIP-712 signature| HL[Hyperliquid exchange]
   Agent --> Relay[Relay funding quote]
   Master[External master wallet] -->|one-time approvals| HL
   Runner --> Journal[Events / audit / logs]
 ```
 
-Master custody stays external. Privy owns the separate agent key; the CLI holds
-only an authorization key. Hyperliquid agent permissions deny withdrawal.
-Privy policies restrict signing domains; local checks enforce configured risk
-limits. Read [custody limits](docs/custody.md) before using a funded account.
+You own the Privy account/app. Privy manages the separate agent wallet key in
+that app; its P-256 authorization key stays on your machine or infrastructure.
+Your master key stays in your external wallet. Bloxwap never receives or stores
+these keys, your Privy app secret, or your authorization key on Bloxwap servers.
+The CLI talks directly to Privy, Hyperliquid, and Relay. Hyperliquid agent
+permissions prevent withdrawals from the master account. Privy policies restrict
+the visible signing envelope; local checks enforce configured risk limits.
+Read [custody limits](docs/custody.md) before using a funded account.
 
 State: `~/.bloxwap`; config: `~/.bloxwap/config.json`; IPC:
 `~/.bloxwap/run.sock`; env prefix: `BLOXWAP_`. All local state is private to the OS
@@ -62,7 +71,10 @@ Override via `config set builder.address` / `config set builder.fee` or
 ## Development and docs
 
 `npm run build`, `npm run lint`, `npm run typecheck`, `npm test` must pass before
-committing. Unit tests mock services. Credential-dependent tests are gated: `npm run test:sandbox` and `npm run test:e2e` skip without the required environment. The master-key testnet harness is CI-only; unit tests never access the network.
+committing. Unit tests mock services. `npm run test:sandbox` requires an explicit
+opt-in and credentials for your own test app; missing prerequisites fail before
+any request. `npm run test:e2e` is separately credential-gated. The master-key
+testnet harness is CI-only; unit tests never access the network.
 
 The npm workspace keeps the publishable CLI in `packages/agent-cli` and the
 Fumadocs app in `apps/docs`. Use Node.js **24+** for repository development.

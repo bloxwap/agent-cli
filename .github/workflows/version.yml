@@ -1,11 +1,20 @@
 name: Version packages
 on:
   workflow_dispatch:
+    inputs:
+      create_pr:
+        type: boolean
+        default: false
+        description: Open a Changesets PR (requires organization permission)
 permissions:
   contents: write
   pull-requests: write
+concurrency:
+  group: agent-cli-version-main
+  cancel-in-progress: false
 jobs:
   version:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,8 +23,22 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - uses: changesets/action@v1
+      - name: Prepare and validate a version patch
+        if: ${{ !inputs.create_pr }}
+        run: |
+          npm run version:candidate
+          git diff --binary HEAD > version.patch
+      - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.create_pr }}
         with:
-          version: npm run version:packages
+          name: agent-cli-version-patch
+          path: version.patch
+          if-no-files-found: error
+      - uses: changesets/action@v1
+        if: inputs.create_pr
+        with:
+          version: npm run version:candidate
+          title: 'chore: version agent-cli for release'
+          commit: 'chore: version agent-cli for release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

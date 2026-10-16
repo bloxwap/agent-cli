@@ -3,9 +3,12 @@
 An agent-native Hyperliquid trading CLI with JSON input/output, a persistent
 signing runner, Privy managed agents, Relay funding, and a packaged agent skill.
 
-Install: `npm i -g @bloxwap/agent-cli` or `bunx @bloxwap/agent-cli --help`.
-The requested Hyperliquid SDK declares Node **22.12+**; use that supported runtime
-or current Bun. No postinstall script. Publishing is release-gated.
+After the first public release, install with `npm i -g @bloxwap/agent-cli` or run
+`bunx @bloxwap/agent-cli --help`. Use Node **22.12+** or Bun;
+`bunx --bun @bloxwap/agent-cli --help` explicitly selects Bun.
+The package has no install lifecycle scripts and supports `--ignore-scripts`.
+Until publication, build a local tarball with `npm run build && npm run pack:cli`
+from the repository root and install that tarball with `npm i -g PATH_TO_TARBALL`.
 
 ## Testnet quickstart
 

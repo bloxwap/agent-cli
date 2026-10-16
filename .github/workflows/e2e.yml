@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: dedicated-testnet-account
+  cancel-in-progress: false
 jobs:
   testnet:
     runs-on: ubuntu-latest
@@ -12,6 +15,8 @@ jobs:
     environment: testnet
     env:
       BLOXWAP_E2E: '1'
+      # This wallet and Privy app belong to disposable company CI, never users.
+      BLOXWAP_TEST_ACCOUNT_ONLY: '1'
       BLOXWAP_TEST_MASTER_KEY: ${{ secrets.BLOXWAP_TEST_MASTER_KEY }}
       BLOXWAP_PRIVY_APP_ID: ${{ secrets.BLOXWAP_PRIVY_APP_ID }}
       BLOXWAP_PRIVY_APP_SECRET: ${{ secrets.BLOXWAP_PRIVY_APP_SECRET }}
@@ -23,9 +28,34 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm run test:e2e
+      - name: Verify the live testnet lifecycle (Relay mocked)
+        run: npm run test:e2e
+      - name: Record testnet coverage and outcome
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync, existsSync } from 'node:fs';
+          const path = 'packages/agent-cli/artifacts/lifecycle-report.json';
+          if (!existsSync(path)) {
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'No lifecycle report was produced. Live coverage is unproven.\n');
+            process.exit(1);
+          }
+          const report = JSON.parse(readFileSync(path));
+          const stages = report.stages.filter(stage => stage.status !== 'running');
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `Testnet lifecycle: **${report.status}**. Cleanup: ${report.cleanup}.\n\n` +
+            'Hyperliquid testnet and dedicated Privy app are live; Relay is a zero-value mock using pre-funded test collateral. This script is not an AI-agent session.\n\n' +
+            stages.map(stage => `- ${stage.name}: ${stage.status}\n`).join(''));
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: testnet-journals
-          path: packages/agent-cli/artifacts/
+          name: testnet-journals-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            packages/agent-cli/artifacts/lifecycle-report.json
+            packages/agent-cli/artifacts/events.jsonl
+            packages/agent-cli/artifacts/events-follow.jsonl
+            packages/agent-cli/artifacts/audit.jsonl
+            packages/agent-cli/artifacts/runner*.jsonl

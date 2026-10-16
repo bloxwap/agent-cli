@@ -11,7 +11,7 @@ const environment = vi.hoisted(() => ({
     sz: string;
     limitPx: string;
   }[],
-  agents: [] as { address: string; validUntil: number }[],
+  agents: [] as { address: string; validUntil: number; name: string }[],
   builderFee: 0,
   balance: '0',
 }));
@@ -25,6 +25,13 @@ vi.mock('../src/wallet/privy.js', async (importOriginal) => {
   return {
     ...original,
     privyClient: async () => ({
+      policies: () => ({
+        create: async (input: Record<string, unknown>) => ({ ...input, id: 'policy' }),
+        get: async () => {
+          const { policyFor } = await import('../src/wallet/policy.js');
+          return { ...policyFor('testnet'), id: 'policy' };
+        },
+      }),
       wallets: () => ({
         ethereum: () => ({
           signTypedData: async () => ({
@@ -50,14 +57,6 @@ vi.mock('../src/wallet/privy.js', async (importOriginal) => {
     privySigner: original.privySigner,
   };
 });
-vi.mock('../src/wallet/policy.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../src/wallet/policy.js')>()),
-  applyPolicy: async (config: import('../src/core/config.js').Config) => {
-    config.policyId = 'policy';
-    config.policyVersion = 1;
-    return 'policy';
-  },
-}));
 vi.mock('../src/runner/subscriptions.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/runner/subscriptions.js')>()),
   startSubscriptions: async () => ({
@@ -79,13 +78,14 @@ import '../src/commands/revoke.js';
 import '../src/commands/events.js';
 import '../src/commands/audit.js';
 import '../src/commands/market.js';
-import { dispatch } from '../src/core/router.js';
+import { dispatch, setRouting } from '../src/core/router.js';
 import { saveConfig, migrate } from '../src/core/config.js';
 import { activeRunner, setActiveRunner } from '../src/runner/lifecycle.js';
-import { rpcCall, socketPath } from '../src/runner/rpc.js';
+import { rpcCall, socketPath, routeToRunner } from '../src/runner/rpc.js';
 import { readAudit, verifyAudit } from '../src/core/audit.js';
 let path: string;
 beforeEach(async () => {
+  setRouting(routeToRunner);
   await mkdir(environment.home, { recursive: true, mode: 0o700 });
   path = join(environment.home, '.bloxwap', 'config.json');
   process.env.BLOXWAP_E2E_AUTH = 'mock-authorization';
@@ -124,10 +124,12 @@ beforeEach(async () => {
         return Response.json({ status: 'success' });
       if (action?.type === 'approveAgent') {
         if (action.agentAddress === '0x' + '0'.repeat(40))
-          environment.agents = [];
+          environment.agents = environment.agents.filter((agent) =>
+            !agent.name.startsWith(`${action.agentName} valid_until `));
         else
           environment.agents.push({
             address: action.agentAddress,
+            name: action.agentName,
             validUntil: Number(
               action.agentName.match(/valid_until (\d+)/)?.[1],
             ),
@@ -152,10 +154,15 @@ beforeEach(async () => {
           });
         const statuses =
           action.type === 'order' ? [{ resting: { oid: 1 } }] : ['success'];
-        if (action.type === 'order')
+        if (action.type === 'order') {
           environment.orders = [
             { coin: 'BTC', oid: 1, side: 'B', sz: '0.001', limitPx: '20000' },
           ];
+          const { events } = await import('../src/runner/events.js');
+          await events.append('order_update', { order: { oid: 1 }, status: 'open' });
+        }
+        if (action.type === 'batchModify')
+          environment.orders[0].limitPx = action.modifies[0].order.p;
         if (action.type === 'cancel') environment.orders = [];
         return Response.json({
           status: 'ok',
@@ -191,6 +198,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await activeRunner?.shutdown();
   setActiveRunner(undefined);
+  setRouting(undefined);
   delete process.env.BLOXWAP_E2E_AUTH;
   vi.unstubAllGlobals();
   await rm(environment.home, { recursive: true, force: true });
@@ -228,8 +236,13 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
       })
     ).approved,
   ).toBe(true);
+  expect((await command('init', { qr: false })).approved).toBe(true);
   const deposit = await command('fund', { qr: false, amount: '10' });
   expect(deposit.depositId).toBe('deposit-1');
+  expect((await command('status')).deposits).toEqual([{ id: 'deposit-1', state: 'pending' }]);
+  expect((await dispatch(['order', '--config', path, '--json',
+    '{"coin":"BTC","side":"buy","size":"0.001","price":"20000"}'])).body)
+    .toMatchObject({ ok: false, code: 'DEPOSIT_PENDING' });
   environment.balance = '10';
   const status = await command('status');
   expect(status.deposits).toEqual([{ id: 'deposit-1', state: 'settled' }]);
@@ -238,7 +251,8 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     szDecimals: '5',
     asset: '0',
   });
-  await command('run');
+  expect(await command('run')).toMatchObject({ ready: true, network: 'testnet' });
+  expect((await command('status')).runner).toMatchObject({ signingSession: 'ready', wsState: 'connected' });
   expect(await rpcCall('balance', {}, socketPath())).toMatchObject({
     accountValue: '10',
   });
@@ -254,14 +268,19 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     builderAddress: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
   });
   await command('modify', { oid: 1, price: '20100' });
+  expect(environment.orders[0].limitPx).toBe('20100');
   await command('cancel', { all: true });
+  expect(await command('orders')).toEqual([]);
   const rotation = await command('rotate');
   expect(rotation.requiresSignature).toBe(true);
-  expect(
-    (await command('rotate', { signature: '0x' + '11'.repeat(64) + '1b' }))
-      .swapped,
-  ).toBe(true);
-  await command('revoke', { cancelOrders: true });
+  const swapped = await command('rotate', { signature: '0x' + '11'.repeat(64) + '1b' });
+  expect(swapped.swapped).toBe(true);
+  expect(activeRunner?.signer?.address).toBe(swapped.newAgent);
+  expect((await command('rotate', { revokeSignature: '0x' + '11'.repeat(64) + '1b' })).oldRevoked).toBe(true);
+  expect(environment.agents.map((agent) => agent.address)).toEqual([swapped.newAgent]);
+  expect(await command('revoke', { cancelOrders: true })).toMatchObject({
+    locallyRevoked: true, exchangeRevoked: false,
+  });
   const rejected = await dispatch([
     'order',
     '--config',
@@ -273,6 +292,10 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     ok: false,
     code: 'AGENT_NOT_APPROVED',
   });
+  expect(await command('revoke', { signature: '0x' + '11'.repeat(64) + '1b' })).toMatchObject({
+    locallyRevoked: true, exchangeRevoked: true,
+  });
+  expect(environment.agents).toEqual([]);
   const { events } = await import('../src/runner/events.js');
   await events.append('fill', { tid: 7, oid: 1, fee: '0.01' });
   const entries = await readAudit(
@@ -289,5 +312,8 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     ),
   ).toBe(true);
   expect(verifyAudit(entries)).toBe(true);
-  expect(await command('events')).toBeDefined();
+  const replay = await command('events') as unknown as { seq: number; type: string }[];
+  expect(replay.map((event) => event.type)).toContain('order_update');
+  expect(replay.map((event) => event.type)).toContain('fill');
+  expect(await command('events', { since: replay[0].seq })).toEqual(replay.slice(1));
 }, 20000);

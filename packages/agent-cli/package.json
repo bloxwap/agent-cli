@@ -11,7 +11,9 @@
   "files": [
     "dist",
     "SKILL.md",
-    "policies"
+    "policies",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
@@ -45,8 +47,17 @@
     "ws": "^8.22.0",
     "zod": "^4.6.7"
   },
-  "description": "Agent-native Hyperliquid trading CLI with Privy custody and Relay funding",
+  "description": "Agent-native Hyperliquid trading CLI with user-owned Privy signing and Relay funding",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bloxwap/agent-cli.git",
+    "directory": "packages/agent-cli"
+  },
+  "homepage": "https://bloxwap.github.io/agent-cli/",
+  "bugs": {
+    "url": "https://github.com/bloxwap/agent-cli/issues"
+  },
   "publishConfig": {
     "access": "public"
   }

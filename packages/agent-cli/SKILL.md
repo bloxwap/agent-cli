@@ -14,9 +14,13 @@ Use `--network testnet` during testing; never silently change to mainnet.
 
 ## Onboarding sequence
 
-1. Configure Privy app ID and secret reference, e.g. `config set privyAppId APP`
-   and `config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET`. The user sets
-   the environment secret outside the conversation. The default Bloxwap builder is
+1. The user creates and owns their own Privy account and app. Configure that
+   app ID and a local secret reference, e.g. `config set privyAppId APP` and
+   `config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET`. The user sets the
+   environment secret outside the conversation on their own machine or runner.
+   Bloxwap does not host the app, receive credentials, or custody user keys.
+   Privy manages the trading-agent key in the user's app; master-wallet approval
+   always remains in the user's external wallet. The default Bloxwap builder is
    `0x71b09A08257078A4d642F7Dd7315e656c837329a`, with `f=10` (1 bp = 0.01%).
    Override with `config set builder.address` / `config set builder.fee` or
    `BLOXWAP_BUILDER_ADDRESS` / `BLOXWAP_BUILDER_FEE`.
@@ -44,6 +48,25 @@ Use `--network testnet` during testing; never silently change to mainnet.
    plan, an error follows the catalog below, and expiry warnings prompt rotation
    using external master-wallet approval.
 
+## Completion and approval boundaries
+
+Read this skill and query schemas before acting. Keep a progress record with the
+network, current stage, deposit IDs, last event sequence and order cloid/oid;
+record public IDs only. A missing user-owned Privy app, wallet signature, funding
+route or settled balance is a blocked stage. Report the exact next action without
+requesting any secret in chat or moving to the next stage. Repeat `init` to resume
+persisted approvals rather than creating another agent. An `ok:true` transport
+envelope does not imply exchange acceptance: inspect `data.result` and reconcile
+`orders`/`events` after uncertain mutations. Never retry an order with a new cloid
+until the original intent has been reconciled.
+
+For rotation, verify `swapped:true` before asking the external wallet to sign old
+agent revocation. Require `oldRevoked:true` before claiming rotation complete.
+`revoke` immediately disables local signing; only `exchangeRevoked:true` confirms
+that the signed exchange revocation was submitted. Inspect `status` to verify the
+agent is absent from exchange approvals. Cancel outstanding orders before final
+revocation, and report any cancellation or cleanup failure explicitly.
+
 ## Commands and example envelopes
 
 Examples show representative `data`, not live balances or service promises.
@@ -60,7 +83,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `fund --amount 10 --no-qr` | `{"ok":true,"data":{"depositId":"...","depositAddress":"0x...","expectedReceived":"100000000","builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","state":"awaiting_funds","qrAscii":null}}` |
 | `deposit --deposit-id ID` | `{"ok":true,"data":{"depositId":"ID","steps":[{"id":"step:0","requiresSignature":true,"payload":{}}]}}` |
 | `deposit --deposit-id ID --step-id step:0 --signature 0x...` | `{"ok":true,"data":{"depositId":"ID","steps":[]}}` |
-| `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"1"},"runner":{"pid":"123"}}}` |
+| `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"2"},"runner":{"pid":"123"}}}` |
 | `balance` | `{"ok":true,"data":{"accountValue":"100","accountValueUnits":"10000000000","withdrawable":"96","marginUsed":"4"}}` |
 | `market --coin BTC` | `{"ok":true,"data":{"coin":"BTC","asset":"0","szDecimals":"5","maxLeverage":"40","mid":"20000"}}` |
 | `positions` | `{"ok":true,"data":[{"coin":"BTC","size":"0.001","entryPrice":"20000","leverage":"5","marginMode":"cross"}]}` |
@@ -119,3 +142,17 @@ trade-only; local limits include markets, size/notional, leverage, daily loss an
 open orders. Privy sees an L1 action hash, so it cannot independently inspect
 notional/action contents; Hyperliquid agent permissions and local checks enforce
 those boundaries. State is always `~/.bloxwap`, env prefix `BLOXWAP_`.
+
+
+## Verification boundaries
+
+Offline skill tests validate the documented command examples against CLI schemas.
+Mocked lifecycle tests exercise resumable approvals, pending funding, events
+and failure handling. These checks do **not** prove a live agent or
+exchange run. The nightly testnet lifecycle uses only a company-owned disposable
+CI master account and separate test Privy app, real Hyperliquid testnet and Privy,
+and an explicitly mocked Relay route backed by already funded test collateral.
+It never transfers real funds. Missing CI credentials fail the job; a skipped or
+mocked test must never be reported as live validation. Record the workflow run,
+commit, lifecycle report, event and audit artifacts before claiming a testnet pass.
+See `docs/agent-workflow.md` and `docs/testnet.md` in the repository for setup.

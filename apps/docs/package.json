@@ -7,7 +7,7 @@
     "dev": "next dev --port 3903",
     "build": "next build",
     "postbuild": "node scripts/check-export.mjs",
-    "check": "node scripts/check-content.mjs --check && node scripts/hig-tokens.mjs --check && next typegen && tsc --noEmit",
+    "check": "node --test scripts/hig-css-guard.test.mjs && node scripts/check-content.mjs --check && node scripts/hig-tokens.mjs --check && next typegen && tsc --noEmit",
     "preview": "node scripts/preview.mjs",
     "postinstall": "fumadocs-mdx",
     "predev": "npm --workspace @bloxwap/agent-cli run build && node scripts/generate-content.mjs && node scripts/prepare-public.mjs",

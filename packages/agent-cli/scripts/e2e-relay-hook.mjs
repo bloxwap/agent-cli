@@ -1,8 +1,14 @@
 // Loaded only by the explicit testnet e2e harness, never by the packaged CLI.
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
-  if (String(url).startsWith('https://api.testnets.relay.link/')) {
-    if (String(url).includes('/quote/'))
+  const target = new URL(url instanceof Request ? url.url : String(url));
+  if (['api.hyperliquid.xyz', 'api.relay.link'].includes(target.hostname))
+    throw new Error('Mainnet requests are forbidden in the CI test harness');
+  if (target.origin === 'https://api.testnets.relay.link') {
+    if (target.pathname.startsWith('/quote/')) {
+      const quote = JSON.parse(url instanceof Request ? await url.clone().text() : String(init?.body));
+      if (quote.originChainId !== 421614 || quote.originCurrency !== '0x' + '0'.repeat(40))
+        throw new Error('Expected the explicit test-only Relay fixture route');
       return Response.json({
         steps: [
           {
@@ -19,7 +25,8 @@ globalThis.fetch = async (url, init) => {
           expiresAt: Date.now() + 60000,
         },
       });
-    if (String(url).includes('/intents/status'))
+    }
+    if (target.pathname.startsWith('/intents/status'))
       return Response.json({ status: 'success' });
     throw new Error('Unexpected Relay mock endpoint');
   }

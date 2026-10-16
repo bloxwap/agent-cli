@@ -3,12 +3,20 @@
 State is always `~/.bloxwap`, directory 0700, config/auth keys/logs/events/audit 0600.
 P-256 Privy authorization keys are PKCS8 base64 in private files or environment
 references. The CLI does not import master keys, seeds or mnemonic phrases.
+Every user owns their Privy account/app and runs the CLI/runner locally or on
+infrastructure they control. App IDs and wallet IDs identify resources in that
+user's app. App secrets and P-256 private authorization keys remain in the user's
+environment or private local files; Bloxwap never receives or stores them. There
+is no Bloxwap credential service, shared app secret, or signing proxy. The agent
+wallet key is managed by Privy in the user's app, separate from the external
+master wallet. The CLI never exports either wallet's key.
 External master-wallet signatures are accepted only as 65-byte signatures.
 Every CLI and RPC input is scanned before schema parsing so unknown fields cannot
 smuggle key material. Hex 32-byte secrets and BIP39-like phrases are refused.
 
-Trust boundaries: master wallet → one-time Hyperliquid agent approval → Privy
-managed wallet → restricted local signing runner. Read `custody.md` for the hash
+Trust boundaries: external master wallet → one-time Hyperliquid agent approval →
+agent wallet in the user's Privy app → user-controlled local signing runner.
+Read `custody.md` for the hash
 preimage limitation of server policies. Anyone controlling this OS user can use
 the authorization key and change limits. Socket/file modes exclude other users,
 not same-user malware or root. Windows named pipes require current-user ACLs;

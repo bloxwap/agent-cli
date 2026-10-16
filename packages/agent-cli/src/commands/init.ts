@@ -34,9 +34,27 @@ register('init', {
   execute: async (input, context) => {
     rejectMasterKey(input);
     const config = await loadConfig(context.configPath);
+    if (
+      context.network &&
+      context.network !== config.network &&
+      (config.privyWalletId || config.approved)
+    )
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Initialized wallet network differs; use a separate config for another network',
+      );
+    if (
+      config.privyWalletId &&
+      config.masterAddress &&
+      input.masterAddress &&
+      (input.masterAddress as string).toLowerCase() !==
+        config.masterAddress.toLowerCase()
+    )
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Initialized master address differs; use a separate config for another account',
+      );
     if (context.network) config.network = context.network;
-    if (config.approved && !config.revoked)
-      return { ...config, expiry: config.agentExpiry };
     config.masterAddress =
       (input.masterAddress as string) ?? config.masterAddress;
     if (!config.masterAddress)
@@ -54,6 +72,8 @@ register('init', {
     const client = await privyClient(config);
     const policyId = await applyPolicy(config, client, context.configPath);
     await createAgent(config, client, context.configPath, policyId);
+    if (config.approved && !config.revoked)
+      return { ...config, expiry: config.agentExpiry };
     const path = join(
       stateDir(),
       `approval-${config.network}-${config.agentAddress}.json`,

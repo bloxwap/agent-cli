@@ -4,39 +4,131 @@ on:
     tags: ['v*']
   workflow_dispatch:
 permissions:
-  contents: write
-  id-token: write
+  contents: read
+concurrency:
+  group: agent-cli-release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  release:
-    if: vars.BLOXWAP_PUBLISH == '1'
-    runs-on: ubuntu-latest
-    environment: npm-release
+  build:
+    name: Candidate (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            target: bun-linux-x64-baseline
+            package: true
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+            target: bun-linux-arm64
+          - os: macos-15-intel
+            platform: darwin-x64
+            target: bun-darwin-x64
+          - os: macos-latest
+            platform: darwin-arm64
+            target: bun-darwin-arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          registry-url: https://registry.npmjs.org
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
+      - name: Verify version, skill, release notes and tagged main ancestry
+        run: node packages/agent-cli/scripts/verify-release.mjs
       - run: npm ci
-      - name: Verify tag and package version
-        if: startsWith(github.ref, 'refs/tags/')
-        run: node -e 'const p=require("./packages/agent-cli/package.json");if(process.env.GITHUB_REF_NAME!==`v${p.version}`)throw Error("Tag/version mismatch")'
       - run: npm run build
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - run: npm run test:package
-      - run: npm run build:binaries
-      - run: npm publish --workspace @bloxwap/agent-cli --provenance --access public
+      - name: Verify installed npm and bunx package
+        run: npm run test:package
+        env:
+          BLOXWAP_SMOKE_BUN: '1'
+      - name: Compile and run the native executable
+        run: |
+          npm run build:binaries -- ${{ matrix.target }}
+          node packages/agent-cli/scripts/binary-smoke.mjs packages/agent-cli/binaries/agent-cli-${{ matrix.platform }}
+      - name: Ensure generated tracked files match the release commit
+        run: git diff --exit-code HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.platform }}
+          path: packages/agent-cli/binaries/agent-cli-${{ matrix.platform }}
+          if-no-files-found: error
+      - name: Pack the tested npm release artifact
+        if: matrix.package
+        run: |
+          mkdir -p packages/agent-cli/artifacts
+          npm pack --workspace @bloxwap/agent-cli --ignore-scripts --pack-destination packages/agent-cli/artifacts
+          cp packages/agent-cli/SKILL.md packages/agent-cli/CHANGELOG.md packages/agent-cli/LICENSE packages/agent-cli/artifacts/
+      - name: Verify the exact release tarball
+        if: matrix.package
+        run: |
+          for release_tarball in "$PWD"/packages/agent-cli/artifacts/*.tgz; do
+            BLOXWAP_SMOKE_TARBALL="$release_tarball" npm run test:package
+          done
+        env:
+          BLOXWAP_SMOKE_BUN: '1'
+      - uses: actions/upload-artifact@v4
+        if: matrix.package
+        with:
+          name: npm-package
+          path: packages/agent-cli/artifacts/*
+          if-no-files-found: error
+  publish:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && vars.BLOXWAP_PUBLISH == '1'
+    runs-on: ubuntu-latest
+    environment: npm-release
+    concurrency:
+      group: agent-cli-npm-publish
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
+      - name: Recheck tagged main ancestry before publishing
+        run: node packages/agent-cli/scripts/verify-release.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: release
+      - name: Prepare release checksums
+        run: node packages/agent-cli/scripts/release-checksums.mjs release
+      - name: Publish the tested tarball with provenance
+        run: node packages/agent-cli/scripts/publish-artifact.mjs release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify published integrity and provenance
+        run: node packages/agent-cli/scripts/verify-publication.mjs release
+      - name: Verify public npm install and bunx
+        run: npm run test:package
+        env:
+          BLOXWAP_SMOKE_REGISTRY: '1'
+          BLOXWAP_SMOKE_BUN: '1'
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           generate_release_notes: true
-          files: |
-            packages/agent-cli/binaries/*
-            packages/agent-cli/SKILL.md
-            packages/agent-cli/CHANGELOG.md
+          fail_on_unmatched_files: true
+          files: release/*
