@@ -18,7 +18,7 @@ const report = {
     privy: { mode: 'live dedicated test app', verified: false },
     relay: { mode: 'mocked zero-value route; pre-funded collateral', verified: false },
   },
-  agentSession: { status: 'not-run', reason: 'Deterministic CI script; an independent coding-agent session is required for issue 37' },
+  agentSession: { status: 'not-run', reason: 'Deterministic CI script; issue 39 tracks the independent coding-agent session transferred from issue 37' },
   commit: process.env.GITHUB_SHA ?? null,
   workflowRun: process.env.GITHUB_RUN_ID ?? null,
   startedAt: new Date().toISOString(), stages: [], cleanup: 'not-started',

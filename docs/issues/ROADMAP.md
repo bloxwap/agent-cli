@@ -54,7 +54,7 @@ Locked decisions: hybrid custody (approveAgent once, Privy-managed agent, trade-
 - [ ] #25 `leverage` command (cross/isolated)
 
 ### Skill & Docs
-- [ ] #37 SKILL.md for Claude Code / Codex
+- [x] #37 SKILL.md for Claude Code / Codex (live agent validation tracked in #39)
 - [ ] #38 README, command reference and docs site
 
 ### Packaging
