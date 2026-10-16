@@ -71,3 +71,7 @@ configured. GitHub also rejected the repository's Actions PR setting with an
 organization-policy 409; version dispatch therefore defaults to an uploaded
 reviewable patch. No production user credentials, package publication or live
 account trading were used for this review.
+
+The validated version-patch workflow prepared 0.2.0, consuming the pending
+changesets and synchronizing package/lock/skill versions and generated docs.
+This is release preparation; public npm installation/provenance is still pending.

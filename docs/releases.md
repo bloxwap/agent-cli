@@ -8,9 +8,8 @@ and synchronize the packaged skill version. By default it regenerates the docs,
 validates build, lint, typecheck, tests and docs checks, then uploads a reviewable
 `version.patch` artifact. Apply that
 patch on a fresh branch at the run's revision and open the version PR yourself;
-alternatively run `npm run version:packages` locally and create the PR. With the
-current pending first-release changeset, the next stable version is **0.2.0**,
-not 0.1.0.
+alternatively run `npm run version:packages` locally and create the PR. Read the
+resulting CLI package version and changelog to select the matching release tag.
 
 The optional `create_pr=true` input uses Changesets to create the version PR after
 the same validation. This needs GitHub Actions' permission to create pull requests.
