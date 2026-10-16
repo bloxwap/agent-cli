@@ -52,4 +52,6 @@ An AI-driven skill forward run remains a separate acceptance requirement: have a
 coding agent read the installed skill, use the dedicated testnet setup, follow its
 approval/funding boundaries, and record its agent/session ID plus lifecycle and
 journal evidence. The deterministic CI script is not represented as that agent
-session. Without credentials and both forms of evidence, #37/#39 remain partial.
+session. #37 covers the completed skill content, installation and hosting. Its
+live-session criterion is now tracked in #39, which remains open until both forms
+of live testnet evidence are recorded.
