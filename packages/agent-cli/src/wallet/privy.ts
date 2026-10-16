@@ -1,6 +1,11 @@
 import { signatureAudit } from '../core/audit.js';
 import { PrivyClient, generateP256KeyPair } from '@privy-io/node';
-import { randomUUID, createHash } from 'node:crypto';
+import {
+  randomUUID,
+  createHash,
+  createPrivateKey,
+  createPublicKey,
+} from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -12,6 +17,7 @@ import {
 import type { Signer } from '../core/hlclient.js';
 import { AgentCliError } from '../errors/index.js';
 import { mapPrivyError } from '../errors/mappers.js';
+import { assertAgentTypedData } from './policy.js';
 export async function resolveSecret(
   ref: string | undefined,
   env = process.env,
@@ -36,13 +42,55 @@ export async function resolveSecret(
 }
 export async function privyClient(config: Config) {
   if (!config.privyAppId)
-    throw new AgentCliError('CONFIG_INVALID', 'Set privyAppId');
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Create your own Privy account/app and set privyAppId; use only your app credentials locally',
+    );
   return new PrivyClient({
     appId: config.privyAppId,
     appSecret: await resolveSecret(
       config.privyAppSecretRef ?? 'env:BLOXWAP_PRIVY_APP_SECRET',
     ),
   });
+}
+async function prepareAuthorizationKey(config: Config, path?: string) {
+  if (config.authorizationKeyRef) {
+    const privateKey = await resolveSecret(config.authorizationKeyRef);
+    try {
+      const key = createPrivateKey({
+        key: Buffer.from(
+          privateKey.replace(/^(wallet-auth:|wallet-api:)/, ''),
+          'base64',
+        ),
+        format: 'der',
+        type: 'pkcs8',
+      });
+      if (
+        key.asymmetricKeyType !== 'ec' ||
+        key.asymmetricKeyDetails?.namedCurve !== 'prime256v1'
+      )
+        throw new Error('Expected P-256');
+      return {
+        privateKey,
+        publicKey: createPublicKey(key)
+          .export({ format: 'der', type: 'spki' })
+          .toString('base64'),
+      };
+    } catch {
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Expected a P-256 authorization key',
+      );
+    }
+  }
+  const pair = await generateP256KeyPair();
+  const keyPath = join(stateDir(), `authorization-${randomUUID()}.key`);
+  await atomicWrite(keyPath, pair.privateKey);
+  config.authorizationKeyRef = `file:${keyPath}`;
+  // Persist the owner reference before Privy can assign ownership. A lost API
+  // response or later config-write failure must not strand the wallet owner.
+  await saveConfig(config, path);
+  return pair;
 }
 export async function createAgent(
   config: Config,
@@ -51,35 +99,58 @@ export async function createAgent(
   policyId?: string,
 ) {
   try {
+    if (!policyId)
+      throw new AgentCliError('CONFIG_INVALID', 'Apply an agent policy first');
     if (config.privyWalletId) {
-      const wallet = await client.wallets().get(config.privyWalletId);
-      if (!config.authorizationKeyRef) {
-        const pair = await generateP256KeyPair();
-        const keyPath = join(stateDir(), `authorization-${randomUUID()}.key`);
-        await atomicWrite(keyPath, pair.privateKey);
-        await client
-          .wallets()
-          .update(wallet.id, { owner: { public_key: pair.publicKey } });
-        config.authorizationKeyRef = `file:${keyPath}`;
+      let wallet = await client.wallets().get(config.privyWalletId);
+      if (
+        wallet.chain_type !== 'ethereum' ||
+        wallet.address.toLowerCase() === config.masterAddress?.toLowerCase()
+      )
+        throw new AgentCliError(
+          'CONFIG_INVALID',
+          'Use a separate Ethereum agent wallet in your own Privy app, never your master wallet',
+        );
+      if (wallet.owner_id) {
+        if (!config.authorizationKeyRef)
+          throw new AgentCliError(
+            'CONFIG_INVALID',
+            'Set authorizationKeyRef to your existing wallet owner key; the CLI will not replace an existing owner',
+          );
+        if (wallet.policy_ids.length !== 1 || wallet.policy_ids[0] !== policyId)
+          wallet = await client.wallets().update(wallet.id, {
+            policy_ids: [policyId],
+            authorization_context: {
+              authorization_private_keys: [
+                await resolveSecret(config.authorizationKeyRef),
+              ],
+            },
+          });
+      } else {
+        const pair = await prepareAuthorizationKey(config, path);
+        wallet = await client.wallets().update(wallet.id, {
+          owner: { public_key: pair.publicKey },
+          policy_ids: [policyId],
+        });
       }
+      if (wallet.policy_ids.length !== 1 || wallet.policy_ids[0] !== policyId)
+        throw new AgentCliError(
+          'POLICY_REJECTED',
+          'Privy did not confirm the required agent policy attachment',
+        );
       config.agentAddress = wallet.address;
       await saveConfig(config, path);
       return wallet;
     }
-    const pair = await generateP256KeyPair();
-    const keyPath = join(stateDir(), `authorization-${randomUUID()}.key`);
-    await atomicWrite(keyPath, pair.privateKey);
-    const wallet = await client
-      .wallets()
-      .create({
-        chain_type: 'ethereum',
-        owner: { public_key: pair.publicKey },
-        policy_ids: policyId ? [policyId] : [],
-        idempotency_key: `agent-${createHash('sha256').update(pair.publicKey).digest('hex')}`,
-      });
+    const pair = await prepareAuthorizationKey(config, path);
+    const wallet = await client.wallets().create({
+      chain_type: 'ethereum',
+      owner: { public_key: pair.publicKey },
+      policy_ids: [policyId],
+      idempotency_key: `agent-${createHash('sha256').update(pair.publicKey).digest('hex')}`,
+    });
     config.privyWalletId = wallet.id;
     config.agentAddress = wallet.address;
-    config.authorizationKeyRef = `file:${keyPath}`;
     await saveConfig(config, path);
     return wallet;
   } catch (error) {
@@ -99,6 +170,7 @@ export async function privySigner(
   return {
     address: config.agentAddress as `0x${string}`,
     signTypedData: async (data) => {
+      assertAgentTypedData(data, config.network);
       try {
         const signed = await client
           .wallets()
