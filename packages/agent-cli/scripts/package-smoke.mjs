@@ -34,6 +34,9 @@ function smoke(command, prefix = [], cwd = directory) {
 }
 
 try {
+  const registry = process.env.BLOXWAP_SMOKE_REGISTRY === '1';
+  const sourceManifest = JSON.parse(readFileSync('package.json', 'utf8'));
+  const registrySpec = `${sourceManifest.name}@${sourceManifest.version}`;
   const tarball = process.env.BLOXWAP_SMOKE_TARBALL
     ? resolve(process.env.BLOXWAP_SMOKE_TARBALL)
     : join(
@@ -42,6 +45,7 @@ try {
           'npm',
           [
             'pack',
+            ...(registry ? [registrySpec] : []),
             '--ignore-scripts',
             '--json',
             '--pack-destination',
@@ -112,7 +116,7 @@ try {
       '--no-fund',
       '--prefix',
       globalRoot,
-      tarball,
+      registry ? registrySpec : tarball,
     ],
     { cwd: directory, stdio: 'pipe', timeout: 180_000 },
   );
@@ -123,17 +127,26 @@ try {
   smoke(bin);
 
   if (process.env.BLOXWAP_SMOKE_BUN === '1') {
+    if (registry) {
+      // Run from outside any project to exercise bunx's public registry auto-install path.
+      smoke('bun', ['x', registrySpec]);
+      smoke('bun', ['x', '--bun', registrySpec]);
+    }
     const fixture = join(directory, 'bun-consumer');
     mkdirSync(fixture);
     writeFileSync(
       join(fixture, 'package.json'),
       JSON.stringify({ name: 'agent-cli-install-smoke', private: true }),
     );
-    execFileSync('bun', ['add', '--ignore-scripts', tarball], {
-      cwd: fixture,
-      stdio: 'pipe',
-      timeout: 180_000,
-    });
+    execFileSync(
+      'bun',
+      ['add', '--ignore-scripts', registry ? registrySpec : tarball],
+      {
+        cwd: fixture,
+        stdio: 'pipe',
+        timeout: 180_000,
+      },
+    );
     // Resolve the installed tarball through bunx, without falling back to source or the registry.
     smoke('bun', ['x', '--no-install', '@bloxwap/agent-cli'], fixture);
     smoke('bun', ['x', '--bun', '--no-install', '@bloxwap/agent-cli'], fixture);
