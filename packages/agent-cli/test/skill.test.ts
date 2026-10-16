@@ -33,6 +33,7 @@ test('skill frontmatter and embedded source match the published skill', async ()
   expect(frontmatter![1]).toMatch(/^name: agent-cli$/m);
   expect(frontmatter![1]).toMatch(/^description: [^\n:]+$/m);
   expect(frontmatter![1]).toContain(`  version: "${packageInfo.version}"`);
+  expect(source).toContain(`"version":"${packageInfo.version}"`);
   for (const code of Object.keys(errorDefaults)) expect(source).toContain(code);
   for (const required of [
     '8 decimals', '6', 'two distinct signatures', '180 days',
