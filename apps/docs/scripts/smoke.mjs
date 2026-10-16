@@ -43,6 +43,22 @@ try {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
 
+  await check('canonical SKILL.md serves the packaged Markdown and is discoverable', async () => {
+    const response = await desktop.request.get(url('/SKILL.md'));
+    assert.equal(response.status(), 200);
+    assert.match(response.headers()['content-type'], /^text\/markdown\b/);
+    assert.deepEqual(await response.body(), await readFile(new URL('../../../packages/agent-cli/SKILL.md', import.meta.url)));
+    const llms = await desktop.request.get(url('/llms.txt'));
+    assert.equal(llms.status(), 200);
+    assert.ok((await llms.text()).includes(`${basePath}/SKILL.md`));
+    await page.goto(url('/docs/skill/'));
+    const link = page.getByRole('link', { name: 'Download SKILL.md', exact: true });
+    assert.equal(await link.getAttribute('href'), `${basePath}/SKILL.md`);
+    const download = page.waitForEvent('download');
+    await link.click();
+    assert.equal((await download).suggestedFilename(), 'SKILL.md');
+  });
+
   await check('home renders with the base path and no runtime errors', async () => {
     const response = await page.goto(url('/'));
     assert.equal(response?.status(), 200);

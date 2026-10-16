@@ -14,13 +14,20 @@ async function walk(path) {
 }
 for (const required of [
   'index.html', '404.html', 'docs/index.html', 'search.json', 'icon.svg',
-  'llms.txt', 'robots.txt', '404.md',
+  'llms.txt', 'robots.txt', '404.md', 'SKILL.md',
 ]) {
   if (!await exists(join(root, required))) failures.push(`Missing ${required}`);
 }
 
 // Agent-readiness contract: every machine-readable file the site advertises must exist
 // and behave the way llms.txt and the 404 page claim it does.
+const skillSource = await readFile(new URL('../../../packages/agent-cli/SKILL.md', import.meta.url));
+if (await exists(join(root, 'SKILL.md')) && !(await readFile(join(root, 'SKILL.md'))).equals(skillSource)) {
+  failures.push('SKILL.md must exactly match the packaged skill, including its frontmatter');
+}
+const llms = await readFile(join(root, 'llms.txt'), 'utf8');
+const skillUrl = new URL(`${basePath}/SKILL.md`, siteUrl).href;
+if (!llms.includes(`](${skillUrl})`)) failures.push(`llms.txt: missing canonical skill link ${skillUrl}`);
 const robots = await readFile(join(root, 'robots.txt'), 'utf8');
 if (!/^sitemap:\s*https:\/\/\S+\/sitemap\.xml\s*$/im.test(robots)) failures.push('robots.txt: missing absolute Sitemap directive');
 const notFoundMarkdown = await readFile(join(root, '404.md'), 'utf8');
