@@ -21,12 +21,15 @@ scoped GitHub App token. The default patch path works without changing that poli
 Run `npm run build`, `npm run lint`, `npm run typecheck`, `npm test`, and
 `BLOXWAP_SMOKE_BUN=1 npm run test:package`. The package smoke test installs the
 packed artifact with lifecycle scripts disabled and exercises npm's global
-executable and installed bunx with both Node and Bun. Install CI runs on
-macOS/Linux with Node 22.12 and 24.
+executable and installed bunx with both Node and Bun. Install CI runs on the
+self-hosted Mac mini fleet: native macOS and Linux (Colima `linux/amd64`) with
+Node 22.12 and 24. See [CI runners](ci-runners.md).
 
 The Release workflow can also be manually dispatched on a branch to build a
-candidate. It validates metadata, tests packed installs, compiles and executes
-native Linux/macOS x64/arm64 binaries, and uploads reviewable artifacts. A manual
+candidate. It validates metadata, tests packed installs, cross-compiles every
+native Linux/macOS x64/arm64 binary on the Mac, smoke-tests Linux binaries in
+Colima containers and the darwin-x64 binary under Rosetta, and uploads
+reviewable artifacts. A manual
 run **never publishes**, even when `BLOXWAP_PUBLISH=1`. The compiled x64 Linux
 binary uses Bun's baseline target; binaries do not load incidental `.env` or
 `bunfig.toml` files from the caller's directory.
