@@ -20,11 +20,11 @@ Node 22.12 minimum.
 | #33–#36 | New approval verified before signer handoff/old revocation, resumable rotation and immediate local revocation tests; fsynced cross-process hash-chain with intent/decision/signature digest/response/fill linkage; tamper/redaction tests and linked full-lifecycle records. CLI/RPC pre-schema hex/mnemonic detector and threat model. |
 | #37–#38 | Skill source/frontmatter/error-catalog tests and every documented command input parsed through actual CLI schemas offline; user-owned Privy, ordered external approvals, bounded polling, exchange reconciliation and supported-test-route guidance; install/custody README, generated command reference and static Pages site. The skill deliverable is complete; the unproven coding-agent testnet session is tracked explicitly in #39. |
 | #39 | Offline full CLI/SDK/RPC account lifecycle test and testnet-driver assertions; separate nightly script signs only for an acknowledged disposable CI test account, uses mocked Relay and already funded test collateral, reconciles exchange outcomes and exports event/audit/report artifacts. Explicit live execution fails when prerequisites are missing. Nightly live evidence remains pending. |
-| #40–#42 | Script-free packed global installation and installed bunx smoke, executable bin, license and matching skill versions; Node 22.12/24 install CI; Linux/macOS ARM/x64 native binary smoke; changesets/tagged-main/version/provenance/asset pipeline with candidate-only manual runs. Publishing and public registry verification await npm configuration. |
+| #40–#42 | Script-free packed global installation and installed bunx smoke, executable bin, license and matching skill versions; Node 22.12/24 install CI; Linux/macOS ARM/x64 native binary smoke; changesets/tagged-main/version/token-publish/asset pipeline with candidate-only manual runs. Publishing and public registry verification await the `BLOXWAP_PUBLISH` gate. |
 | #49 | Token guard rejects declarations anywhere in formatted/minified CSS. Unit regression and a mutation of global.css prove docs:check rejects the issue's exact same-line copy. |
 
 No package publication or credentialed account trading is claimed by this review.
 Close the live criteria only with an actual run ID, commit, lifecycle report and
-event/audit artifacts, or a published version with verified integrity/provenance
+event/audit artifacts, or a published version with verified integrity
 and public installation evidence. Mocks, missing-secret failures and candidate
 artifacts are not substitutes for those records.

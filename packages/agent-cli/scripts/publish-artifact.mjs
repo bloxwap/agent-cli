@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import {
+  npmPublishArgs,
   readRegistryDist,
   releaseArtifact,
   verifyPublication,
@@ -10,19 +11,8 @@ const published = readRegistryDist(artifact.spec);
 if (published) {
   verifyPublication(published, artifact.integrity);
   console.log(
-    `Already published identical provenanced artifact: ${artifact.spec}; continuing release`,
+    `Already published identical artifact: ${artifact.spec}; continuing release`,
   );
 } else {
-  execFileSync(
-    'npm',
-    [
-      'publish',
-      artifact.tarball,
-      '--provenance',
-      '--access',
-      'public',
-      '--ignore-scripts',
-    ],
-    { stdio: 'inherit' },
-  );
+  execFileSync('npm', npmPublishArgs(artifact.tarball), { stdio: 'inherit' });
 }

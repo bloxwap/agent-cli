@@ -38,11 +38,14 @@ export function readRegistryDist(spec, run = execFileSync) {
   return JSON.parse(output);
 }
 
+export function npmPublishArgs(tarball) {
+  return ['publish', tarball, '--access', 'public', '--ignore-scripts'];
+}
+
 export function verifyPublication(dist, integrity) {
   assert.equal(
     dist?.integrity,
     integrity,
     'Published tarball differs from tested release artifact',
   );
-  assert.ok(dist?.attestations?.url, 'npm provenance attestation is missing');
 }

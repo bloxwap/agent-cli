@@ -36,30 +36,24 @@ binary uses Bun's baseline target; binaries do not load incidental `.env` or
 
 ## Configure publishing
 
+[npm trusted publishing does not support self-hosted runners](https://docs.npmjs.com/trusted-publishers/).
+The gated publish job therefore authenticates with the organization `NPM_TOKEN`
+secret as `NODE_AUTH_TOKEN`. That **drops OIDC trusted publishing and automatic
+provenance**. Do not bind a trusted publisher to `release.yml` on these Mac minis.
+
 As of 2026-10-16, `@bloxwap/agent-cli` is not publicly available on npm (registry
-404), no `BLOXWAP_PUBLISH` variable or `NPM_TOKEN` secret is configured, and the
-`npm-release` GitHub environment does not exist. The install and publication
-criteria remain pending until an actual public release passes registry smoke.
-No version tag, npm publication or GitHub release was created by this audit.
+404) and the `npm-release` GitHub environment / `BLOXWAP_PUBLISH` gate were not
+configured. The organization now shares a granular `NPM_TOKEN` (publish rights
+for `@bloxwap` packages) with this repository. Publication still awaits the
+environment and `BLOXWAP_PUBLISH=1` gate, plus an actual public registry smoke.
 
 Before enabling publication:
 
-1. Confirm npm write access to the `@bloxwap` scope and the package name. Configure
-   a granular npm token as the `NPM_TOKEN` secret in the `npm-release` environment
-   for the initial publication, or configure an authorized npm trusted publisher.
-   A local `npm whoami` does not verify OIDC trusted-publisher permissions.
+1. Confirm the organization `NPM_TOKEN` secret is available to this repository
+   and can publish `@bloxwap/agent-cli`. The publish job checks the token
+   (`whoami`, then collaborator write access, or a first-publish 404).
 2. Create the `npm-release` GitHub environment and apply the desired tag/reviewer
    restrictions before setting the repository variable `BLOXWAP_PUBLISH=1`.
-3. Prefer npm trusted publishing after the package exists. Bind it to organization
-   `bloxwap`, repository `agent-cli`, workflow **`release.yml`**, and environment
-   **`npm-release`**, with direct `npm publish` allowed. Node 24 includes a supported
-   npm CLI (trusted publishing requires npm 11.5.1+ and Node 22.14+). Do not leave a
-   token configured after migrating fully to OIDC. New trusted publisher bindings
-   must complete their first successful publish within npm's activation window.
-
-See the current [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/)
-for scope ownership, activation and authentication details. The package's
-repository metadata identifies the public GitHub source required for provenance.
 
 ## Publish a reviewed version
 
@@ -81,9 +75,9 @@ The workflow rejects mismatched, prerelease or unreviewed branch tags. A tag wit
 publishing disabled still builds candidate artifacts; enabling the gate later
 requires rerunning the existing tag's workflow, not moving the tag.
 
-After all four native candidates succeed, the gated publish job downloads the
-exact tested tarball, computes `SHA256SUMS`, publishes it with `--provenance`, and
-verifies registry integrity plus the provenance attestation. It then tests a
+After the candidate job succeeds, the gated publish job downloads the
+exact tested tarball, computes `SHA256SUMS`, publishes it with `NPM_TOKEN`, and
+verifies registry integrity. It then tests a
 public global npm install and bunx registry execution before creating generated
 GitHub release notes and attaching the npm tarball, four binaries, SKILL.md,
 CHANGELOG.md, LICENSE and checksums. Downloaded binaries need `chmod +x` before
@@ -93,6 +87,6 @@ execution. Verify downloads with `sha256sum -c SHA256SUMS` (Linux) or
 A published npm version is immutable. If publication succeeds but a later step
 fails, inspect the registry and failure before rerunning the job; keep the tag in
 place. The publish step accepts an existing version only when its registry hash
-matches the tested archive and its provenance is present, then continues the
-remaining release steps. Authentication and network errors never count as an
-unpublished version. A conflicting existing archive stops the workflow.
+matches the tested archive, then continues the remaining release steps.
+Authentication and network errors never count as an unpublished version. A
+conflicting existing archive stops the workflow.
