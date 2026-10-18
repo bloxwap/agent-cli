@@ -43,7 +43,7 @@
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
 | #39 | partial | Fifteen-stage testnet harness supports external wallet signing and separate CI-only disposable keys, exact exchange reconciliation, correlated WebSocket/follow/replay events, post-rotation trading, audit verification, partial-rotation cleanup and zero orders/agents/positions checks. Schema 2 reports and CI summaries require evidence. Offline regressions pass; nightly live journals and the independent coding-agent skill session transferred from #37 still require dedicated QA configuration and evidence. |
 | #40 | partial | Script-free tarball global install and actual installed bunx help/schema smoke pass locally; executable/skill/license checks and Node 22.12/24 macOS/Linux CI. Public registry installation awaits publication. |
-| #41 | partial | Validated Changesets patch workflow with optional version PR, native binary smoke/checksums, tagged-main version gates, exact tested tarball publication with provenance and registry verification. Manual candidates cannot publish. Actual release needs npm authentication and the publishing gate; organization policy blocks automatic version PRs, so the default workflow uploads a reviewable patch. |
+| #41 | partial | Validated Changesets patch workflow with optional version PR, native binary smoke/checksums, tagged-main version gates, exact tested tarball publication and registry verification. Publish runs on the Mac mini fleet with the organization `NPM_TOKEN` (no OIDC trusted publishing or automatic provenance). Manual candidates cannot publish. Actual release needs the publishing gate; organization policy blocks automatic version PRs, so the default workflow uploads a reviewable patch. |
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
 | #49 | done | Docs token guard checks declarations anywhere on a line; regression coverage includes formatted and minified radius, motion, density and type copies. The issue's same-line mutation makes docs:check fail. |
 
@@ -74,7 +74,7 @@ account trading were used for this review.
 
 The validated version-patch workflow prepared 0.2.0, consuming the pending
 changesets and synchronizing package/lock/skill versions and generated docs.
-This is release preparation; public npm installation/provenance is still pending.
+This is release preparation; public npm installation is still pending.
 
 ## Testnet harness — 2026-10-18
 
