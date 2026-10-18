@@ -75,6 +75,7 @@ docker pull --platform linux/amd64 debian:bookworm-slim
 docker pull --platform linux/arm64 debian:bookworm-slim
 docker pull --platform linux/amd64 node:22.12.0-bookworm
 docker pull --platform linux/amd64 node:24-bookworm
+docker pull --platform linux/arm64 node:24-bookworm
 ```
 
 `debian:bookworm-slim` runs the compiled Linux CLI (glibc). The Node bookworm
@@ -91,9 +92,10 @@ it.
 
 Host-side scratch space is `$RUNNER_TEMP` (GitHub Actions empties it at the
 start and end of each job). Docker bind mounts use `$HOME/.bloxwap-ci/` because
-Colima does not see `/opt/github-runners`. The testnet job sets
-`HOME=$RUNNER_TEMP/e2e-home` so a persistent Mac mini cannot reuse `~/.bloxwap`
-state.
+Colima does not see `/opt/github-runners`. The testnet job stages tracked source
+there and builds/runs in a fresh `linux/arm64` Node 24 container with its default
+home. The host's wallet state is not mounted. Only explicit report/journal
+artifacts are copied back, including after a failed run, before staging is removed.
 
 ## Network
 
@@ -116,6 +118,8 @@ The runner needs outbound access to:
 - **Install smoke** still covers macOS and Linux × Node 22.12 and 24. Linux
   cases pack on the Mac, then install inside a `linux/amd64` Node container.
 - **Docs smoke** uses Playwright Chromium already installed for macOS.
+- **Testnet lifecycle** runs in a fresh `linux/arm64` Node 24 container so repeated
+  jobs cannot reuse wallet state on the persistent runner.
 
 CI helper scripts live in `.github/scripts/` and are POSIX `/bin/sh` (BSD
 userland). They must stay free of GNU-only flags, `apt`, and `sudo`.
