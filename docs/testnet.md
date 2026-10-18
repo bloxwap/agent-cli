@@ -82,32 +82,40 @@ not a production CLI key-import feature. Missing secrets fail the nightly job.
 
 ## Account preparation and coverage
 
-Pre-fund the dedicated Hyperliquid **testnet** account with at least 30 test USDC.
-It must have no positions, open orders or leftover agent approvals. Use a clean
+The dedicated Hyperliquid **testnet** account must have no positions, open orders
+or leftover agent approvals. 30 test USDC pre-funding is **not** required: the
+harness never places, modifies or cancels orders on the exchange. Use a clean
 OS account or container: the harness refuses existing `~/.bloxwap` state, and
 never changes the CLI's state location. Do not use a mainnet account or real funds.
 
-Hyperliquid testnet and Privy calls are real. Relay is explicitly mocked at the
-testnet URL: the quote has zero expected output and settlement relies on existing
-test collateral. No token transfer or bridge execution is claimed. The preload
-blocks mainnet Hyperliquid and Relay HTTP endpoints in CLI child processes.
+Privy and Hyperliquid agent approvals/revocation stay live, as do account info
+reads (balances, positions, open orders, extra agents) and non-order WebSocket
+subscriptions. Order placement, modification and cancellation — including the
+order-book info and order-update WebSocket responses those stages reconcile
+against — are explicitly mocked, the same way Relay is mocked. No order request
+is forwarded to Hyperliquid. Fund-moving exchange actions (withdrawals, transfers
+and similar) are blocked, not executed. Relay is mocked at the testnet URL: the
+quote has zero expected output and no token transfer or bridge execution is
+claimed. The preload blocks mainnet Hyperliquid and Relay HTTP endpoints and
+fails loudly if a Hyperliquid order request escapes to the live exchange.
 
 Fifteen stages verify both init approvals, funding QR/settlement, runner signing
-and readiness, resting post-only orders, exact exchange prices after modification,
+and readiness, mocked resting post-only orders, exact prices after modification,
 cancellation, correlated open/canceled WebSocket events, cursor replay, signer
-rotation and old-agent revocation, an order/cancel with the new signer, final
-revocation, audit integrity and streamed-event delivery. `ok:true` alone never
-counts as exchange acceptance. Orders use BTC with a 50 test USD notional/position
+rotation and old-agent revocation, a mocked order/cancel with the new signer,
+final revocation, audit integrity and streamed-event delivery. `ok:true` alone
+never counts as acceptance. Orders use BTC with a 50 test USD notional/position
 cap and a two-open-order limit; the suite does not request fills.
 
 Cleanup records both agent addresses/names before approvals so an interrupted
-rotation can revoke either or both. It cancels orders before revocation and
-verifies zero orders, approved agents and positions. Unknown approvals are left
-untouched and make cleanup fail. Existing local revocation is never bypassed to
-cancel orders. Failed cleanup requires owner review of the dedicated test account.
-A forced job termination can interrupt cleanup, so inspect timed-out runs too.
-The harness also confirms runner process exit and removal of its PID/socket
-before exporting journals; a shutdown timeout fails the report.
+rotation can revoke either or both. It cancels harness-owned mocked orders
+before revocation and verifies the live account still has zero orders, approved
+agents and positions. Unknown approvals are left untouched and make cleanup fail.
+Existing local revocation is never bypassed to cancel orders. Failed cleanup
+requires owner review of the dedicated test account. A forced job termination
+can interrupt cleanup, so inspect timed-out runs too. The harness also confirms
+runner process exit and removal of its PID/socket before exporting journals; a
+shutdown timeout fails the report.
 
 ## Evidence
 

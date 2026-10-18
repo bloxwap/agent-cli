@@ -22,6 +22,8 @@ import { verifyTestnetReport } from './testnet-report.mjs';
 import { startEventFollower } from './testnet-follower.mjs';
 import { cleanupTestnetAccount } from './testnet-cleanup.mjs';
 import { stopTestnetRunner } from './testnet-runner.mjs';
+import { mockOrdersEnv } from './e2e-hl-orders.mjs';
+import './e2e-relay-hook.mjs';
 
 const directory = join(homedir(), '.bloxwap');
 const config = join(directory, 'e2e-config.json');
@@ -46,10 +48,17 @@ const report = {
   accountOwnership:
     'Dedicated disposable test account controlled by the caller; never a production wallet',
   coverage: {
-    hyperliquid: { mode: 'live testnet', verified: false },
+    hyperliquid: {
+      mode: 'live testnet approvals, account info and non-order websocket',
+      verified: false,
+    },
+    orders: {
+      mode: 'mocked placement, modification, cancellation and order websocket; exchange order endpoints blocked',
+      verified: false,
+    },
     privy: { mode: 'live dedicated test app', verified: false },
     relay: {
-      mode: 'mocked zero-value route; pre-funded collateral',
+      mode: 'mocked zero-value route; no token transfer',
       verified: false,
     },
   },
@@ -167,6 +176,7 @@ try {
     ...process.env,
     BLOXWAP_MASTER_ADDRESS: signer.address,
     BLOXWAP_NETWORK: 'testnet',
+    [mockOrdersEnv]: '1',
     NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${JSON.stringify(hook)}`,
   };
   delete childEnv.BLOXWAP_TEST_MASTER_KEY;
@@ -188,6 +198,8 @@ try {
       if (stage.status === 'passed') {
         if (stage.name === 'test-account-preflight')
           report.coverage.hyperliquid.verified = true;
+        if (stage.name === 'place-and-reconcile-resting-order')
+          report.coverage.orders.verified = true;
         if (stage.name === 'init-agent-and-builder-approvals')
           report.coverage.privy.verified = true;
         if (stage.name === 'mock-relay-funding-and-settlement')
@@ -276,5 +288,7 @@ try {
   // Even failed preflight emits a failure artifact and never becomes a skip.
   saveReport();
   if (report.status === 'passed')
-    console.log('PASS: dedicated testnet lifecycle (Relay mocked; see report)');
+    console.log(
+      'PASS: dedicated testnet lifecycle (Relay and Hyperliquid orders mocked; see report)',
+    );
 }

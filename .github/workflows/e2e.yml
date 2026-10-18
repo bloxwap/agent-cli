@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Verify the live testnet lifecycle (Relay mocked)
+      - name: Verify the testnet lifecycle (Relay and Hyperliquid orders mocked)
         run: .github/scripts/testnet-run.sh
       - name: Record testnet coverage and outcome
         if: always()

@@ -30,12 +30,14 @@ const failureNames = new Set([
 const stageStatuses = new Set(['running', 'passed', 'failed']);
 const cleanupStatuses = new Set(['not-started', 'failed', 'verified']);
 const services = Object.freeze([
-  ['hyperliquid', 'Hyperliquid testnet'],
+  ['hyperliquid', 'Hyperliquid testnet approvals and account reads'],
+  ['orders', 'Hyperliquid orders (mocked)'],
   ['privy', 'Privy dedicated test app'],
   ['relay', 'Relay zero-value mock'],
 ]);
 const serviceEvidence = {
   hyperliquid: 'test-account-preflight',
+  orders: 'place-and-reconcile-resting-order',
   privy: 'init-agent-and-builder-approvals',
   relay: 'mock-relay-funding-and-settlement',
 };
@@ -163,7 +165,7 @@ function unprovenSummary() {
     '- Cleanup: **unverified**.',
     '- Independent agent session: **unverified**.',
     '',
-    'Live Relay coverage and an independent AI-agent session are unproven.',
+    'Live Relay coverage, live Hyperliquid order placement and an independent AI-agent session are unproven.',
     '',
   ].join('\n');
 }
@@ -201,7 +203,7 @@ export function formatTestnetSummary(report) {
     `- Cleanup: **${cleanup}**.`,
     '- Independent agent session: **not-run (unverified)**.',
     '',
-    'Relay verification covers the zero-value mock only; live Relay remains unverified. A passing deterministic script does not verify an independent AI-agent session.',
+    'Relay verification covers the zero-value mock only; live Relay remains unverified. Hyperliquid order placement, modification and cancellation are mocked and blocked from the exchange. A passing deterministic script does not verify an independent AI-agent session.',
     '',
     '| Lifecycle stage | Outcome |',
     '| --- | --- |',
