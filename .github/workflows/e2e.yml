@@ -25,32 +25,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run build
       - name: Verify the live testnet lifecycle (Relay mocked)
-        env:
-          HOME: ${{ runner.temp }}/e2e-home
-        run: |
-          mkdir -p "$HOME"
-          npm run test:e2e
+        run: .github/scripts/testnet-run.sh
       - name: Record testnet coverage and outcome
         if: always()
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync, appendFileSync, existsSync } from 'node:fs';
-          const path = 'packages/agent-cli/artifacts/lifecycle-report.json';
-          if (!existsSync(path)) {
-            appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'No lifecycle report was produced. Live coverage is unproven.\n');
-            process.exit(1);
-          }
-          const report = JSON.parse(readFileSync(path));
-          const stages = report.stages.filter(stage => stage.status !== 'running');
-          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-            `Testnet lifecycle: **${report.status}**. Cleanup: ${report.cleanup}.\n\n` +
-            'Hyperliquid testnet and dedicated Privy app are live; Relay is a zero-value mock using pre-funded test collateral. This script is not an AI-agent session.\n\n' +
-            stages.map(stage => `- ${stage.name}: ${stage.status}\n`).join(''));
-          NODE
+        run: node packages/agent-cli/scripts/testnet-summary.mjs packages/agent-cli/artifacts/lifecycle-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

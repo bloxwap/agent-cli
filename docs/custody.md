@@ -6,7 +6,7 @@ shared Bloxwap Privy account, credential proxy, or hosted Bloxwap signer.
 Do not send Privy credentials or wallet keys to Bloxwap, an AI conversation,
 repository, issue, or support message.
 
-The master wallet stays external and approves a separate Hyperliquid API agent.
+Each user brings their own master wallet. It stays external and approves a separate Hyperliquid API agent.
 Privy manages the agent wallet key in the user's app; the CLI generates its
 P-256 owner authorization key locally. Only the public authorization key is
 registered with Privy. The private authorization key remains in a private local
