@@ -1,0 +1,80 @@
+{
+  "source": "76384c4911c9e69fafd17a55d3d004cf51a26ca0",
+  "higVersion": "0.1.0-candidate.sha872906a9",
+  "node": "v24.10.0",
+  "next": "16.3.6",
+  "basePath": "/agent-cli",
+  "fonts": [
+    {
+      "asset": "BloxwapSans-Bold.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 700,
+      "style": "normal",
+      "bytes": 447388,
+      "sha256": "13e10451ecec4e33733b196454f1232a16d34d5014dce66daaee4d0c58600e1b"
+    },
+    {
+      "asset": "BloxwapSans-Black.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 900,
+      "style": "normal",
+      "bytes": 445912,
+      "sha256": "a99894c158cff3cff828b7d17ec12f075352848843944a730caa9d64c0362ea2"
+    }
+  ],
+  "cards": {
+    "docs/audit.png": {
+      "bytes": 48813,
+      "sha256": "289d22a2c676656265d3b72694156a6c7f2dda0cc9798d8b2c8cd9aea1d0546d"
+    },
+    "docs/commands.png": {
+      "bytes": 53691,
+      "sha256": "1d6e4cd19403914ec58ea7e0e4ccac9485e13410a0dbf1dea582d30e28a8bcca"
+    },
+    "docs/config.png": {
+      "bytes": 51002,
+      "sha256": "69db675c129342d5228ba6d4d99bab552c356614df683b2a546b6709e8214998"
+    },
+    "docs/custody.png": {
+      "bytes": 49022,
+      "sha256": "8c3d26fd5294cba5e8edafb91debbfaf91a5154e67e48396ac62e5835b6e7714"
+    },
+    "docs/errors.png": {
+      "bytes": 46869,
+      "sha256": "cb2795945578b350f1e01c374be7d35c1a1a424d1103dea588e97c8d13ac63ef"
+    },
+    "docs/events.png": {
+      "bytes": 46352,
+      "sha256": "64ec26d281b323bc1fd514365eb153b1f3a28f586879eca333fa8398d7480228"
+    },
+    "docs/funding.png": {
+      "bytes": 47170,
+      "sha256": "d35a336f70886b890517acecdbc6d739862621a4586ca9738a9b4e5e56033599"
+    },
+    "docs/index.png": {
+      "bytes": 56805,
+      "sha256": "60af61c164d47a33e2974c7954f7f4623f44ebe12d605d62ae12d8d3cfbd7eac"
+    },
+    "docs/quickstart.png": {
+      "bytes": 49981,
+      "sha256": "413e07aa2b837337e6bfe5a01f962a26977651d49184d6523bd407d64f81d632"
+    },
+    "docs/runner.png": {
+      "bytes": 54217,
+      "sha256": "4b184201e2863b2f891377ec749d756da7b723fa34b513084c4cc5ed1e7db7b2"
+    },
+    "docs/security.png": {
+      "bytes": 47543,
+      "sha256": "775a7e8ba9c24e737edfe1f4fa700feec0fc942a07b1f1d6e3ca5e30b4e2e439"
+    },
+    "docs/skill.png": {
+      "bytes": 53437,
+      "sha256": "b907e14941e72d44010f400b133b9c69c2dd466b2da0dda32e8dc8d16580bec8"
+    },
+    "home.png": {
+      "bytes": 61376,
+      "sha256": "9df0ba67da7172bb8700f7cf8e1355709116d0031800e07fb7e74cdbfa9eb33c"
+    }
+  },
+  "vendorBytes": 4454889
+}

@@ -1,0 +1,37 @@
+Node v24.6.0; command: npm run build && npm run lint && npm run typecheck && npm test; exit 0.
+Output collected after initial build start:
+
+> typecheck
+> npm --workspace @bloxwap/agent-cli run typecheck
+
+
+> @bloxwap/agent-cli@0.2.0 typecheck
+> tsc --noEmit
+
+
+> test
+> npm --workspace @bloxwap/agent-cli run test
+
+
+> @bloxwap/agent-cli@0.2.0 test
+> vitest run
+
+
+ RUN  v5.0.5 /Users/joeblau/Developer/bloxwap/.worktrees/hig-115-agent-cli/packages/agent-cli
+
+{"pid":17762,"startedAt":1792341721048,"network":"testnet","ready":false,"time":"2026-10-18T16:42:01.053Z","level":"info","message":"Runner started","requestId":"f28d0b56-ef41-4609-a43c-ea32bbcf77fd"}
+{"time":"2026-10-18T16:42:01.070Z","level":"info","message":"Runner stopped","requestId":"f28d0b56-ef41-4609-a43c-ea32bbcf77fd"}
+{"time":"2026-10-18T16:42:01.115Z","level":"info","message":"Runner stopped","requestId":"af64b5a1-88b7-41af-9d2e-06f8953a2fad"}
+{"time":"2026-10-18T16:42:01.124Z","level":"info","message":"Runner stopped","requestId":"eb33f66a-bf0c-4f89-ba16-d0068aa268b1"}
+{"pid":17762,"startedAt":1792341721110,"network":"testnet","ready":false,"time":"2026-10-18T16:42:01.123Z","level":"info","message":"Runner started","requestId":"b97c1751-9b94-4e54-a60d-9e99f0e56168"}
+{"time":"2026-10-18T16:42:01.145Z","level":"info","message":"Runner stopped","requestId":"b97c1751-9b94-4e54-a60d-9e99f0e56168"}
+{"time":"2026-10-18T16:42:01.518Z","level":"info","message":"Runner stopped","requestId":"229600ca-32fe-4e58-9d5b-e2dff3d5895f"}
+{"pid":17751,"startedAt":1792341721524,"network":"testnet","ready":false,"time":"2026-10-18T16:42:01.526Z","level":"info","message":"Runner started","requestId":"aa6462f7-bee4-4ef2-a130-bf934fa6229c"}
+{"time":"2026-10-18T16:42:01.826Z","level":"info","message":"Runner stopped","requestId":"aa6462f7-bee4-4ef2-a130-bf934fa6229c"}
+
+ Test Files  43 passed (43)
+      Tests  103 passed (103)
+   Start at  09:42:00
+   Duration  1.47s (import 45%, transform 31%, tests 17%, setup 6%, worker 2%)
+
+

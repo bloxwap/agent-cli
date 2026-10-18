@@ -75,3 +75,19 @@ account trading were used for this review.
 The validated version-patch workflow prepared 0.2.0, consuming the pending
 changesets and synchronizing package/lock/skill versions and generated docs.
 This is release preparation; public npm installation/provenance is still pending.
+
+## HIG OG-font refresh — 2026-10-18
+
+| Issue | State | Notes |
+| --- | --- | --- |
+| bloxwap/hig#115 | partial | Local implementation and checks complete; remote CI and central adoption linkage remain pending. HIG `0.1.0-candidate.shae3390bbd` replaces the native-fonts dev dependency with the OG-only package. All 13 generated cards and the desktop/mobile comparison captures remain byte-identical. |
+
+The clean lock install, root build/lint/typecheck, 103 CLI tests, docs production
+build/check (including two CSS guard tests), all 14 browser smoke checks and the
+pinned HIG drift check (41 files, zero exceptions) pass. The selected Bold/Black
+family, weights and font bytes are unchanged. The vendor set is 3,573,511 bytes
+smaller; the redundant HIG root file overrides are removed, while unrelated
+esbuild/mdast overrides remain. [Local evidence](../evidence/hig/og-font-refresh/README.md).
+
+The draft refresh PR tracks remote CI and central HIG adoption linkage. Package
+publication and deployment are outside this refresh.
