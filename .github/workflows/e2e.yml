@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   testnet:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 15
     environment: testnet
     env:
@@ -29,7 +29,11 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Verify the live testnet lifecycle (Relay mocked)
-        run: npm run test:e2e
+        env:
+          HOME: ${{ runner.temp }}/e2e-home
+        run: |
+          mkdir -p "$HOME"
+          npm run test:e2e
       - name: Record testnet coverage and outcome
         if: always()
         run: |

@@ -1,7 +1,9 @@
 # Testnet lifecycle verification
 
 The `Testnet lifecycle` GitHub workflow runs nightly and on manual dispatch in the
-`testnet` environment. It fails when required credentials are absent. A successful
+`testnet` environment on the self-hosted Mac mini fleet (see [CI runners](ci-runners.md)).
+It isolates `HOME` under `$RUNNER_TEMP` so a persistent runner cannot reuse
+`~/.bloxwap`. It fails when required credentials are absent. A successful
 unit test, skipped integration test or workflow that stops before the lifecycle
 is not a live testnet pass.
 

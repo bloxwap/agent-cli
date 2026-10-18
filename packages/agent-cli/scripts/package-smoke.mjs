@@ -11,7 +11,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-const directory = mkdtempSync(join(tmpdir(), 'bloxwap-package-'));
+const scratch = process.env.RUNNER_TEMP || tmpdir();
+const directory = mkdtempSync(join(scratch, 'bloxwap-package-'));
 const jsonCommand = (command, args, cwd = directory) =>
   JSON.parse(
     execFileSync(command, args, {

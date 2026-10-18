@@ -7,7 +7,8 @@ for state/env settings, [funding](funding.md) for deposits/signatures,
 Start with [working with a coding agent](agent-workflow.md) to configure your own
 Privy app and understand approvals, funding and completion checks.
 
-Development progress is recorded in [PROGRESS](PROGRESS.md). Documentation is
+Development progress is recorded in [PROGRESS](PROGRESS.md). GitHub Actions runs
+on the self-hosted Mac mini fleet; see [CI runners](ci-runners.md). Documentation is
 built with `npm run docs:build` into `apps/docs/out`. Use `npm run docs:dev`
 for port 3903 at `/`, or `npm run docs:preview` for the static export.
 The command reference and skill MDX are synchronized with `npm run docs:generate`.
