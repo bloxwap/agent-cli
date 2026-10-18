@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, vi } from 'vitest';
 import { mkdir, rm } from 'node:fs/promises';
-const testHome = vi.hoisted(
-  () =>
-    `/tmp/bloxwap-unit-${process.pid}-${Math.random().toString(16).slice(2)}`,
-);
+const testHome = vi.hoisted(() => {
+  const root = process.env.RUNNER_TEMP || '/tmp';
+  return `${root}/bloxwap-unit-${process.pid}-${Math.random().toString(16).slice(2)}`;
+});
 vi.mock('node:os', async (importOriginal) => ({
   ...(await importOriginal<typeof import('node:os')>()),
   homedir: () => testHome,

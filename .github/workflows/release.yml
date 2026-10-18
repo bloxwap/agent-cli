@@ -10,25 +10,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
-    name: Candidate (${{ matrix.platform }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux-x64
-            target: bun-linux-x64-baseline
-            package: true
-          - os: ubuntu-24.04-arm
-            platform: linux-arm64
-            target: bun-linux-arm64
-          - os: macos-15-intel
-            platform: darwin-x64
-            target: bun-darwin-x64
-          - os: macos-latest
-            platform: darwin-arm64
-            target: bun-darwin-arm64
-    runs-on: ${{ matrix.os }}
+    name: Candidate
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,25 +34,52 @@ jobs:
         run: npm run test:package
         env:
           BLOXWAP_SMOKE_BUN: '1'
-      - name: Compile and run the native executable
-        run: |
-          npm run build:binaries -- ${{ matrix.target }}
-          node packages/agent-cli/scripts/binary-smoke.mjs packages/agent-cli/binaries/agent-cli-${{ matrix.platform }}
+      - name: Cross-compile native executables for every target
+        run: npm run build:binaries
+      - name: Ensure Colima
+        run: .github/scripts/ensure-colima.sh
+      - name: Smoke-test the linux-x64 binary in linux/amd64
+        env:
+          BLOXWAP_SMOKE_DOCKER_PLATFORM: linux/amd64
+        run: node packages/agent-cli/scripts/binary-smoke.mjs packages/agent-cli/binaries/agent-cli-linux-x64
+      - name: Smoke-test the linux-arm64 binary in linux/arm64
+        env:
+          BLOXWAP_SMOKE_DOCKER_PLATFORM: linux/arm64
+        run: node packages/agent-cli/scripts/binary-smoke.mjs packages/agent-cli/binaries/agent-cli-linux-arm64
+      - name: Smoke-test the darwin-x64 binary under Rosetta
+        env:
+          BLOXWAP_SMOKE_ROSETTA: '1'
+        run: node packages/agent-cli/scripts/binary-smoke.mjs packages/agent-cli/binaries/agent-cli-darwin-x64
+      - name: Smoke-test the darwin-arm64 binary
+        run: node packages/agent-cli/scripts/binary-smoke.mjs packages/agent-cli/binaries/agent-cli-darwin-arm64
       - name: Ensure generated tracked files match the release commit
         run: git diff --exit-code HEAD
       - uses: actions/upload-artifact@v4
         with:
-          name: native-${{ matrix.platform }}
-          path: packages/agent-cli/binaries/agent-cli-${{ matrix.platform }}
+          name: native-linux-x64
+          path: packages/agent-cli/binaries/agent-cli-linux-x64
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-linux-arm64
+          path: packages/agent-cli/binaries/agent-cli-linux-arm64
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-darwin-x64
+          path: packages/agent-cli/binaries/agent-cli-darwin-x64
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-darwin-arm64
+          path: packages/agent-cli/binaries/agent-cli-darwin-arm64
           if-no-files-found: error
       - name: Pack the tested npm release artifact
-        if: matrix.package
         run: |
           mkdir -p packages/agent-cli/artifacts
           npm pack --workspace @bloxwap/agent-cli --ignore-scripts --pack-destination packages/agent-cli/artifacts
           cp packages/agent-cli/SKILL.md packages/agent-cli/CHANGELOG.md packages/agent-cli/LICENSE packages/agent-cli/artifacts/
       - name: Verify the exact release tarball
-        if: matrix.package
         run: |
           for release_tarball in "$PWD"/packages/agent-cli/artifacts/*.tgz; do
             BLOXWAP_SMOKE_TARBALL="$release_tarball" npm run test:package
@@ -76,7 +87,6 @@ jobs:
         env:
           BLOXWAP_SMOKE_BUN: '1'
       - uses: actions/upload-artifact@v4
-        if: matrix.package
         with:
           name: npm-package
           path: packages/agent-cli/artifacts/*
@@ -84,7 +94,7 @@ jobs:
   publish:
     needs: build
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && vars.BLOXWAP_PUBLISH == '1'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     environment: npm-release
     concurrency:
       group: agent-cli-npm-publish
