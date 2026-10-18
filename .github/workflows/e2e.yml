@@ -17,9 +17,9 @@ jobs:
       BLOXWAP_E2E: '1'
       # This wallet and Privy app belong to disposable company CI, never users.
       BLOXWAP_TEST_ACCOUNT_ONLY: '1'
-      BLOXWAP_TEST_MASTER_KEY: ${{ secrets.BLOXWAP_TEST_MASTER_KEY }}
-      BLOXWAP_PRIVY_APP_ID: ${{ secrets.BLOXWAP_PRIVY_APP_ID }}
-      BLOXWAP_PRIVY_APP_SECRET: ${{ secrets.BLOXWAP_PRIVY_APP_SECRET }}
+      BLOXWAP_TEST_MASTER_KEY: ${{ secrets.AGENT_CLI_TEST_MASTER_KEY }}
+      BLOXWAP_PRIVY_APP_ID: ${{ secrets.AGENT_CLI_PRIVY_APP_ID }}
+      BLOXWAP_PRIVY_APP_SECRET: ${{ secrets.AGENT_CLI_PRIVY_APP_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
