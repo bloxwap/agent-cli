@@ -1,0 +1,14 @@
+npm warn deprecated @yuku-analyzer/binding-darwin-arm64@0.10.2: yuku-analyzer runs on yuku-core since 0.14
+npm warn deprecated eslint@9.39.5: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+
+added 692 packages, and audited 701 packages in 10s
+
+256 packages are looking for funding
+  run `npm fund` for details
+
+1 high severity vulnerability
+
+To address all issues, run:
+  npm audit fix --force
+
+Run `npm audit` for details.

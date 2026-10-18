@@ -1,0 +1,231 @@
+{
+  "checkedAt": "2026-10-18T20:32:33.911496+00:00",
+  "repository": "bloxwap/agent-cli",
+  "pullRequest": "https://github.com/bloxwap/agent-cli/pull/55",
+  "integration": "Merge origin/main into the existing feature branch without rewriting history.",
+  "featureParent": "a2798c7fd09c4f4efa95dad138ea889937f349d5",
+  "mainParent": "bb242b8ef95ae238a65b779d427bff3813e6b267",
+  "resolvedConflicts": [
+    "docs/PROGRESS.md: retain HIG refresh and upstream testnet progress sections; retain upstream npm-token publication status."
+  ],
+  "upstreamPreserved": [
+    "Mac self-hosted runners, Linux Colima install jobs and GNU tar setup",
+    "Testnet lifecycle implementation, offline tests and generated skill content",
+    "NPM_TOKEN publication workflow and associated documentation"
+  ],
+  "higSourceCommit": "e3390bbd0ac12b9d4b371175bd250d01ea866abe",
+  "higCandidateVersion": "0.1.0-candidate.shae3390bbd",
+  "higSourceTreeDirty": false,
+  "candidateRegenerated": false,
+  "archives": [
+    {
+      "package": "@bloxwap/hig-tokens",
+      "file": "bloxwap-hig-tokens-0.1.0-candidate.shae3390bbd.tgz",
+      "bytes": 8227,
+      "sha256": "a650c37a3bb34943bbe6b8476906029eb7be014580cbd66b4e91030eace83791",
+      "unchangedFromFeatureHead": true
+    },
+    {
+      "package": "@bloxwap/hig-react",
+      "file": "bloxwap-hig-react-0.1.0-candidate.shae3390bbd.tgz",
+      "bytes": 21918,
+      "sha256": "f18f76f4847f4f1c75dcec128709454b3b649fd49d98c80bf22c44b3b97cac56",
+      "unchangedFromFeatureHead": true
+    },
+    {
+      "package": "@bloxwap/hig-contracts",
+      "file": "bloxwap-hig-contracts-0.1.0-candidate.shae3390bbd.tgz",
+      "bytes": 7205,
+      "sha256": "801fea3c0f3d8bcaad20fcee7ffca91b30da59616b5477a288a3a8c2c27536b9",
+      "unchangedFromFeatureHead": true
+    },
+    {
+      "package": "@bloxwap/hig-og-fonts",
+      "file": "bloxwap-hig-og-fonts-0.1.0-candidate.shae3390bbd.tgz",
+      "bytes": 844028,
+      "sha256": "5d322cd414ac8c6ace05d103f59ac1065ef609ec7cb176e1e91044e0beb9a89e",
+      "unchangedFromFeatureHead": true
+    }
+  ],
+  "ogFonts": [
+    {
+      "asset": "BloxwapSans-Bold.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 700,
+      "style": "normal",
+      "bytes": 447388,
+      "sha256": "13e10451ecec4e33733b196454f1232a16d34d5014dce66daaee4d0c58600e1b"
+    },
+    {
+      "asset": "BloxwapSans-Black.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 900,
+      "style": "normal",
+      "bytes": 445912,
+      "sha256": "a99894c158cff3cff828b7d17ec12f075352848843944a730caa9d64c0362ea2"
+    }
+  ],
+  "lockAndManifestChangesSinceFeatureParent": "",
+  "toolchain": {
+    "node": "v24.15.0",
+    "npm": "11.5.1",
+    "next": "16.3.6",
+    "basePath": "/agent-cli",
+    "siteUrl": "https://bloxwap.github.io"
+  },
+  "checks": [
+    {
+      "command": "npm ci",
+      "exitCode": 0,
+      "log": "install.log"
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "startedAt": "2026-10-18T20:31:19.315491+00:00",
+      "completedAt": "2026-10-18T20:31:19.917638+00:00",
+      "exitCode": 0,
+      "log": "build.log"
+    },
+    {
+      "name": "lint",
+      "command": "npm run lint",
+      "startedAt": "2026-10-18T20:31:19.917899+00:00",
+      "completedAt": "2026-10-18T20:31:21.114610+00:00",
+      "exitCode": 0,
+      "log": "lint.log"
+    },
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "startedAt": "2026-10-18T20:31:21.114923+00:00",
+      "completedAt": "2026-10-18T20:31:22.760002+00:00",
+      "exitCode": 0,
+      "log": "typecheck.log"
+    },
+    {
+      "name": "test",
+      "command": "npm test",
+      "startedAt": "2026-10-18T20:31:22.760329+00:00",
+      "completedAt": "2026-10-18T20:31:25.275025+00:00",
+      "exitCode": 0,
+      "log": "test.log"
+    },
+    {
+      "name": "package-smoke",
+      "command": "npm run test:package",
+      "startedAt": "2026-10-18T20:31:25.275335+00:00",
+      "completedAt": "2026-10-18T20:31:29.293144+00:00",
+      "exitCode": 0,
+      "log": "package-smoke.log"
+    },
+    {
+      "name": "docs-build",
+      "command": "npm run docs:build",
+      "startedAt": "2026-10-18T20:31:29.293407+00:00",
+      "completedAt": "2026-10-18T20:31:37.654367+00:00",
+      "exitCode": 0,
+      "log": "docs-build.log"
+    },
+    {
+      "name": "docs-check",
+      "command": "npm run docs:check",
+      "startedAt": "2026-10-18T20:31:37.654686+00:00",
+      "completedAt": "2026-10-18T20:31:42.610717+00:00",
+      "exitCode": 0,
+      "log": "docs-check.log"
+    },
+    {
+      "name": "docs-smoke",
+      "command": "npm run docs:smoke",
+      "startedAt": "2026-10-18T20:31:42.611020+00:00",
+      "completedAt": "2026-10-18T20:31:45.875828+00:00",
+      "exitCode": 0,
+      "log": "docs-smoke.log"
+    },
+    {
+      "command": "checkDrift([\"--root\", \".\", \"--config\", \"hig-drift.json\", \"--json\"]) from exact e3390bbd script",
+      "exitCode": 0,
+      "log": "drift.json",
+      "files": 41,
+      "exceptions": 0
+    }
+  ],
+  "testCounts": {
+    "cli": 232,
+    "cssGuard": 2,
+    "browserSmoke": 14
+  },
+  "staticExport": {
+    "htmlPages": 16,
+    "verifiedLocalLinksAndAssets": 598,
+    "ogCards": 13
+  },
+  "ogComparison": {
+    "historicalConsumerBaseline": "76384c4911c9e69fafd17a55d3d004cf51a26ca0",
+    "historicalRefreshedHead": "a2798c7fd09c4f4efa95dad138ea889937f349d5",
+    "historicalManifest": "../after.json",
+    "currentCards": {
+      "docs/audit.png": {
+        "bytes": 48813,
+        "sha256": "289d22a2c676656265d3b72694156a6c7f2dda0cc9798d8b2c8cd9aea1d0546d"
+      },
+      "docs/commands.png": {
+        "bytes": 53691,
+        "sha256": "1d6e4cd19403914ec58ea7e0e4ccac9485e13410a0dbf1dea582d30e28a8bcca"
+      },
+      "docs/config.png": {
+        "bytes": 51002,
+        "sha256": "69db675c129342d5228ba6d4d99bab552c356614df683b2a546b6709e8214998"
+      },
+      "docs/custody.png": {
+        "bytes": 49022,
+        "sha256": "8c3d26fd5294cba5e8edafb91debbfaf91a5154e67e48396ac62e5835b6e7714"
+      },
+      "docs/errors.png": {
+        "bytes": 46869,
+        "sha256": "cb2795945578b350f1e01c374be7d35c1a1a424d1103dea588e97c8d13ac63ef"
+      },
+      "docs/events.png": {
+        "bytes": 46352,
+        "sha256": "64ec26d281b323bc1fd514365eb153b1f3a28f586879eca333fa8398d7480228"
+      },
+      "docs/funding.png": {
+        "bytes": 47170,
+        "sha256": "d35a336f70886b890517acecdbc6d739862621a4586ca9738a9b4e5e56033599"
+      },
+      "docs/index.png": {
+        "bytes": 56805,
+        "sha256": "60af61c164d47a33e2974c7954f7f4623f44ebe12d605d62ae12d8d3cfbd7eac"
+      },
+      "docs/quickstart.png": {
+        "bytes": 49981,
+        "sha256": "413e07aa2b837337e6bfe5a01f962a26977651d49184d6523bd407d64f81d632"
+      },
+      "docs/runner.png": {
+        "bytes": 54217,
+        "sha256": "4b184201e2863b2f891377ec749d756da7b723fa34b513084c4cc5ed1e7db7b2"
+      },
+      "docs/security.png": {
+        "bytes": 47543,
+        "sha256": "775a7e8ba9c24e737edfe1f4fa700feec0fc942a07b1f1d6e3ca5e30b4e2e439"
+      },
+      "docs/skill.png": {
+        "bytes": 53437,
+        "sha256": "b907e14941e72d44010f400b133b9c69c2dd466b2da0dda32e8dc8d16580bec8"
+      },
+      "home.png": {
+        "bytes": 61376,
+        "sha256": "9df0ba67da7172bb8700f7cf8e1355709116d0031800e07fb7e74cdbfa9eb33c"
+      }
+    },
+    "currentCardCount": 13,
+    "matchesHistoricalManifest": true,
+    "changedCards": [],
+    "scope": "Current OG outputs are compared with the recorded historical export; original desktop/mobile screenshot parity was not rerun or extended to current main."
+  },
+  "remoteChecks": "Pending normal push at the time this local evidence was recorded; use PR checks for the current result.",
+  "credentialedTestnetExecuted": false,
+  "published": false,
+  "deployed": false
+}

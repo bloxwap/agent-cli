@@ -10,7 +10,7 @@ for (let attempt = 0; attempt < 6; attempt++) {
   try {
     verifyPublication(readRegistryDist(artifact.spec), artifact.integrity);
     console.log(
-      `PASS: ${artifact.spec} registry integrity and provenance attestation`,
+      `PASS: ${artifact.spec} registry integrity`,
     );
     failure = undefined;
     break;

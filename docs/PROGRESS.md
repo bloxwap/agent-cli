@@ -13,7 +13,7 @@
 | #8 | done | Service error adapters, redacted upstream detail, fixture-driven classification and retry defaults. |
 | #9 | done | Bounded jittered retries and per-signer persisted monotonic nonces guarded by exclusive locks. Stale locks fail closed. |
 | #10 | done | Privy server SDK create/link, P-256 owner, private authorization storage and typed-data signer; sandbox test env-gated. |
-| #11 | partial | User-owned Privy app, v2 domain/network and no-export policy, authorized wallet attachment and init revalidation; local typed-data and withdrawal rejection tests pass. Direct live Privy rejection still needs a dedicated test app. L1 action hashes prevent Privy per-action/notional inspection; exchange agent permissions enforce the withdrawal boundary. |
+| #11 | partial | Each user brings their own external master wallet and Privy app. v2 domain/network and no-export policy, authorized wallet attachment and init revalidation; local typed-data and withdrawal rejection tests pass. Direct live Privy rejection still needs a dedicated test app. L1 action hashes prevent Privy per-action/notional inspection; exchange agent permissions enforce the withdrawal boundary. |
 | #12 | done | Idempotent managed-wallet onboarding, persisted external master EIP-712 approvals/deeplink, expiry bound, agent/builder verification and master-key rejection. |
 | #13 | done | Default Bloxwap builder address with f=10 (0.01%); config/env overrides, init approval, approved-maximum checks and fund/order address/rate reporting. |
 | #14 | done | Typed validated Relay quote/status adapter, perps USDC destination, multiple origin routes and fee parsing; mocked fixtures. |
@@ -41,9 +41,9 @@
 | #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |
 | #37 | done | Skill content, packaged/embedded installation, schema-validated examples and public /SKILL.md hosting are complete. Frontmatter, gotchas, error handling, discovery links and source parity are verified. The unverified live coding-agent testnet criterion is explicitly transferred to #39. |
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
-| #39 | partial | Full mocked CLI/SDK/RPC lifecycle and fail-closed testnet harness, with builder approval, exchange outcome reconciliation, runner/events, rotation/revoke and audit assertions. Nightly live execution/journals and the independent coding-agent skill session transferred from #37 need dedicated QA setup and evidence; neither is claimed complete. |
+| #39 | partial | Fifteen-stage testnet harness supports external wallet signing and separate CI-only disposable keys, exact exchange reconciliation, correlated WebSocket/follow/replay events, post-rotation trading, audit verification, partial-rotation cleanup and zero orders/agents/positions checks. Schema 2 reports and CI summaries require evidence. Offline regressions pass; nightly live journals and the independent coding-agent skill session transferred from #37 still require dedicated QA configuration and evidence. |
 | #40 | partial | Script-free tarball global install and actual installed bunx help/schema smoke pass locally; executable/skill/license checks and Node 22.12/24 macOS/Linux CI. Public registry installation awaits publication. |
-| #41 | partial | Validated Changesets patch workflow with optional version PR, native binary smoke/checksums, tagged-main version gates, exact tested tarball publication with provenance and registry verification. Manual candidates cannot publish. Actual release needs npm authentication and the publishing gate; organization policy blocks automatic version PRs, so the default workflow uploads a reviewable patch. |
+| #41 | partial | Validated Changesets patch workflow with optional version PR, native binary smoke/checksums, tagged-main version gates, exact tested tarball publication and registry verification. Publish runs on the Mac mini fleet with the organization `NPM_TOKEN` (no OIDC trusted publishing or automatic provenance). Manual candidates cannot publish. Actual release needs the publishing gate; organization policy blocks automatic version PRs, so the default workflow uploads a reviewable patch. |
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
 | #49 | done | Docs token guard checks declarations anywhere on a line; regression coverage includes formatted and minified radius, motion, density and type copies. The issue's same-line mutation makes docs:check fail. |
 
@@ -74,13 +74,13 @@ account trading were used for this review.
 
 The validated version-patch workflow prepared 0.2.0, consuming the pending
 changesets and synchronizing package/lock/skill versions and generated docs.
-This is release preparation; public npm installation/provenance is still pending.
+This is release preparation; public npm installation is still pending.
 
 ## HIG OG-font refresh — 2026-10-18
 
 | Issue | State | Notes |
 | --- | --- | --- |
-| bloxwap/hig#115 | partial | Local implementation and checks complete; remote CI and central adoption linkage remain pending. HIG `0.1.0-candidate.shae3390bbd` replaces the native-fonts dev dependency with the OG-only package. All 13 generated cards and the desktop/mobile comparison captures remain byte-identical. |
+| bloxwap/hig#115 | partial | Original refresh validated against consumer baseline `76384c49`; current integration checks are recorded below. HIG `0.1.0-candidate.shae3390bbd` replaces the native-fonts dev dependency with the OG-only package. All 13 generated cards and the desktop/mobile comparison captures were byte-identical at that original baseline. |
 
 The clean lock install, root build/lint/typecheck, 103 CLI tests, docs production
 build/check (including two CSS guard tests), all 14 browser smoke checks and the
@@ -91,3 +91,23 @@ esbuild/mdast overrides remain. [Local evidence](../evidence/hig/og-font-refresh
 
 The draft refresh PR tracks remote CI and central HIG adoption linkage. Package
 publication and deployment are outside this refresh.
+
+## Testnet harness — 2026-10-18
+
+#39 now supports caller-controlled external wallet approvals alongside the
+separate disposable CI signer, with fifteen evidence-checked stages, correlated
+events and interrupted-rotation cleanup. Runner shutdown is confirmed before
+journal export. Build, lint, typecheck, 229 offline CLI tests, docs checks and the
+static docs build pass. The `testnet` environment still needs QA configuration;
+no credentialed lifecycle or independent coding-agent session is claimed.
+
+## HIG refresh integration — 2026-10-18
+
+Merged current main `bb242b8ef95ae238a65b779d427bff3813e6b267` into the
+existing HIG refresh branch, retaining upstream runner, testnet and npm-token changes.
+The exact four `e3390bbd` archives and dependency lock are unchanged. A fresh install,
+build, lint, types, 232 offline CLI tests, packed-package install, production docs
+build/check, 14 browser smoke checks and pinned drift check pass. Current 13-card
+output matches the historical manifest; earlier screenshot parity remains scoped to its
+original baseline. [Integration evidence](../evidence/hig/og-font-refresh/main-integration/report.json).
+[Draft PR #55](https://github.com/bloxwap/agent-cli/pull/55) tracks remote checks and adoption.

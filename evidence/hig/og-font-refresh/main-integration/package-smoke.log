@@ -1,0 +1,9 @@
+
+> test:package
+> npm --workspace @bloxwap/agent-cli run test:package
+
+
+> @bloxwap/agent-cli@0.2.0 test:package
+> node scripts/package-smoke.mjs
+
+PASS: @bloxwap/agent-cli@0.2.0 tarball, script-free global install, help/schema

@@ -1,0 +1,26 @@
+
+> test
+> npm --workspace @bloxwap/agent-cli run test
+
+
+> @bloxwap/agent-cli@0.2.0 test
+> vitest run
+
+
+ RUN  v5.0.5 /Users/joeblau/Developer/bloxwap/.worktrees/hig-115-agent-cli/packages/agent-cli
+
+{"pid":58914,"startedAt":1792355483931,"network":"testnet","ready":false,"time":"2026-10-18T20:31:23.936Z","level":"info","message":"Runner started","requestId":"9e6f1473-433f-4ac4-bc1a-30d4cccf93b3"}
+{"time":"2026-10-18T20:31:23.942Z","level":"info","message":"Runner stopped","requestId":"9e6f1473-433f-4ac4-bc1a-30d4cccf93b3"}
+{"pid":58914,"startedAt":1792355483947,"network":"testnet","ready":false,"time":"2026-10-18T20:31:23.949Z","level":"info","message":"Runner started","requestId":"70f2b73c-edd1-4480-bffb-1cd18e4ba702"}
+{"time":"2026-10-18T20:31:23.952Z","level":"info","message":"Runner stopped","requestId":"70f2b73c-edd1-4480-bffb-1cd18e4ba702"}
+{"time":"2026-10-18T20:31:24.030Z","level":"info","message":"Runner stopped","requestId":"a68f242e-d876-4932-bbdb-185ba5d2fbab"}
+{"time":"2026-10-18T20:31:24.036Z","level":"info","message":"Runner stopped","requestId":"9ef605fc-11cd-4e76-b39c-769eecec497b"}
+{"pid":58895,"startedAt":1792355484204,"network":"testnet","ready":false,"time":"2026-10-18T20:31:24.205Z","level":"info","message":"Runner started","requestId":"5c9ea505-525c-43b7-8a0b-cc296e0c79c0"}
+{"time":"2026-10-18T20:31:24.223Z","level":"info","message":"Runner stopped","requestId":"af04c5de-9824-4909-8743-945fffa9bd75"}
+{"time":"2026-10-18T20:31:24.686Z","level":"info","message":"Runner stopped","requestId":"5c9ea505-525c-43b7-8a0b-cc296e0c79c0"}
+
+ Test Files  49 passed (49)
+      Tests  232 passed (232)
+   Start at  13:31:23
+   Duration  1.81s (tests 43%, import 34%, transform 18%, setup 4%, worker 1%)
+

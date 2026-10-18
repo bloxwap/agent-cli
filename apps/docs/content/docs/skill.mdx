@@ -166,7 +166,9 @@ and failure handling. These checks do **not** prove a live agent or
 exchange run. The nightly testnet lifecycle uses only a company-owned disposable
 CI master account and separate test Privy app, real Hyperliquid testnet and Privy,
 and an explicitly mocked Relay route backed by already funded test collateral.
-It never transfers real funds. Missing CI credentials fail the job; a skipped or
+The same harness supports a caller-controlled external wallet approval adapter
+on a clean QA runner; its private key stays in that wallet. It never transfers
+real funds. Missing CI credentials fail the job; a skipped or
 mocked test must never be reported as live validation. Record the workflow run,
 commit, lifecycle report, event and audit artifacts before claiming a testnet pass.
 See `docs/agent-workflow.md` and `docs/testnet.md` in the repository for setup.

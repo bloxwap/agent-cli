@@ -1,0 +1,16 @@
+
+> build
+> npm --workspace @bloxwap/agent-cli run build
+
+
+> @bloxwap/agent-cli@0.2.0 build
+> node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs
+
+CLI Building entry: src/cli.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Target: es2022
+CLI Cleaning output folder
+ESM Build start
+ESM dist/cli.js 132.02 KB
+ESM ⚡️ Build success in 28ms

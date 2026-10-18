@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     env:
       NEXT_PUBLIC_BASE_PATH: /agent-cli
       NEXT_PUBLIC_SITE_URL: https://bloxwap.github.io
@@ -42,8 +42,10 @@ jobs:
           sparse-checkout: scripts/drift.mjs
           sparse-checkout-cone-mode: false
       - run: node .hig/scripts/drift.mjs --root . --config hig-drift.json
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install chromium
       - run: npm run docs:smoke
+      - name: Ensure GNU tar
+        run: .github/scripts/ensure-gnu-tar.sh
       - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/docs/out
@@ -51,7 +53,7 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64]
     permissions:
       pages: write
       id-token: write
