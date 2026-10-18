@@ -70,11 +70,13 @@ disposable company test wallet and company QA Privy app:
 
 | Secret | Purpose |
 | --- | --- |
-| `BLOXWAP_TEST_MASTER_KEY` | CI-only signer for the disposable testnet account |
-| `BLOXWAP_PRIVY_APP_ID` | Dedicated test Privy app ID |
-| `BLOXWAP_PRIVY_APP_SECRET` | Dedicated test Privy app secret |
+| `AGENT_CLI_TEST_MASTER_KEY` | CI-only signer for the disposable testnet account |
+| `AGENT_CLI_PRIVY_APP_ID` | Dedicated test Privy app ID |
+| `AGENT_CLI_PRIVY_APP_SECRET` | Dedicated test Privy app secret |
 
-This mode requires `CI=true` or `CI=1`, both explicit test flags, and no external
+The workflow maps those GitHub secrets onto `BLOXWAP_TEST_MASTER_KEY`,
+`BLOXWAP_PRIVY_APP_ID` and `BLOXWAP_PRIVY_APP_SECRET` for the harness. This mode
+requires `CI=true` or `CI=1`, both explicit test flags, and no external
 signer variables. Its key is removed from CLI child process environments. It is
 not a production CLI key-import feature. Missing secrets fail the nightly job.
 

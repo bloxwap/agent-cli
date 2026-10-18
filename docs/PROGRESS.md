@@ -82,5 +82,7 @@ This is release preparation; public npm installation is still pending.
 separate disposable CI signer, with fifteen evidence-checked stages, correlated
 events and interrupted-rotation cleanup. Runner shutdown is confirmed before
 journal export. Build, lint, typecheck, 229 offline CLI tests, docs checks and the
-static docs build pass. The `testnet` environment still needs QA configuration;
-no credentialed lifecycle or independent coding-agent session is claimed.
+static docs build pass. Nightly CI maps `AGENT_CLI_TEST_MASTER_KEY`, `AGENT_CLI_PRIVY_APP_ID` and
+`AGENT_CLI_PRIVY_APP_SECRET` from the `testnet` environment onto the harness
+`BLOXWAP_*` variables. Live journals and the independent coding-agent session
+are still not claimed.
