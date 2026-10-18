@@ -72,9 +72,17 @@ jobs:
             echo "packed tarball not found in $RUNNER_TEMP/pack" >&2
             exit 1
           fi
-          BLOXWAP_SMOKE_TARBALL=/runner-temp/pack/$(basename "$tarball")
+          host_dir=$(.github/scripts/colima-stage.sh)
+          cleanup() { rm -rf "$host_dir"; }
+          trap cleanup EXIT
+          mkdir -p "$host_dir/pack" "$host_dir/bun"
+          cp "$bun_dir/bun" "$host_dir/bun/bun"
+          chmod +x "$host_dir/bun/bun"
+          cp "$tarball" "$host_dir/pack/"
+          cp packages/agent-cli/package.json "$host_dir/package.json"
+          cp packages/agent-cli/scripts/package-smoke.mjs "$host_dir/package-smoke.mjs"
+          BLOXWAP_SMOKE_TARBALL=/work/pack/$(basename "$tarball")
           export BLOXWAP_SMOKE_TARBALL BLOXWAP_SMOKE_BUN
-          export BUN_LINUX_DIR="$bun_dir"
-          export LINUX_WORKDIR=/workspace/packages/agent-cli
+          export LINUX_HOST_DIR="$host_dir"
           .github/scripts/linux-run.sh "$DOCKER_PLATFORM" "$NODE_IMAGE" \
-            node scripts/package-smoke.mjs
+            node package-smoke.mjs

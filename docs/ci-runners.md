@@ -23,6 +23,7 @@ Install these on the runner account. Workflows never use `sudo` or `apt`.
 | Rosetta 2 | `darwin-x64` binary smokes (`arch -x86_64`) and optional `linux/amd64` containers |
 | GitHub Actions runner | Must stay logged in as a user that can run Colima and Docker without privilege escalation |
 | Xcode Command Line Tools | `git`, `clang`, `tar`, `unzip`, `curl` |
+| Homebrew + `gnu-tar` | `actions/upload-pages-artifact` needs `gtar` (`brew install gnu-tar`) |
 | Colima + Docker CLI | Linux containers for binary and install smokes |
 | Node.js 24 | Workflows also pin Node with `actions/setup-node` |
 | Bun 1.3.10 | Native compiles and package smokes; workflows also pin Bun with `oven-sh/setup-bun` |
@@ -37,6 +38,11 @@ colima start --vm-type vz --vz-rosetta --cpu 4 --memory 8 --disk 100
 natively on the VM. Confirm `docker info` works without `sudo` after Colima is
 up. If the default Docker context is not Colima, workflows export
 `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock`.
+
+Colima's default virtiofs mount is the runner user home (`/Users/...`), not
+GitHub's work directory under `/opt/github-runners`. Linux jobs copy smoke
+inputs into `$HOME/.bloxwap-ci/` before `docker run`. Do not bind-mount the
+Actions workspace as `:ro`.
 
 Install Rosetta 2 once on the machine (this is the only privileged step, and it
 is not part of CI):
@@ -68,10 +74,11 @@ it.
 
 ## Temporary files
 
-Scratch space is `$RUNNER_TEMP` (GitHub Actions empties it at the start and end
-of each job). Package smokes, Linux container homedirs, and Bun downloads go
-there. The testnet job also sets `HOME=$RUNNER_TEMP/e2e-home` so a persistent
-Mac mini cannot reuse `~/.bloxwap` state.
+Host-side scratch space is `$RUNNER_TEMP` (GitHub Actions empties it at the
+start and end of each job). Docker bind mounts use `$HOME/.bloxwap-ci/` because
+Colima does not see `/opt/github-runners`. The testnet job sets
+`HOME=$RUNNER_TEMP/e2e-home` so a persistent Mac mini cannot reuse `~/.bloxwap`
+state.
 
 ## Network
 

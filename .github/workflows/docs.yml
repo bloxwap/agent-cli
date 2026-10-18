@@ -44,6 +44,8 @@ jobs:
       - run: node .hig/scripts/drift.mjs --root . --config hig-drift.json
       - run: npx playwright install chromium
       - run: npm run docs:smoke
+      - name: Ensure GNU tar
+        run: .github/scripts/ensure-gnu-tar.sh
       - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/docs/out
