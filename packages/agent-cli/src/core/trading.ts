@@ -18,6 +18,8 @@ import { assertTradeAction } from '../wallet/policy.js';
 import { mapHyperliquidError } from '../errors/mappers.js';
 import { evaluateRisk, type RiskIntent } from './risk.js';
 import { Logger } from './logger.js';
+import { PaperStore } from '../paper/store.js';
+import { paperTradingServices } from '../paper/services.js';
 export interface TradingServices {
   exchange: ExchangeAdapter;
   market: (coin: string) => Promise<Market>;
@@ -56,10 +58,25 @@ export async function tradingServices(
   };
 }
 export async function assertCanTrade(config: Config) {
+  if (config.mode === 'paper') return; // simulation: no approval, deposit or session gate
   if (config.revoked || !config.approved || !config.masterAddress)
     throw new AgentCliError('AGENT_NOT_APPROVED', 'Agent approval required');
   assertAgentValid(config);
   await assertDepositsSettled(config.network, config.masterAddress);
+}
+export function assertLiveMode(config: Config, command: string) {
+  if (config.mode === 'paper')
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      `${command} requires live mode; paper mode never signs or moves funds`,
+    );
+}
+export async function servicesForMode(
+  config: Config,
+): Promise<TradingServices> {
+  return config.mode === 'paper'
+    ? paperTradingServices(config, new PaperStore())
+    : tradingServices(config);
 }
 export async function checkRisk(
   config: Config,

@@ -7,7 +7,7 @@ import { roundSize, roundPrice } from '../core/hlclient.js';
 import { approvedBuilder, builderRate } from '../core/builder.js';
 import {
   assertCanTrade,
-  tradingServices,
+  servicesForMode,
   checkRisk,
   exchangeAction,
   type TradingServices,
@@ -99,9 +99,12 @@ export async function placeOrder(
   services?: TradingServices,
 ) {
   await assertCanTrade(config);
-  const clients = services ?? (await tradingServices(config));
+  const clients = services ?? (await servicesForMode(config));
   const order = await prepareOrder(config, input, clients);
-  const builder = await approvedBuilder(config);
+  const builder =
+    config.mode === 'paper'
+      ? { b: config.builder.address.toLowerCase(), f: config.builder.fee }
+      : await approvedBuilder(config);
   const result = await exchangeAction('order', () =>
     clients.exchange.order({
       orders: [order],

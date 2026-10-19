@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { register } from '../core/router.js';
 import { stateDir } from '../core/config.js';
+import { paperDir, resolveMode } from '../core/mode.js';
 import { levels, redact, type Level } from '../core/logger.js';
 export async function readLogs(
   options: {
@@ -54,6 +55,10 @@ register('logs', {
   }),
   execute: async (input, context) => {
     context.streaming = true;
+    const paper = (await resolveMode(context, 'logs')) === 'paper';
+    const directory = paper
+      ? join(paperDir(), 'logs')
+      : join(stateDir(), 'logs');
     let cursor = 0;
     const seen = new Set<string>();
     const abort = new AbortController();
@@ -62,7 +67,7 @@ register('logs', {
     process.once('SIGTERM', stop);
     try {
       do {
-        const logs = await readLogs(input);
+        const logs = await readLogs({ ...input, directory });
         for (const log of logs) {
           const key = JSON.stringify(log);
           if (!seen.has(key)) {

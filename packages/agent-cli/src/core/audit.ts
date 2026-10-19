@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile, open, unlink, mkdir, chmod } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { stateDir } from './config.js';
+import { paperDir, resolveMode, type Mode } from './mode.js';
 import { redact } from './logger.js';
 import { AgentCliError, normalizeError } from '../errors/index.js';
 export interface AuditEntry {
@@ -11,6 +12,7 @@ export interface AuditEntry {
   intentId: string;
   cloid?: string;
   requestId?: string;
+  mode?: Mode;
   stage: string;
   data: unknown;
   previousHash: string;
@@ -109,25 +111,32 @@ export class AuditStore {
   }
 }
 export const audit = new AuditStore();
+export const paperAudit = new AuditStore(join(paperDir(), 'audit.jsonl'));
+export const auditStoreFor = (mode?: Mode) =>
+  mode === 'paper' ? paperAudit : audit;
 export async function auditedAction<T>(
   name: string,
   input: Record<string, unknown>,
   operation: () => Promise<T>,
+  routingContext?: { configPath?: string; paper?: boolean },
 ): Promise<T> {
+  const mode = await resolveMode(routingContext ?? {}, name);
+  const store = auditStoreFor(mode);
   return context.run(
     {
       intentId: (input.intentId as string) ?? randomUUID(),
       cloid: input.cloid as string | undefined,
       requestId: randomUUID(),
+      mode,
     },
     async () => {
-      await audit.append('intent', { action: name, input });
+      await store.append('intent', { action: name, input });
       try {
         const result = await operation();
-        await audit.append('response', { action: name, result });
+        await store.append('response', { action: name, result });
         return result;
       } catch (error) {
-        await audit.append('decision', {
+        await store.append('decision', {
           allowed: false,
           error: normalizeError(error).toJSON(),
         });
@@ -138,15 +147,17 @@ export async function auditedAction<T>(
 }
 export async function signatureAudit(signature: string) {
   if (context.getStore())
-    await audit.append('signature', {
+    await auditStoreFor(context.getStore()?.mode).append('signature', {
       digest: createHash('sha256').update(signature).digest('base64'),
     });
 }
 export async function decisionAudit(data: unknown) {
-  if (context.getStore()) await audit.append('decision', data);
+  if (context.getStore())
+    await auditStoreFor(context.getStore()?.mode).append('decision', data);
 }
-export async function auditFill(fill: Record<string, unknown>) {
-  const entries = await readAudit();
+export async function auditFill(fill: Record<string, unknown>, mode?: Mode) {
+  const store = auditStoreFor(mode ?? context.getStore()?.mode);
+  const entries = await readAudit(store.path);
   const linked = [...entries]
     .reverse()
     .find(
@@ -156,7 +167,7 @@ export async function auditFill(fill: Record<string, unknown>) {
           fill.oid !== undefined &&
           JSON.stringify(entry.data).includes(`"oid":${fill.oid}`)),
     );
-  await audit.append('fill', fill, {
+  await store.append('fill', fill, {
     intentId: linked?.intentId ?? 'external',
     cloid: linked?.cloid,
   });

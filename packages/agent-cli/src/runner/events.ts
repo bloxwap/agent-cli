@@ -12,6 +12,7 @@ import {
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { stateDir } from '../core/config.js';
+import { paperDir } from '../core/mode.js';
 import { redact } from '../core/logger.js';
 export const eventTypes = [
   'fill',
@@ -28,6 +29,8 @@ export const eventSchema = z.object({
   timestamp: z.string(),
   type: z.enum(eventTypes),
   data: z.unknown(),
+  mode: z.enum(['live', 'paper']).default('live'),
+  paper: z.boolean().default(false),
 });
 export type RunnerEvent = z.infer<typeof eventSchema>;
 export async function readEvents(
@@ -54,12 +57,18 @@ export async function readEvents(
 }
 export class EventStore {
   private queue = Promise.resolve();
-  constructor(readonly path = join(stateDir(), 'events.jsonl')) {}
+  constructor(
+    readonly path = join(stateDir(), 'events.jsonl'),
+    readonly paper = false,
+  ) {}
   append(type: EventType, data: unknown) {
     let event: RunnerEvent;
     const operation = this.queue.then(async () => {
       if (type === 'fill' && data && typeof data === 'object')
-        await auditFill(data as Record<string, unknown>);
+        await auditFill(
+          data as Record<string, unknown>,
+          this.paper ? 'paper' : 'live',
+        );
       await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
       await chmod(dirname(this.path), 0o700);
       let guard;
@@ -81,6 +90,8 @@ export class EventStore {
           timestamp: new Date().toISOString(),
           type,
           data: redact(type === 'fill' ? normalizeFillAmounts(data) : data),
+          mode: this.paper ? 'paper' : 'live',
+          paper: this.paper,
         });
         await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
         await appendFile(this.path, JSON.stringify(event) + '\n', {
@@ -126,6 +137,7 @@ export async function followEvents(options: {
   }
 }
 export const events = new EventStore();
+export const paperEvents = new EventStore(join(paperDir(), 'events.jsonl'), true);
 
 function normalizeFillAmounts(data: unknown) {
   if (!data || typeof data !== 'object') return data;

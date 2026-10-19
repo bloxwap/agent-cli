@@ -18,6 +18,7 @@ import {
   type Approval,
 } from '../wallet/approval.js';
 import { hlInfo } from '../core/http.js';
+import { assertLiveMode } from '../core/trading.js';
 import { AgentCliError } from '../errors/index.js';
 register('init', {
   description: 'Create agent and emit resumable master-wallet approvals',
@@ -34,6 +35,8 @@ register('init', {
   execute: async (input, context) => {
     rejectMasterKey(input);
     const config = await loadConfig(context.configPath);
+    if (context.paper !== undefined) config.mode = context.paper ? 'paper' : 'live';
+    assertLiveMode(config, 'init');
     if (
       context.network &&
       context.network !== config.network &&

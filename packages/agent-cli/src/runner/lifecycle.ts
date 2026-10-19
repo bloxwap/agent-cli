@@ -3,6 +3,7 @@ import { open, readFile, unlink, mkdir, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { stateDir, atomicWrite, type Config } from '../core/config.js';
+import { paperDir, type Mode } from '../core/mode.js';
 import { Logger } from '../core/logger.js';
 import { privyClient, privySigner } from '../wallet/privy.js';
 import type { Signer } from '../core/hlclient.js';
@@ -13,7 +14,8 @@ export interface RunnerInfo {
   network: Config['network'];
   ready: boolean;
 }
-export const runnerPidPath = () => join(stateDir(), 'runner.pid');
+export const runnerPidPath = (mode: Mode = 'live') =>
+  join(mode === 'paper' ? paperDir() : stateDir(), 'runner.pid');
 export function isAlive(pid: number) {
   try {
     process.kill(pid, 0);

@@ -4,7 +4,7 @@ import { commandConfig } from './read.js';
 import type { Config } from '../core/config.js';
 import {
   assertCanTrade,
-  tradingServices,
+  servicesForMode,
   exchangeAction,
   requiredDailyLoss,
   type TradingServices,
@@ -23,7 +23,7 @@ export async function setLeverage(
   services?: TradingServices,
 ) {
   await assertCanTrade(config);
-  const clients = services ?? (await tradingServices(config));
+  const clients = services ?? (await servicesForMode(config));
   const market = await clients.market(input.coin);
   if (
     (config.allowedMarkets.length &&

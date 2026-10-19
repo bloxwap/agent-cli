@@ -11,6 +11,12 @@ export const configSchema = z
   .object({
     version: z.literal(1).default(1),
     network: z.enum(['mainnet', 'testnet']).default('testnet'),
+    mode: z.enum(['live', 'paper']).default('live'),
+    paper: z
+      .object({
+        startingBalance: positive.default(10_000),
+      })
+      .default({ startingBalance: 10_000 }),
     agentName: z.string().max(16).default('bloxwap'),
     masterAddress: address.optional(),
     agentAddress: address.optional(),
@@ -90,6 +96,7 @@ export async function loadConfig(
   const config = migrate(raw);
   for (const [name, key] of Object.entries({
     BLOXWAP_NETWORK: 'network',
+    BLOXWAP_MODE: 'mode',
     BLOXWAP_LOG_LEVEL: 'logLevel',
     BLOXWAP_PRIVY_APP_ID: 'privyAppId',
     BLOXWAP_MASTER_ADDRESS: 'masterAddress',

@@ -1,11 +1,12 @@
 import { collateralBalance } from '../core/account.js';
 import { expiryWarnings } from '../wallet/expiry.js';
-import { activeRunner, runningInfo, type Runner } from './lifecycle.js';
+import { activeRunner, runningInfo, runnerPidPath, type Runner } from './lifecycle.js';
 import type { Subscriptions } from './subscriptions.js';
 import { events } from './events.js';
 import { hlInfo } from '../core/http.js';
 import { pollDeposits } from '../funding/status.js';
 import { normalizeError } from '../errors/index.js';
+import type { Mode } from '../core/mode.js';
 export function health(runner: Runner, now = Date.now()) {
   const subscriptions = runner.subscriptions;
   return {
@@ -14,18 +15,22 @@ export function health(runner: Runner, now = Date.now()) {
     wsState: subscriptions?.state ?? 'disconnected',
     wsStale: !subscriptions || now - subscriptions.lastMessage > 90_000,
     lastFillTime: subscriptions?.lastFill ?? null,
-    signingSession: runner.signer ? 'ready' : 'unavailable',
+    signingSession: runner.signer
+      ? 'ready'
+      : runner.config.mode === 'paper'
+        ? 'simulated'
+        : 'unavailable',
   };
 }
-export async function runnerHealth() {
-  if (activeRunner) return health(activeRunner);
-  const info = await runningInfo();
+export async function runnerHealth(mode: Mode = 'live') {
+  if (activeRunner && activeRunner.config.mode === mode) return health(activeRunner);
+  const info = await runningInfo(runnerPidPath(mode));
   return info
     ? {
         pid: String(info.pid),
         uptimeSeconds: String((Date.now() - info.startedAt) / 1000),
         wsState: 'unknown',
-        signingSession: 'unknown',
+        signingSession: mode === 'paper' ? 'simulated' : 'unknown',
       }
     : null;
 }

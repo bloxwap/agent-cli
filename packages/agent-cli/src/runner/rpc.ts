@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { stateDir, loadConfig } from '../core/config.js';
+import { resolveMode } from '../core/mode.js';
 import { AgentCliError, normalizeError } from '../errors/index.js';
 import { commands, type Context } from '../core/router.js';
 import { runningInfo, type Runner } from './lifecycle.js';
@@ -290,16 +291,24 @@ export async function routeToRunner(
   if (context.runner || !routedCommands.has(name))
     return { routed: false as const };
   const config = await loadConfig(context.configPath);
+  // Paper commands always execute locally against the paper store; they must
+  // never be routed to a live runner (or vice versa).
+  if ((await resolveMode(context, name)) === 'paper')
+    return { routed: false as const };
   try {
     return {
       routed: true as const,
-      data: await rpcCall(name, {
-        ...input,
-        __context: {
-          configPath: context.configPath ?? join(stateDir(), 'config.json'),
-          network: context.network ?? config.network,
+      data: await rpcCall(
+        name,
+        {
+          ...input,
+          __context: {
+            configPath: context.configPath ?? join(stateDir(), 'config.json'),
+            network: context.network ?? config.network,
+          },
         },
-      }),
+        socketPath(),
+      ),
     };
   } catch (error) {
     if (

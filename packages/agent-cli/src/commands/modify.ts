@@ -4,7 +4,7 @@ import { commandConfig } from './read.js';
 import type { Config } from '../core/config.js';
 import {
   assertCanTrade,
-  tradingServices,
+  servicesForMode,
   checkRisk,
   exchangeAction,
   type TradingServices,
@@ -30,7 +30,7 @@ export async function modifyOrders(
   services?: TradingServices,
 ) {
   await assertCanTrade(config);
-  const clients = services ?? (await tradingServices(config));
+  const clients = services ?? (await servicesForMode(config));
   const orders = await clients.orders();
   const staged = [...orders];
   const stagedServices = { ...clients, orders: async () => staged };

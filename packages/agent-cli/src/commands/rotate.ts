@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { register } from '../core/router.js';
 import { commandConfig } from './read.js';
+import { assertLiveMode } from '../core/trading.js';
 import {
   atomicWrite,
   saveConfig,
@@ -55,6 +56,7 @@ register('rotate', {
   }),
   execute: async (input, context) => {
     const current = await commandConfig(context);
+    assertLiveMode(current, 'rotate');
     if (!current.masterAddress || !current.agentAddress)
       throw new AgentCliError('AGENT_NOT_APPROVED', 'Initialize first');
     const path = join(

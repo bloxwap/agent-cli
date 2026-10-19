@@ -17,6 +17,8 @@ test('flags and stdin give one success envelope', async () => {
   expect((await dispatch(['echo', '--value', 'hello'])).body).toEqual({
     ok: true,
     data: { value: 'hello' },
+    mode: 'live',
+    paper: false,
   });
   expect((await dispatch(['echo'], '{"value":"stdin"}')).exitCode).toBe(0);
   expect(
@@ -42,7 +44,10 @@ test('output schemas expose data fields and the fixed error catalog', async () =
     execute: async () => ({}),
   });
   const schema = schemas('balance');
-  expect(schema.output.oneOf[0].properties.data).toMatchObject({
+  const success = schema.output.oneOf[0] as {
+    properties: Record<string, unknown>;
+  };
+  expect(success.properties.data).toMatchObject({
     required: [
       'accountValue',
       'accountValueUnits',

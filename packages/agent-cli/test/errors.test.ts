@@ -27,6 +27,17 @@ test('stable wire shapes', () => {
     message: 'wait',
     retryable: true,
     details: null,
+    mode: 'live',
+    paper: false,
   });
-  expect(success('yes')).toEqual({ ok: true, data: 'yes' });
+  expect(success('yes')).toEqual({
+    ok: true,
+    data: 'yes',
+    mode: 'live',
+    paper: false,
+  });
+  expect(new AgentCliError('RATE_LIMIT', 'wait').toJSON('paper')).toMatchObject(
+    { mode: 'paper', paper: true },
+  );
+  expect(success('yes', 'paper')).toMatchObject({ mode: 'paper', paper: true });
 });
