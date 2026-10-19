@@ -534,11 +534,13 @@ export function accrueFunding(
     const rate = fundingRates[position.coin],
       mark = marks[position.coin];
     if (!rate || !mark) continue;
-    // Positive funding is paid by longs and received by shorts, hourly at rate/8.
+    // Hyperliquid's metaAndAssetCtxs funding is the hourly rate (paid every
+    // hour), so positive funding is paid by longs and received by shorts at
+    // notional * rate per elapsed hour.
     const notionalRate =
       (((d(position.size) * d(mark)) / SCALE) * d(rate)) / SCALE;
     const cash =
-      (-notionalRate * BigInt(Math.round(hours * 1e9))) / (BigInt(1e9) * 8n);
+      (-notionalRate * BigInt(Math.round(hours * 1e9))) / BigInt(1e9);
     if (cash === 0n) continue;
     state.balance = f(d(state.balance) + cash);
     state.fundingPaid = f(d(state.fundingPaid) + cash);

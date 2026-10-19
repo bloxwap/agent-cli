@@ -171,7 +171,7 @@ test('tick accrues funding and emits runner_state', async () => {
     await engine.tick();
     await engine.flush();
     const state = await store.load();
-    expect(Number(state.fundingPaid)).toBeCloseTo(-0.01, 6);
+    expect(Number(state.fundingPaid)).toBeCloseTo(-0.08, 6);
     expect(
       events.some(
         (event) => event.type === 'position_change' && event.data.type === 'funding',

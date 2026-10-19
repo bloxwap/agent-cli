@@ -299,9 +299,10 @@ test('funding accrues hourly: longs pay, shorts receive', () => {
     { BTC: '100' },
     s.lastFundingAt + hour,
   );
-  expect(payments).toEqual([{ coin: 'BTC', amount: '-0.01' }]);
-  expect(s.balance).toBe('9999.935');
-  expect(s.fundingPaid).toBe('-0.01');
+  // Hyperliquid's funding field is the hourly rate: 100 * 0.0008 = 0.08.
+  expect(payments).toEqual([{ coin: 'BTC', amount: '-0.08' }]);
+  expect(s.balance).toBe('9999.865');
+  expect(s.fundingPaid).toBe('-0.08');
   applyFill(s, {
     coin: 'BTC',
     side: 'A',
@@ -317,7 +318,7 @@ test('funding accrues hourly: longs pay, shorts receive', () => {
     { BTC: '100' },
     s.lastFundingAt + hour,
   );
-  expect(received[0].amount).toBe('0.01'); // short 1 receives
+  expect(received[0].amount).toBe('0.08'); // short 1 receives
 });
 test('isolated liquidation closes the position at mark with a taker fee', () => {
   const s = state();
