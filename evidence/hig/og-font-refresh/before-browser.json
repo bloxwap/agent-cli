@@ -1,0 +1,90 @@
+{
+  "engine": "chromium",
+  "browser": "156.0.8078.4",
+  "node": "v24.6.0",
+  "basePath": "/agent-cli",
+  "pages": [
+    {
+      "route": "/",
+      "status": 200,
+      "title": "@bloxwap/agent-cli — Hyperliquid trading for agents",
+      "controls": {
+        "body": {
+          "fontFamily": "BloxwapSans, \"Bloxwap Sans Scripts\", ui-rounded, system-ui, sans-serif, system-ui, sans-serif",
+          "fontSize": "16px",
+          "background": "color(display-p3 0.04 0.04 0.04)",
+          "padding": "0px",
+          "boxSizing": "border-box",
+          "outlineStyle": "none",
+          "outlineWidth": "3px",
+          "width": 1425,
+          "height": 1686.5625
+        },
+        ".hig-button": {
+          "fontFamily": "BloxwapSans, \"Bloxwap Sans Scripts\", ui-rounded, system-ui, sans-serif, system-ui, sans-serif",
+          "fontSize": "16px",
+          "background": "color(display-p3 0 1 0.24)",
+          "padding": "8px 20px",
+          "boxSizing": "border-box",
+          "outlineStyle": "none",
+          "outlineWidth": "3px",
+          "width": 146.203125,
+          "height": 44
+        },
+        "table th": null,
+        "a": {
+          "fontFamily": "BloxwapSans, \"Bloxwap Sans Scripts\", ui-rounded, system-ui, sans-serif, system-ui, sans-serif",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)",
+          "padding": "0px",
+          "boxSizing": "border-box",
+          "outlineStyle": "none",
+          "outlineWidth": "3px",
+          "width": 114.984375,
+          "height": 28
+        }
+      }
+    },
+    {
+      "route": "/docs/",
+      "status": 200,
+      "title": "Overview and installation · @bloxwap/agent-cli",
+      "controls": {
+        "body": {
+          "fontFamily": "BloxwapSans, \"Bloxwap Sans Scripts\", ui-rounded, system-ui, sans-serif, system-ui, sans-serif",
+          "fontSize": "16px",
+          "background": "color(display-p3 0.04 0.04 0.04)",
+          "padding": "0px",
+          "boxSizing": "border-box",
+          "outlineStyle": "none",
+          "outlineWidth": "3px",
+          "width": 1425,
+          "height": 1060.03125
+        },
+        ".hig-button": null,
+        "table th": null,
+        "a": {
+          "fontFamily": "BloxwapSans, \"Bloxwap Sans Scripts\", ui-rounded, system-ui, sans-serif, system-ui, sans-serif",
+          "fontSize": "16px",
+          "background": "rgba(0, 0, 0, 0)",
+          "padding": "0px",
+          "boxSizing": "border-box",
+          "outlineStyle": "none",
+          "outlineWidth": "3px",
+          "width": 0,
+          "height": 0
+        }
+      }
+    }
+  ],
+  "mobile": {
+    "width": 390,
+    "noHorizontalOverflow": true
+  },
+  "ogHome": {
+    "status": 200,
+    "sha256": "9df0ba67da7172bb8700f7cf8e1355709116d0031800e07fb7e74cdbfa9eb33c",
+    "matchesBaseline": true
+  },
+  "errors": []
+}

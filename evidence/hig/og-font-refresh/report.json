@@ -1,0 +1,132 @@
+{
+  "issue": "https://github.com/bloxwap/hig/issues/115",
+  "repository": "bloxwap/agent-cli",
+  "consumerBaselineCommit": "76384c4911c9e69fafd17a55d3d004cf51a26ca0",
+  "higSourceCommit": "e3390bbd0ac12b9d4b371175bd250d01ea866abe",
+  "higArtifactVersion": "0.1.0-candidate.shae3390bbd",
+  "higSourceTreeDirty": false,
+  "environment": {
+    "node": "v24.10.0",
+    "npm": "11.5.1",
+    "next": "16.3.6",
+    "basePath": "/agent-cli"
+  },
+  "fonts": [
+    {
+      "asset": "BloxwapSans-Bold.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 700,
+      "style": "normal",
+      "bytes": 447388,
+      "sha256": "13e10451ecec4e33733b196454f1232a16d34d5014dce66daaee4d0c58600e1b"
+    },
+    {
+      "asset": "BloxwapSans-Black.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 900,
+      "style": "normal",
+      "bytes": 445912,
+      "sha256": "a99894c158cff3cff828b7d17ec12f075352848843944a730caa9d64c0362ea2"
+    }
+  ],
+  "allFontDescriptorsAndBytesPreserved": true,
+  "cards": {
+    "count": 13,
+    "allByteIdentical": true,
+    "mismatches": [],
+    "beforeManifest": "before.json",
+    "afterManifest": "after.json"
+  },
+  "browser": {
+    "captures": [
+      {
+        "capture": "home-desktop",
+        "beforeSha256": "bd2be9a6d5210ef0de617d451822cd89d0e7aec4596fdcec0e262ea55951c2cc",
+        "afterSha256": "bd2be9a6d5210ef0de617d451822cd89d0e7aec4596fdcec0e262ea55951c2cc",
+        "byteIdentical": true
+      },
+      {
+        "capture": "docs-desktop",
+        "beforeSha256": "425828d83888f27335cd201fabcbb3b81b51230ac80b0b0827847f4a0076aa10",
+        "afterSha256": "425828d83888f27335cd201fabcbb3b81b51230ac80b0b0827847f4a0076aa10",
+        "byteIdentical": true
+      },
+      {
+        "capture": "home-mobile",
+        "beforeSha256": "5a37ff8f2df7c1f4464c67b167fc3db0a7e66c72956c54add7ccfd06c98e8d65",
+        "afterSha256": "5a37ff8f2df7c1f4464c67b167fc3db0a7e66c72956c54add7ccfd06c98e8d65",
+        "byteIdentical": true
+      },
+      {
+        "capture": "og-home",
+        "beforeSha256": "9df0ba67da7172bb8700f7cf8e1355709116d0031800e07fb7e74cdbfa9eb33c",
+        "afterSha256": "9df0ba67da7172bb8700f7cf8e1355709116d0031800e07fb7e74cdbfa9eb33c",
+        "byteIdentical": true
+      }
+    ],
+    "computedStyleChanges": [],
+    "consoleErrors": [],
+    "mobileNoOverflow": true,
+    "details": "browser-comparison.json"
+  },
+  "vendor": {
+    "beforeBytes": 4454889,
+    "afterBytes": 881378,
+    "deltaBytes": -3573511,
+    "nativeFontTarballs": 0,
+    "nativeFontLockEntries": [],
+    "exportedTtfFiles": []
+  },
+  "checks": [
+    {
+      "command": "npm install --package-lock-only --ignore-scripts && npm ci",
+      "result": "passed from an empty dependency tree and lock; no legacy-peer-deps or force"
+    },
+    {
+      "command": "npm run build && npm run lint && npm run typecheck && npm test",
+      "result": "passed",
+      "tests": 103,
+      "log": "root-gates.log"
+    },
+    {
+      "command": "NEXT_PUBLIC_BASE_PATH=/agent-cli NEXT_PUBLIC_SITE_URL=https://bloxwap.github.io npm run docs:build",
+      "result": "passed; production Turbopack static export",
+      "log": "after-build.log"
+    },
+    {
+      "command": "NEXT_PUBLIC_BASE_PATH=/agent-cli npm run docs:check",
+      "result": "passed; archive/version/font guards, Next typegen and TypeScript",
+      "guardTests": 2,
+      "log": "docs-check.log"
+    },
+    {
+      "command": "npm run docs:smoke",
+      "result": "passed against the local production export",
+      "browserChecks": 14,
+      "log": "docs-smoke.log"
+    },
+    {
+      "command": "node evidence/hig/og-font-refresh/capture.mjs before|after",
+      "result": "passed; home/docs desktop,390px home,OG request bytes",
+      "log": "browser-comparison.json"
+    },
+    {
+      "command": "node .hig/scripts/drift.mjs --root . --config hig-drift.json",
+      "source": "e3390bbd0ac12b9d4b371175bd250d01ea866abe",
+      "result": "passed;41 files, 0 dated exceptions",
+      "log": "drift.log"
+    }
+  ],
+  "reviewNotes": [
+    "Exact original Bold/Black descriptors and every generated card are preserved.",
+    "Explicit whole-page base CSS import preserves existing docs appearance after the HIG CSS split.",
+    "The old lock update attempted an unpublished transitive registry fetch; clean lock resolution succeeded.",
+    "Redundant HIG file overrides were removed after fresh resolution interpreted them relative to apps/docs; unrelated esbuild/mdast overrides remain."
+  ],
+  "pendingAcceptance": [
+    "Remote CI remains pending at the time of this local validation report.",
+    "The HIG owner tracks the refresh PR and remote CI in the central adoption row."
+  ],
+  "published": false,
+  "deployed": false
+}

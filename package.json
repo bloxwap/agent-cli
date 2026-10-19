@@ -33,8 +33,6 @@
     "@changesets/cli": "^3.0.3"
   },
   "overrides": {
-    "@bloxwap/hig-contracts": "file:./vendor/bloxwap-hig/bloxwap-hig-contracts-0.1.0-candidate.sha872906a9.tgz",
-    "@bloxwap/hig-tokens": "file:./vendor/bloxwap-hig/bloxwap-hig-tokens-0.1.0-candidate.sha872906a9.tgz",
     "esbuild": "^0.28.1",
     "mdast-util-to-markdown": "2.1.2"
   }

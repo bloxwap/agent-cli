@@ -76,6 +76,22 @@ The validated version-patch workflow prepared 0.2.0, consuming the pending
 changesets and synchronizing package/lock/skill versions and generated docs.
 This is release preparation; public npm installation is still pending.
 
+## HIG OG-font refresh — 2026-10-18
+
+| Issue | State | Notes |
+| --- | --- | --- |
+| bloxwap/hig#115 | partial | Original refresh validated against consumer baseline `76384c49`; current integration checks are recorded below. HIG `0.1.0-candidate.shae3390bbd` replaces the native-fonts dev dependency with the OG-only package. All 13 generated cards and the desktop/mobile comparison captures were byte-identical at that original baseline. |
+
+The clean lock install, root build/lint/typecheck, 103 CLI tests, docs production
+build/check (including two CSS guard tests), all 14 browser smoke checks and the
+pinned HIG drift check (41 files, zero exceptions) pass. The selected Bold/Black
+family, weights and font bytes are unchanged. The vendor set is 3,573,511 bytes
+smaller; the redundant HIG root file overrides are removed, while unrelated
+esbuild/mdast overrides remain. [Local evidence](../evidence/hig/og-font-refresh/README.md).
+
+The draft refresh PR tracks remote CI and central HIG adoption linkage. Package
+publication and deployment are outside this refresh.
+
 ## Testnet harness — 2026-10-18
 
 #39 now supports caller-controlled external wallet approvals alongside the
@@ -88,3 +104,14 @@ Runner shutdown is confirmed before journal export. Nightly CI maps
 `AGENT_CLI_PRIVY_APP_SECRET` from the `testnet` environment onto the harness
 `BLOXWAP_*` variables. Live journals and the independent coding-agent session
 are still not claimed.
+
+## HIG refresh integration — 2026-10-18
+
+Merged current main `bb242b8ef95ae238a65b779d427bff3813e6b267` into the
+existing HIG refresh branch, retaining upstream runner, testnet and npm-token changes.
+The exact four `e3390bbd` archives and dependency lock are unchanged. A fresh install,
+build, lint, types, 232 offline CLI tests, packed-package install, production docs
+build/check, 14 browser smoke checks and pinned drift check pass. Current 13-card
+output matches the historical manifest; earlier screenshot parity remains scoped to its
+original baseline. [Integration evidence](../evidence/hig/og-font-refresh/main-integration/report.json).
+[Draft PR #55](https://github.com/bloxwap/agent-cli/pull/55) tracks remote checks and adoption.

@@ -1,51 +1,50 @@
 # Vendored Bloxwap HIG candidate packages
 
-`@bloxwap/hig-*` is not on npm yet ([bloxwap/hig#56](https://github.com/bloxwap/hig/issues/56)). The docs app
-(`apps/docs`) installs these packed candidates through `file:` dependencies, and the root `overrides` point HIG's
-internal `@bloxwap/hig-tokens` and `@bloxwap/hig-contracts` dependencies at the same files. Nothing here is copied
-source.
+The docs use four packed HIG candidates through `file:` dependencies. These are package archives,
+not copied source. `@bloxwap/hig-og-fonts` replaces the former native-fonts build dependency for
+Open Graph cards ([bloxwap/hig#115](https://github.com/bloxwap/hig/issues/115)).
 
-| Tarball | Package | Bytes | sha256 |
+| Tarball | Package | Bytes | SHA-256 |
 | --- | --- | ---: | --- |
-| `bloxwap-hig-tokens-0.1.0-candidate.sha872906a9.tgz` | `@bloxwap/hig-tokens` | 8,108 | `62b4007b5e06ee571352f8a33bd7e14025745fe42234d8532092739ff49f6196` |
-| `bloxwap-hig-react-0.1.0-candidate.sha872906a9.tgz` | `@bloxwap/hig-react` | 20,287 | `5835fea5e4f701815fb4152cf079901d0f8af634ef3fbb537b40fc48500670c4` |
-| `bloxwap-hig-contracts-0.1.0-candidate.sha872906a9.tgz` | `@bloxwap/hig-contracts` (dependency of react) | 6,119 | `ca8d5e0fe7e6138c056e9b45182e664c69d7217295264dff56a09290acabd352` |
-| `bloxwap-hig-native-fonts-0.1.0-candidate.sha872906a9.tgz` | `@bloxwap/hig-native-fonts` (dev, social cards only) | 4,420,375 | `2de088737f6f76c594e95de237342dbe4457387ed9134628ef12049266195f77` |
+| `bloxwap-hig-tokens-0.1.0-candidate.shae3390bbd.tgz` | `@bloxwap/hig-tokens` | 8,227 | `a650c37a3bb34943bbe6b8476906029eb7be014580cbd66b4e91030eace83791` |
+| `bloxwap-hig-react-0.1.0-candidate.shae3390bbd.tgz` | `@bloxwap/hig-react` | 21,918 | `f18f76f4847f4f1c75dcec128709454b3b649fd49d98c80bf22c44b3b97cac56` |
+| `bloxwap-hig-contracts-0.1.0-candidate.shae3390bbd.tgz` | `@bloxwap/hig-contracts` | 7,205 | `801fea3c0f3d8bcaad20fcee7ffca91b30da59616b5477a288a3a8c2c27536b9` |
+| `bloxwap-hig-og-fonts-0.1.0-candidate.shae3390bbd.tgz` | `@bloxwap/hig-og-fonts` | 844,028 | `5d322cd414ac8c6ace05d103f59ac1065ef609ec7cb176e1e91044e0beb9a89e` |
 
-Source: [bloxwap/hig@872906a](https://github.com/bloxwap/hig/tree/872906a9071469af8714b3b6fb5cc7bd64d2d6f3), HIG 0.1.0
-candidate. Built in a clean clone (Node 24, Python with `fonttools[woff]==4.61.1` and `brotli==1.2.0`):
+Source: [bloxwap/hig@e3390bbd](https://github.com/bloxwap/hig/tree/e3390bbd0ac12b9d4b371175bd250d01ea866abe),
+version `0.1.0-candidate.shae3390bbd`. The [authoritative release report](../../evidence/hig/og-font-refresh/candidate-report.json)
+records `sourceTreeDirty: false`, `published: false`, and no tags or releases. `provenance.json`
+records the reviewed archive hashes and the exact two font faces this host uses.
 
-```sh
-npm ci && npm run generate:fonts && npm run build
-npm run release:dry-run -- --channel candidate
-```
+The docs consume:
 
-The dry run reported `published: false`, with no tags or releases. Only the four packages the docs use are
-vendored; `hig-feedback` and `hig-native` are not needed. `provenance.json` holds the same hashes in machine form,
-and `npm run docs:check` (`apps/docs/scripts/hig-tokens.mjs`) fails if a tarball, the `file:` specs, the overrides or
-the installed versions drift apart.
+- `@bloxwap/hig-tokens/css` for semantic palette, spacing, radius, motion, density and font roles.
+- `@bloxwap/hig-react/css/base` for the whole-page rules used by this docs app, followed by
+  `@bloxwap/hig-react/css` for component recipes. The explicit base import preserves the prior
+  page/table/focus behavior after HIG split those rules out of component CSS (#95).
+- HIG navigation/status/control entries for the existing install picker, callouts and search states.
+- `@bloxwap/hig-tokens` for OG colors and `@bloxwap/hig-og-fonts/node` `readOgFont()` for
+  `BloxwapSans-Bold.ttf` and `BloxwapSans-Black.ttf`. The loader verifies each TTF against its
+  manifest. The renderer keeps `Bloxwap Sans`, weights 700/900 and the original font bytes.
+  The package is a dev dependency because the cards are rendered during the static docs build.
 
-What the docs use:
+The font archive is 844,028 B (previous native bundle: 4,420,375 B). The complete four-archive
+vendor set is 881,378 B (previous: 4,454,889 B), a reduction of 3,573,511 B. The docs do not
+need the native renderer, native font bundle, feedback backends or chart adapter.
 
-- `@bloxwap/hig-tokens/css` for the `--hig-*` palette, spacing, radius, motion, type, density and font-family roles;
-  `@bloxwap/hig-react/css` for the control recipes (`hig-button`, `hig-surface`, `hig-link`, `hig-sr-only`, focus
-  ring).
-- `@bloxwap/hig-react/button` `IconButton` (code copy), `/navigation` `Tabs` and `/recipes/install-command`
-  `InstallCommand` (package-manager install), `/status` `Alert`, `EmptyState` and `Callout` (search error, no results,
-  MDX callouts).
-- `@bloxwap/hig-tokens` `tokens` for the Open Graph colors, and
-  `@bloxwap/hig-native-fonts/fonts/BloxwapSans-{Bold,Black}.ttf` for the Open Graph renderer. Satori needs static
-  TTFs, which `@bloxwap/font` (WOFF2) does not ship; these are the approved static instances of `@bloxwap/font`
-  0.1.2 (OFL in the package). It is a dev dependency because the cards are rendered at build time.
+The package/face guard runs in `npm run docs:check` and rejects archive, dependency, installed
+version, family, weight or font-byte drift. The font cases remain derived from `@bloxwap/font`
+0.1.2; licenses ship in the archive. The [refresh evidence](../../evidence/hig/og-font-refresh/README.md)
+records production card comparisons and browser/build checks.
 
-The docs install no Radix packages for HIG. `@bloxwap/hig-react/recipes/install-command` is an overlay-free entry, so
-the optional `@radix-ui/react-dropdown-menu` and `@radix-ui/react-tooltip` peers are no longer needed
-([bloxwap/hig#63](https://github.com/bloxwap/hig/issues/63)). HIG's Radix peers are caret ranges now, so the
-`@radix-ui/react-dialog`/`react-popover` 1.3.1 that Fumadocs installs satisfy them and `npm ls` reports no invalid
-HIG peers.
+The old HIG root overrides have been removed. With the coherent candidate, the direct docs
+`file:` dependencies resolve the transitive packages from the same vendor set. Fresh npm
+resolution otherwise interprets those redundant override paths relative to the docs workspace.
+The unrelated esbuild/mdast overrides remain. CI checks scoped HIG drift from the same source
+commit recorded above in `.github/workflows/docs.yml`.
 
-Upgrade: rebuild the tarballs from a reviewed HIG commit, replace these files, update the four `file:` specs in
-`apps/docs/package.json`, the two `overrides` in the root `package.json`, `provenance.json`, this table and the drift
-checkout `ref` in `.github/workflows/docs.yml`, then run `npm install`. When #56 publishes, swap the `file:` specs for
-registry versions, drop the overrides and delete this folder. Rollback is a revert of the adopting commit, which
-restores the previous tarballs, lockfile and imports.
+To refresh, pack a reviewed HIG commit, replace these four archives, update the four docs
+`file:` specs, provenance and this table, regenerate the lock from a clean dependency install,
+and run `npm ci` plus the repository and docs gates. No `legacy-peer-deps` flag is used.
+For agent-cli, update the pinned HIG drift-check source in the docs workflow as well.
+Rollback is a revert of the adopting change, restoring the previous imports, archives and lockfile.

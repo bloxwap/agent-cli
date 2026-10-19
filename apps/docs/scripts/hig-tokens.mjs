@@ -1,10 +1,12 @@
 // Verifies the HIG package install: vendored candidate tarballs match their recorded hashes, the docs and the root
 // overrides depend on exactly those files, the installed packages are the same build, and app/global.css reads HIG
 // values through --hig-* roles instead of copying token numbers or bridging font families.
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { tokens } from '@bloxwap/hig-tokens';
+import { ogFonts } from '@bloxwap/hig-og-fonts';
+import { readOgFont } from '@bloxwap/hig-og-fonts/node';
 import { assertNoCopiedHigTokens } from './hig-css-guard.mjs';
 
 const root = new URL('../../../', import.meta.url);
@@ -33,6 +35,17 @@ for (const { package: name, file, sha256 } of provenance.artifacts) {
   assert.equal(installed.version, provenance.version, `${name}: installed ${installed.version}, vendored ${provenance.version}; run npm install`);
 }
 assert.equal(tokens.version, provenance.version.split('-')[0]);
+assert.ok(!manifest.dependencies['@bloxwap/hig-native-fonts'] && !manifest.devDependencies?.['@bloxwap/hig-native-fonts'], 'OG cards must use the OG-only package');
+assert.ok(!(await readdir(vendor)).some(file => file.includes('hig-native-fonts')), 'Do not vendor the native font bundle for OG cards');
+assert.equal(provenance.ogFonts.length, 2, 'The renderer uses only the approved Bold and Black faces');
+for (const face of provenance.ogFonts) {
+  const descriptor = ogFonts.find(font => font.asset === face.asset);
+  assert.ok(descriptor, `${face.asset} must be a packaged OG face`);
+  for (const key of ['name', 'weight', 'style', 'sha256']) assert.equal(descriptor[key], face[key], `${face.asset}: ${key} must preserve the approved card face`);
+  const data = await readOgFont(face.asset);
+  assert.equal(data.length, face.bytes, `${face.asset}: approved byte length changed`);
+  assert.equal(createHash('sha256').update(data).digest('hex'), face.sha256, `${face.asset}: approved font bytes changed`);
+}
 
 const css = await readFile(new URL('app/global.css', docs), 'utf8');
 // Radius, motion, type, density and font families are CSS roles in @bloxwap/hig-tokens/css; a host copy would drift.
@@ -53,4 +66,4 @@ for (const path of ['vendor/hig', 'styles', 'fonts']) {
   await assert.rejects(stat(new URL(path, docs)), `apps/docs/${path} must not exist; use the HIG packages`);
 }
 assert.ok(!/--bloxwap-[\w-]+\s*:/.test(css), 'app/global.css must not define --bloxwap-* aliases; use --hig-* roles');
-console.log(`HIG ${provenance.version}: ${provenance.artifacts.length} vendored tarballs, installed packages and HIG role usage verified.`);
+console.log(`HIG ${provenance.version}: ${provenance.artifacts.length} vendored tarballs, installed packages, exact OG faces and HIG role usage verified.`);

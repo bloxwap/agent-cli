@@ -1,0 +1,8 @@
+
+> lint
+> npm --workspace @bloxwap/agent-cli run lint
+
+
+> @bloxwap/agent-cli@0.2.0 lint
+> eslint .
+

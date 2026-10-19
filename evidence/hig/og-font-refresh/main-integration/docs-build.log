@@ -1,0 +1,66 @@
+
+> docs:build
+> npm --workspace @bloxwap/agent-cli-docs run build
+
+
+> @bloxwap/agent-cli-docs@0.1.0 prebuild
+> npm --workspace @bloxwap/agent-cli run build && node scripts/generate-content.mjs && node scripts/prepare-public.mjs
+
+
+> @bloxwap/agent-cli@0.2.0 build
+> node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs
+
+CLI Building entry: src/cli.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Target: es2022
+CLI Cleaning output folder
+ESM Build start
+ESM dist/cli.js 132.02 KB
+ESM ⚡️ Build success in 25ms
+Command schemas, skill guide and public SKILL.md synchronized.
+
+> @bloxwap/agent-cli-docs@0.1.0 build
+> next build
+
+▲ Next.js 16.3.6 (Turbopack)
+[MDX] generated files in 6.573875000000044ms
+✓ Running next.config.mjs took 117ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 999ms
+  Running TypeScript ...
+  Finished TypeScript in 807ms ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/30) ...
+  Generating static pages using 8 workers (7/30) 
+  Generating static pages using 8 workers (14/30) 
+  Generating static pages using 8 workers (22/30) 
+✓ Generating static pages using 8 workers (30/30) in 664ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├   /docs/[[...slug]]
+│ ├ ● /docs/audit
+│ ├ ● /docs/commands
+│ ├ ● /docs/config
+│ └ ● [+9 more paths]
+├   /og/[...slug]
+│ ├ ● /og/home.png
+│ ├ ● /og/docs/audit.png
+│ ├ ● /og/docs/commands.png
+│ └ ● [+10 more paths]
+├ ○ /search.json
+└ ○ /sitemap.xml
+
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+
+> @bloxwap/agent-cli-docs@0.1.0 postbuild
+> node scripts/check-export.mjs
+
+Static export verified: 16 HTML pages, 598 local links/assets, 13 social cards, basePath "/agent-cli".

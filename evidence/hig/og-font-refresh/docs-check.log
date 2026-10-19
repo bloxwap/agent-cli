@@ -1,0 +1,24 @@
+
+> docs:check
+> npm --workspace @bloxwap/agent-cli-docs run check
+
+
+> @bloxwap/agent-cli-docs@0.1.0 check
+> node --test scripts/hig-css-guard.test.mjs && node scripts/check-content.mjs --check && node scripts/hig-tokens.mjs --check && next typegen && tsc --noEmit
+
+✔ rejects copied HIG declarations in formatted and compact CSS (0.991458ms)
+✔ allows host-specific declarations and HIG role references (0.475041ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49.524584
+Command schemas, skill guide and public SKILL.md synchronized.
+Content verified: 12 pages and sidebar entries.
+HIG 0.1.0-candidate.shae3390bbd: 4 vendored tarballs, installed packages, exact OG faces and HIG role usage verified.
+[MDX] generated files in 4.106957999999992ms
+Generating route types...
+✓ Types generated successfully

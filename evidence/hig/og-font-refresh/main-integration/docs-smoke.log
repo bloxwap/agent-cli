@@ -1,0 +1,22 @@
+
+> docs:smoke
+> npm --workspace @bloxwap/agent-cli-docs run smoke
+
+
+> @bloxwap/agent-cli-docs@0.1.0 smoke
+> node scripts/smoke.mjs
+
+ok  canonical SKILL.md serves the packaged Markdown and is discoverable
+ok  home renders with the base path and no runtime errors
+ok  HIG controls and code render loaded Bloxwap faces through --hig-font-* (no host font bridge)
+ok  install tabs: arrow/Home/End keys move selection and focus
+ok  install command copies to the clipboard and announces the result
+ok  hero code window copies the workflow
+ok  keyboard: Tab reaches the primary actions with a visible focus ring
+ok  search: Ctrl+K opens, finds pages, shows a no-results state and closes with Escape
+ok  docs page renders
+ok  404 explains the error and recovers inside the base path
+ok  390 px home has no horizontal scroll
+ok  390 px touch: compact HIG copy controls keep a 48 px target
+ok  390 px sidebar navigation reaches a deep link
+ok  reduced motion: HIG motion roles drop to 0 ms

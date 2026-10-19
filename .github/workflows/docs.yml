@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: bloxwap/hig
-          ref: 872906a9071469af8714b3b6fb5cc7bd64d2d6f3
+          ref: e3390bbd0ac12b9d4b371175bd250d01ea866abe
           path: .hig
           sparse-checkout: scripts/drift.mjs
           sparse-checkout-cone-mode: false

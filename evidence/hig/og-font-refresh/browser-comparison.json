@@ -1,0 +1,34 @@
+{
+  "beforeBrowser": "156.0.8078.4",
+  "afterBrowser": "156.0.8078.4",
+  "styleChanges": [],
+  "beforeErrors": [],
+  "afterErrors": [],
+  "mobileNoOverflow": true,
+  "captures": [
+    {
+      "capture": "home-desktop",
+      "beforeSha256": "bd2be9a6d5210ef0de617d451822cd89d0e7aec4596fdcec0e262ea55951c2cc",
+      "afterSha256": "bd2be9a6d5210ef0de617d451822cd89d0e7aec4596fdcec0e262ea55951c2cc",
+      "byteIdentical": true
+    },
+    {
+      "capture": "docs-desktop",
+      "beforeSha256": "425828d83888f27335cd201fabcbb3b81b51230ac80b0b0827847f4a0076aa10",
+      "afterSha256": "425828d83888f27335cd201fabcbb3b81b51230ac80b0b0827847f4a0076aa10",
+      "byteIdentical": true
+    },
+    {
+      "capture": "home-mobile",
+      "beforeSha256": "5a37ff8f2df7c1f4464c67b167fc3db0a7e66c72956c54add7ccfd06c98e8d65",
+      "afterSha256": "5a37ff8f2df7c1f4464c67b167fc3db0a7e66c72956c54add7ccfd06c98e8d65",
+      "byteIdentical": true
+    },
+    {
+      "capture": "og-home",
+      "beforeSha256": "9df0ba67da7172bb8700f7cf8e1355709116d0031800e07fb7e74cdbfa9eb33c",
+      "afterSha256": "9df0ba67da7172bb8700f7cf8e1355709116d0031800e07fb7e74cdbfa9eb33c",
+      "byteIdentical": true
+    }
+  ]
+}

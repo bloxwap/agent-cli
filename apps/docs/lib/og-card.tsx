@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { readOgFont } from '@bloxwap/hig-og-fonts/node';
 import { tokens } from '@bloxwap/hig-tokens';
 import { ImageResponse } from 'next/og';
 import { socialImageSize } from './social';
@@ -13,12 +13,11 @@ const { colors } = tokens;
 const ink = colors.text.srgb;
 const muted = colors.muted.srgb;
 const bar: [color: string, share: number][] = [[colors.action.srgb, 62], [colors.info.srgb, 14], ['#b300ff', 10], ['#ff479c', 8], ['#fffb38', 6]];
-// Satori reads static TTFs, which @bloxwap/font (WOFF2 only) does not ship. These approved static Bloxwap Sans instances
-// (derived from @bloxwap/font 0.1.2, OFL) come from @bloxwap/hig-native-fonts, a build-time dependency of this renderer.
-const hig = createRequire(join(process.cwd(), 'package.json'));
+// The OG-only build dependency verifies the approved static @bloxwap/font 0.1.2 TTFs.
+// Family names, weights and bytes remain identical to the previous social cards.
 const assets = Promise.all([
-  readFile(hig.resolve('@bloxwap/hig-native-fonts/fonts/BloxwapSans-Bold.ttf')),
-  readFile(hig.resolve('@bloxwap/hig-native-fonts/fonts/BloxwapSans-Black.ttf')),
+  readOgFont('BloxwapSans-Bold.ttf'),
+  readOgFont('BloxwapSans-Black.ttf'),
   readFile(join(process.cwd(), '../../packages/agent-cli/package.json'), 'utf8'),
 ]);
 
