@@ -82,15 +82,13 @@ test('changed server rules and network are replaced instead of trusted by ID', a
   expect(create).toHaveBeenLastCalledWith(policyFor('mainnet'));
 });
 
-test('policy denies private key/seed exports and leaves non-Agent methods unallowlisted', () => {
+test('policy allows only Agent domain signing and leaves other methods unallowlisted', () => {
   const policy = policyFor('testnet');
   expect(policy.rules.filter((rule) => rule.action === 'ALLOW')).toEqual([
     expect.objectContaining({ method: 'eth_signTypedData_v4' }),
   ]);
-  for (const method of ['exportPrivateKey', 'exportSeedPhrase'])
-    expect(policy.rules).toContainEqual(
-      expect.objectContaining({ method, action: 'DENY', conditions: [] }),
-    );
+  // Privy's default policy behavior denies unmatched methods, including key export
+  expect(policy.rules.filter((rule) => rule.action === 'DENY')).toEqual([]);
   expect(policy.rules[0].conditions).toContainEqual({
     field_source: 'ethereum_typed_data_domain',
     field: 'chainId',

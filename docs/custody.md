@@ -28,8 +28,8 @@ and attest the remote policy on every read.
 
 The Privy policy allows only typed-data requests matching chain 1337, the zero
 verifying contract and the Agent schema's network source (`a` mainnet, `b` testnet).
-It explicitly denies agent private-key/seed export; unmatched methods are denied
-by [Privy's default policy behavior](https://docs.privy.io/controls/policies/overview).
+Agent private-key/seed export and all other unmatched methods are denied by
+[Privy's default policy behavior](https://docs.privy.io/controls/policies/overview).
 The local signer additionally requires the exact `Exchange`/`1` domain, Agent
 fields and a 32-byte connection ID. User-signed withdrawals, transfers and agent
 approvals have a different type/domain and are refused locally. The CLI dispatch
