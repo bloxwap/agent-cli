@@ -1,7 +1,8 @@
 # agent-cli
 
 An agent-native Hyperliquid trading CLI with JSON input/output, a persistent
-signing runner, Privy managed agents, Relay funding, and a packaged agent skill.
+signing runner, Privy managed agents, Relay funding, a packaged agent skill,
+and a paper trading mode against real mainnet market data.
 
 After the first public release, install with `npm i -g @bloxwap/agent-cli` or run
 `bunx @bloxwap/agent-cli --help`. Use Node **22.12+** or Bun;
@@ -9,6 +10,17 @@ After the first public release, install with `npm i -g @bloxwap/agent-cli` or ru
 The package has no install lifecycle scripts and supports `--ignore-scripts`.
 Until publication, build a local tarball with `npm run build && npm run pack:cli`
 from the repository root and install that tarball with `npm i -g PATH_TO_TARBALL`.
+
+## Paper trading
+
+Simulate strategies against real mainnet Hyperliquid market data with no
+signing and no funds: `paper reset --yes`, then trade with the global `--paper`
+flag (or `config set mode paper` / `run --paper`). The simulator walks the live
+book, charges Hyperliquid taker/maker plus the 1 bp builder fee, accrues
+funding, approximates margin/liquidation, and keeps restartable state under
+`~/.bloxwap/paper/`. `paper summary` reports PnL, fees, funding and trades.
+Envelopes and events carry `mode`/`paper` labels; `config set mode live --yes`
+is the explicit way back to live. See `docs/paper.md`.
 
 ## Testnet quickstart
 

@@ -2,8 +2,7 @@
 
 Generated from `agent-cli schema <command>`. Do not edit by hand.
 
-Global flags: `--config PATH`, `--network mainnet|testnet`, `--pretty`, `--json OBJECT`.
-
+Global flags: `--config PATH`, `--network mainnet|testnet`, `--pretty`, `--json OBJECT`, `--paper`, `--live`.
 ## config
 
 Get, set or validate local configuration
@@ -20,10 +19,15 @@ Get, set or validate local configuration
         "items": {
           "type": "string"
         }
+      },
+      "yes": {
+        "default": false,
+        "type": "boolean"
       }
     },
     "required": [
-      "args"
+      "args",
+      "yes"
     ],
     "additionalProperties": false
   },
@@ -33,13 +37,24 @@ Get, set or validate local configuration
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
             "const": true
           },
-          "data": {}
+          "data": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       },
       {
@@ -49,7 +64,9 @@ Get, set or validate local configuration
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -81,7 +98,16 @@ Get, set or validate local configuration
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -130,7 +156,9 @@ Create agent and emit resumable master-wallet approvals
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -175,6 +203,15 @@ Create agent and emit resumable master-wallet approvals
               "policyId",
               "approved"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -185,7 +222,9 @@ Create agent and emit resumable master-wallet approvals
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -217,7 +256,16 @@ Create agent and emit resumable master-wallet approvals
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -278,7 +326,9 @@ Quote funding with address, QR and transparent fees
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -348,6 +398,15 @@ Quote funding with address, QR and transparent fees
               "expiresAt",
               "qrAscii"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -358,7 +417,9 @@ Quote funding with address, QR and transparent fees
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -390,7 +451,16 @@ Quote funding with address, QR and transparent fees
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -429,7 +499,9 @@ Resume deposit steps or submit a master-wallet signature
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -450,6 +522,15 @@ Resume deposit steps or submit a master-wallet signature
               }
             },
             "required": []
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -460,7 +541,9 @@ Resume deposit steps or submit a master-wallet signature
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -492,7 +575,16 @@ Resume deposit steps or submit a master-wallet signature
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -518,7 +610,9 @@ Read account status
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -678,6 +772,15 @@ Read account status
               "approvedMaxBuilderFee",
               "runner"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -688,7 +791,9 @@ Read account status
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -720,7 +825,16 @@ Read account status
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -746,7 +860,9 @@ Read account balance
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -774,6 +890,15 @@ Read account balance
               "withdrawable",
               "marginUsed"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -784,7 +909,9 @@ Read account balance
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -816,7 +943,16 @@ Read account balance
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -842,7 +978,9 @@ Read account positions
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -887,6 +1025,15 @@ Read account positions
                 "leverage"
               ]
             }
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -897,7 +1044,9 @@ Read account positions
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -929,7 +1078,16 @@ Read account positions
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -955,7 +1113,9 @@ Read account orders
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -996,6 +1156,15 @@ Read account orders
                 "side"
               ]
             }
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1006,7 +1175,9 @@ Read account orders
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1038,7 +1209,16 @@ Read account orders
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1132,7 +1312,9 @@ Place limit, IOC market or TP/SL order
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1161,6 +1343,15 @@ Place limit, IOC market or TP/SL order
               "builderAddress",
               "cloid"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1171,7 +1362,9 @@ Place limit, IOC market or TP/SL order
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1203,7 +1396,16 @@ Place limit, IOC market or TP/SL order
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1268,7 +1470,9 @@ Cancel by oid/cloid, coin or all
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1289,6 +1493,15 @@ Cancel by oid/cloid, coin or all
               "cancelled",
               "result"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1299,7 +1512,9 @@ Cancel by oid/cloid, coin or all
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1331,7 +1546,16 @@ Cancel by oid/cloid, coin or all
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1403,7 +1627,9 @@ Modify price/size of single or batch resting orders
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1420,6 +1646,15 @@ Modify price/size of single or batch resting orders
             "required": [
               "status"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1430,7 +1665,9 @@ Modify price/size of single or batch resting orders
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1462,7 +1699,16 @@ Modify price/size of single or batch resting orders
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1516,7 +1762,9 @@ Set market leverage and cross/isolated margin mode
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1533,6 +1781,15 @@ Set market leverage and cross/isolated margin mode
             "required": [
               "status"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1543,7 +1800,9 @@ Set market leverage and cross/isolated margin mode
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1575,7 +1834,16 @@ Set market leverage and cross/isolated margin mode
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1600,11 +1868,16 @@ Start persistent signing runner (foreground or detach)
       "daemon": {
         "default": false,
         "type": "boolean"
+      },
+      "paper": {
+        "default": false,
+        "type": "boolean"
       }
     },
     "required": [
       "detach",
-      "daemon"
+      "daemon",
+      "paper"
     ],
     "additionalProperties": false
   },
@@ -1614,7 +1887,9 @@ Start persistent signing runner (foreground or detach)
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1640,13 +1915,26 @@ Start persistent signing runner (foreground or detach)
               },
               "existing": {
                 "type": "boolean"
+              },
+              "paper": {
+                "type": "boolean"
               }
             },
             "required": [
               "pid",
               "startedAt",
-              "network"
+              "network",
+              "paper"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1657,7 +1945,9 @@ Start persistent signing runner (foreground or detach)
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1689,7 +1979,16 @@ Start persistent signing runner (foreground or detach)
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1747,7 +2046,9 @@ Replay or follow JSON-line runner events
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1777,15 +2078,35 @@ Replay or follow JSON-line runner events
                     "runner_state"
                   ]
                 },
-                "data": {}
+                "data": {},
+                "mode": {
+                  "enum": [
+                    "live",
+                    "paper"
+                  ]
+                },
+                "paper": {
+                  "type": "boolean"
+                }
               },
               "required": [
                 "seq",
                 "timestamp",
                 "type",
-                "data"
+                "data",
+                "mode",
+                "paper"
               ]
             }
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1796,7 +2117,9 @@ Replay or follow JSON-line runner events
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1828,7 +2151,16 @@ Replay or follow JSON-line runner events
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1879,7 +2211,9 @@ Read/follow redacted JSON-line runner logs
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1888,6 +2222,15 @@ Read/follow redacted JSON-line runner logs
           "data": {
             "description": "JSON-line stream of redacted log objects",
             "type": "object"
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -1898,7 +2241,9 @@ Read/follow redacted JSON-line runner logs
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -1930,7 +2275,16 @@ Read/follow redacted JSON-line runner logs
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -1969,7 +2323,9 @@ Approve new agent, hot-swap signer, then revoke old agent
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2002,6 +2358,15 @@ Approve new agent, hot-swap signer, then revoke old agent
               "swapped",
               "oldRevoked"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -2012,7 +2377,9 @@ Approve new agent, hot-swap signer, then revoke old agent
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2044,7 +2411,16 @@ Approve new agent, hot-swap signer, then revoke old agent
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -2087,7 +2463,9 @@ Disable local agent and prepare master-signed exchange revocation
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2117,6 +2495,15 @@ Disable local agent and prepare master-signed exchange revocation
               "requiresSignature",
               "approval"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -2127,7 +2514,9 @@ Disable local agent and prepare master-signed exchange revocation
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2159,7 +2548,16 @@ Disable local agent and prepare master-signed exchange revocation
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -2195,7 +2593,9 @@ Verify and query the hash-chained trading audit
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2242,6 +2642,15 @@ Verify and query the hash-chained trading audit
                 "hash"
               ]
             }
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -2252,7 +2661,9 @@ Verify and query the hash-chained trading audit
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2284,7 +2695,16 @@ Verify and query the hash-chained trading audit
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -2337,7 +2757,9 @@ Install packaged version-matched skill for Claude Code or Codex
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2368,6 +2790,15 @@ Install packaged version-matched skill for Claude Code or Codex
               "version",
               "changed"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -2378,7 +2809,9 @@ Install packaged version-matched skill for Claude Code or Codex
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2410,7 +2843,16 @@ Install packaged version-matched skill for Claude Code or Codex
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]
@@ -2443,7 +2885,9 @@ Discover market asset, precision, leverage ceiling and current mid
         "type": "object",
         "required": [
           "ok",
-          "data"
+          "data",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2475,6 +2919,15 @@ Discover market asset, precision, leverage ceiling and current mid
               "maxLeverage",
               "mid"
             ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
           }
         }
       },
@@ -2485,7 +2938,9 @@ Discover market asset, precision, leverage ceiling and current mid
           "code",
           "message",
           "retryable",
-          "details"
+          "details",
+          "mode",
+          "paper"
         ],
         "properties": {
           "ok": {
@@ -2517,7 +2972,231 @@ Discover market asset, precision, leverage ceiling and current mid
           "retryable": {
             "type": "boolean"
           },
-          "details": {}
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+## paper
+
+Reset or summarize the local paper trading account
+
+```json
+{
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "args": {
+        "default": [],
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "yes": {
+        "default": false,
+        "type": "boolean"
+      },
+      "balance": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    },
+    "required": [
+      "args",
+      "yes"
+    ],
+    "additionalProperties": false
+  },
+  "output": {
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "data",
+          "mode",
+          "paper"
+        ],
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "paper": {
+                "type": "boolean"
+              },
+              "mode": {
+                "enum": [
+                  "paper"
+                ]
+              },
+              "dataNetwork": {
+                "enum": [
+                  "mainnet"
+                ]
+              },
+              "startingBalance": {
+                "type": "string"
+              },
+              "balance": {
+                "type": "string"
+              },
+              "equity": {
+                "type": "string"
+              },
+              "netPnl": {
+                "type": "string"
+              },
+              "realizedPnl": {
+                "type": "string"
+              },
+              "unrealizedPnl": {
+                "type": "string"
+              },
+              "feesPaid": {
+                "type": "string"
+              },
+              "fundingPaid": {
+                "type": "string"
+              },
+              "trades": {
+                "type": "integer"
+              },
+              "liquidations": {
+                "type": "integer"
+              },
+              "openOrders": {
+                "type": "integer"
+              },
+              "positions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "coin": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "string"
+                    },
+                    "entryPrice": {
+                      "type": "string"
+                    },
+                    "markPrice": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "unrealizedPnl": {
+                      "type": "string"
+                    },
+                    "liquidationPrice": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "leverage": {
+                      "type": "string"
+                    },
+                    "marginMode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "coin",
+                    "size"
+                  ]
+                }
+              },
+              "reset": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "paper",
+              "mode"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "code",
+          "message",
+          "retryable",
+          "details",
+          "mode",
+          "paper"
+        ],
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "code": {
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
         }
       }
     ]

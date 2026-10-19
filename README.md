@@ -1,11 +1,38 @@
 # agent-cli
 
 An agent-native Hyperliquid trading CLI with JSON input/output, a persistent
-signing runner, Privy managed agents, Relay funding, and a packaged agent skill.
+signing runner, Privy managed agents, Relay funding, a packaged agent skill,
+and a paper trading mode that runs against real mainnet market data.
 
 Install: `npm i -g @bloxwap/agent-cli` or `bunx @bloxwap/agent-cli --help`.
 The requested Hyperliquid SDK declares Node **22.12+**; use that supported runtime
 or current Bun. No postinstall script. Publishing is release-gated.
+
+## Paper trading
+
+Paper mode simulates every trade against **real mainnet Hyperliquid public
+market data** (info `l2Book`, WS `l2Book`/`trades`/`bbo`, `meta`, funding) and
+never signs or submits anything. No Privy session, `approveAgent`, or deposit is
+needed. Enable it per command with the global `--paper` flag, persistently with
+`config set mode paper`, or for the runner with `run --paper`:
+
+```sh
+node packages/agent-cli/dist/cli.js paper reset --yes
+node packages/agent-cli/dist/cli.js order --paper --json '{"coin":"BTC","side":"buy","size":"0.001","type":"market"}'
+node packages/agent-cli/dist/cli.js positions --paper
+node packages/agent-cli/dist/cli.js paper summary   # PnL, fees, funding, trades
+```
+
+The local simulator fills market/IOC orders by walking the live book with
+slippage, rests limits until the market trades through them, supports
+reduce-only and TP/SL, charges Hyperliquid taker/maker fees plus the 1 bp
+Bloxwap builder fee, accrues funding, and approximates margin and liquidation
+with cross/isolated leverage. State lives under `~/.bloxwap/paper/` and
+survives restarts; `paper reset` clears it. Every output envelope and event is
+labeled `mode`/`paper`, paper state is fully separated from live state, and
+switching back with `config set mode live` requires an explicit `--yes`.
+Start agents in paper mode, then fund and go live only after the strategy is
+proven. See [docs/paper.md](docs/paper.md).
 
 ## Testnet quickstart
 

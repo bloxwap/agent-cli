@@ -1,6 +1,6 @@
 ---
 name: agent-cli
-description: Operate the agent-cli Hyperliquid trading CLI, including managed-agent onboarding, funding, orders, event monitoring, rotation, and normalized error recovery.
+description: Operate the agent-cli Hyperliquid trading CLI, including managed-agent onboarding, paper trading against real market data, funding, orders, event monitoring, rotation, and normalized error recovery.
 metadata:
   version: "0.2.0"
 ---
@@ -8,9 +8,26 @@ metadata:
 Use `agent-cli` for the user's authorized Hyperliquid account operations. Obtain
 command schemas with `agent-cli schema COMMAND`; arguments can be flags or
 `--json '{...}'`, or a JSON object on stdin. Ordinary commands print exactly one
-JSON object: `{ok:true,data}` or `{ok:false,code,message,retryable,details}`.
+JSON object: `{ok:true,data,mode,paper}` or
+`{ok:false,code,message,retryable,details,mode,paper}`; `mode` is `"live"` or
+`"paper"` and `paper` is `true` in paper mode.
 Logs/QR appear on stderr. `events --follow` and `logs` explicitly stream JSON lines.
 Use `--network testnet` during testing; never silently change to mainnet.
+
+## Paper first, then fund and go live
+
+Start every strategy in paper mode: `agent-cli --paper ...`, `config set mode
+paper`, or `run --paper`. Paper mode runs against real mainnet Hyperliquid
+public market data (info + WS l2Book/trades/bbo, meta, funding) and never signs
+or submits anything — no Privy session, `approveAgent`, or deposit is needed.
+`order`/`cancel`/`modify`/`leverage` keep the same validation, risk limits,
+builder fee and audit trail; a local simulator fills them (book-walking market
+orders, resting limits, reduce-only, TP/SL, fees, funding, margin/liquidation
+approximation). State is restartable under `~/.bloxwap/paper/`; `paper summary`
+reports PnL/fees/funding, `paper reset --yes` clears it. Envelopes and events
+carry `mode`/`paper`, paper state never mixes with live state, and going live
+requires `config set mode live --yes`. Only after the paper results are proven,
+continue with live onboarding below and real funding.
 
 ## Onboarding sequence
 
@@ -97,6 +114,10 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `events --since 12 --types '["fill"]'` | `{"ok":true,"data":[{"seq":13,"timestamp":"2026-01-01T00:00:00.000Z","type":"fill","data":{"tid":1}}]}` |
 | `events --follow` | `{"seq":13,"timestamp":"2026-01-01T00:00:00.000Z","type":"fill","data":{"tid":1}}` (one line per event) |
 | `logs --follow --level warn` | `{"level":"warn","requestId":"...","message":"Risk rejected","time":"..."}` (JSON lines) |
+| `paper reset --yes` | `{"ok":true,"data":{"paper":true,"mode":"paper","reset":true,"startingBalance":"10000"},"mode":"paper","paper":true}` |
+| `paper summary` | `{"ok":true,"data":{"paper":true,"mode":"paper","equity":"10000","netPnl":"0","feesPaid":"0","fundingPaid":"0","trades":0,"positions":[]}}` |
+| `order --paper --json '{"coin":"BTC","side":"buy","size":"0.001","type":"market"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"filled":{"oid":1,"totalSz":"0.001","avgPx":"20000","status":"filled"}}]}}},"builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":null},"mode":"paper","paper":true}` |
+| `run --paper --detach` | `{"ok":true,"data":{"pid":123,"startedAt":1700000000000,"network":"mainnet","paper":true}}` |
 | `rotate` then `rotate --signature 0x...` | `{"ok":true,"data":{"oldAgent":"0x...","newAgent":"0x...","swapped":true,"oldRevoked":false,"revokeApproval":{}}}` |
 | `rotate --revoke-signature 0x...` | `{"ok":true,"data":{"swapped":true,"oldRevoked":true}}` |
 | `revoke --cancel-orders` | `{"ok":true,"data":{"locallyRevoked":true,"exchangeRevoked":false,"requiresSignature":true,"approval":{}}}` |
@@ -139,9 +160,12 @@ bigints. Some deposits require **two distinct signatures**; resume stored steps
 rather than restarting the route. Agent expiry is at most **180 days**. Never
 ask for, paste, log or import a master private key or seed. The managed agent is
 trade-only; local limits include markets, size/notional, leverage, daily loss and
-open orders. Privy sees an L1 action hash, so it cannot independently inspect
+open orders — in paper mode these limits are enforced exactly the same way.
+Privy sees an L1 action hash, so it cannot independently inspect
 notional/action contents; Hyperliquid agent permissions and local checks enforce
-those boundaries. State is always `~/.bloxwap`, env prefix `BLOXWAP_`.
+those boundaries. State is always `~/.bloxwap`, env prefix `BLOXWAP_`; paper
+state is `~/.bloxwap/paper/` and is never read by live commands (or vice
+versa). Envelopes and events always state `mode`/`paper`.
 
 
 ## Verification boundaries

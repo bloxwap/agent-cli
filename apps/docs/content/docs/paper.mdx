@@ -1,0 +1,61 @@
+---
+title: "Paper trading"
+description: "Risk-free simulation against real mainnet Hyperliquid market data."
+---
+
+Paper mode runs the full command surface against **real mainnet Hyperliquid
+public market data** — info `l2Book`, WS `l2Book`/`trades`/`bbo`, `meta` and
+funding — and never signs or submits anything. No Privy session,
+`approveAgent`, or deposit is needed.
+
+## Enabling and labels
+
+- Per command: the global `--paper` flag.
+- Persisted: `config set mode paper` in `~/.bloxwap/config.json`.
+- Runner: `run --paper` (or `run` while `mode` is `paper`).
+- Back to live: `config set mode live --yes` — the explicit confirmation flag
+  means live mode is never entered silently.
+
+Every envelope carries `mode: "live" | "paper"` and `paper: true | false`, and
+every event record carries the same fields. Paper state lives entirely under
+`~/.bloxwap/paper/` (`state.json`, `trades.jsonl`, `events.jsonl`, `audit.jsonl`,
+`runner.pid`, `run.sock`, `logs/`); live commands never read it and paper
+commands never read live state. `init`, `fund`, `rotate` and `revoke` are
+live-custody operations and refuse to run in paper mode.
+
+## Simulator semantics
+
+`order`, `cancel`, `modify` and `leverage` keep the same validation, normalized
+errors, risk limits, builder fee and audit trail as live trading; a local
+simulator fills them:
+
+- Market/IOC orders walk the live book with slippage (IOC bounds come from the
+  same slippage-bounded prices as live mode).
+- Limit orders rest and fill at their limit price when the market trades
+  through them.
+- Reduce-only caps at the open position; TP/SL triggers fire when the
+  trade/mark price crosses the trigger direction, then execute as market or
+  rest as limits.
+- Fees: Hyperliquid taker 4.5 bps / maker 1.5 bps plus the Bloxwap builder fee
+  (default `f=10` = 1 bp).
+- Funding accrues hourly at `funding / 8` of notional; margin and liquidation
+  are approximated for cross and isolated leverage.
+
+`status`, `balance`, `positions`, `orders`, `events` and `logs` all work in
+paper mode against paper state.
+
+```sh
+agent-cli paper reset --yes
+agent-cli run --paper --detach
+agent-cli order --paper --json '{"coin":"BTC","side":"buy","size":"0.01","type":"market"}'
+agent-cli positions --paper
+agent-cli paper summary
+agent-cli events --paper --types '["fill"]'
+```
+
+`paper summary` reports starting balance, equity, realized/unrealized PnL,
+fees, funding, trade count and positions with live mark prices. The starting
+virtual balance is `paper.startingBalance` (default 10000), also settable with
+`paper reset --balance N --yes`. The deterministic simulator core is covered by
+fixture-book unit tests; see [commands](/docs/commands) for schemas and
+[configuration](/docs/config) for `mode`.

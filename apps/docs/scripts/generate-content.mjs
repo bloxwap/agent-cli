@@ -7,7 +7,7 @@ const invoke = (...args) => JSON.parse(execFileSync(process.execPath, [cli, ...a
 const pages = new URL('../content/docs/', import.meta.url);
 let commands = '---\ntitle: Command reference\ndescription: Every registered command, with input and output schemas from the CLI.\n---\n\n';
 commands += 'Generated from `agent-cli --help` and `agent-cli schema COMMAND`. Do not edit by hand.\n\n';
-commands += 'Global flags: `--config PATH`, `--network mainnet|testnet`, `--pretty`, `--json OBJECT`. Inputs accept flags, JSON arguments, or a JSON object on stdin. Unknown object fields are rejected.\n\n';
+commands += 'Global flags: `--config PATH`, `--network mainnet|testnet`, `--pretty`, `--json OBJECT`, `--paper`, `--live`. Inputs accept flags, JSON arguments, or a JSON object on stdin. Unknown object fields are rejected.\n\n';
 commands += '## Help and schema\n\n```sh\nagent-cli --help\nagent-cli schema order\n```\n\nHelp lists registered commands and global flags. `schema COMMAND` returns that command\'s input and success/failure output schemas without calling a service.\n\n';
 for (const command of invoke('--help').commands) {
   commands += `## ${command.name}\n\n${command.description}\n\n\`\`\`json\n${JSON.stringify(invoke('schema', command.name), null, 2)}\n\`\`\`\n\n`;
