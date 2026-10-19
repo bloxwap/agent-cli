@@ -98,8 +98,11 @@ function command(name, input = {}) {
   } catch {
     throw new Error(`Command ${name} did not return one JSON envelope`);
   }
-  if (result.status !== 0 || !envelope.ok)
-    throw new Error(`Command ${name} failed`);
+  if (result.status !== 0 || !envelope.ok) {
+    const errorMsg = envelope.message || 'Unknown error';
+    const errorCode = envelope.code || 'UNKNOWN';
+    throw new Error(`Command ${name} failed: [${errorCode}] ${errorMsg}`);
+  }
   if (name === 'run') {
     runnerPid = envelope.data.pid;
     if (
