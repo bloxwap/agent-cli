@@ -36,6 +36,18 @@
           }
         }
       ]
+    },
+    {
+      "name": "Never export agent private key",
+      "method": "exportPrivateKey",
+      "action": "DENY",
+      "conditions": []
+    },
+    {
+      "name": "Never export agent seed phrase",
+      "method": "exportSeedPhrase",
+      "action": "DENY",
+      "conditions": []
     }
   ]
 }
