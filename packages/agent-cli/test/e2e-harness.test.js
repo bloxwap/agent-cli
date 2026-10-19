@@ -251,6 +251,20 @@ test('a successful envelope without exchange acceptance cannot complete the life
   expect(f.stop).toHaveBeenCalledOnce();
 });
 
+test('preflight accepts an unfunded account because orders never reach the exchange', async () => {
+  const f = fixture();
+  const info = f.info;
+  f.info = vi.fn(async (type) =>
+    type === 'clearinghouseState'
+      ? { withdrawable: '0', assetPositions: [] }
+      : info(type),
+  );
+  await testnetLifecycle(f);
+  expect(
+    f.checkpoint.mock.calls.filter(([stage]) => stage.status === 'passed'),
+  ).toHaveLength(15);
+});
+
 test('a funded but non-disposable account is rejected before any write', async () => {
   const f = fixture({
     info: async (type) =>

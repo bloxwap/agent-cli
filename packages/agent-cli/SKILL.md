@@ -32,7 +32,7 @@ Use `--network testnet` during testing; never silently change to mainnet.
    origin chain/token, minimum, fees, expected received amount and expiry. On
    testnet, do not treat the default Arbitrum mainnet chain/token as a test route:
    use an explicitly supported test chain/token and `originDecimals`, or the
-   credential-gated CI harness with mocked Relay and pre-funded test collateral.
+   credential-gated CI harness with mocked Relay and mocked Hyperliquid orders.
    If no test route is known, stop funding and report the missing route. The user
    transfers the quoted origin token. If `signatureSteps` require signatures,
    show the exact payload and submit each via `deposit` in returned order.
@@ -150,8 +150,9 @@ Offline skill tests validate the documented command examples against CLI schemas
 Mocked lifecycle tests exercise resumable approvals, pending funding, events
 and failure handling. These checks do **not** prove a live agent or
 exchange run. The nightly testnet lifecycle uses only a company-owned disposable
-CI master account and separate test Privy app, real Hyperliquid testnet and Privy,
-and an explicitly mocked Relay route backed by already funded test collateral.
+CI master account and separate test Privy app, live Privy and Hyperliquid
+approvals/revocation, and explicitly mocked Relay plus mocked Hyperliquid orders
+that never reach the exchange. Test USDC pre-funding is not required for that job.
 The same harness supports a caller-controlled external wallet approval adapter
 on a clean QA runner; its private key stays in that wallet. It never transfers
 real funds. Missing CI credentials fail the job; a skipped or
