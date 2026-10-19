@@ -41,7 +41,7 @@
 | #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |
 | #37 | done | Skill content, packaged/embedded installation, schema-validated examples and public /SKILL.md hosting are complete. Frontmatter, gotchas, error handling, discovery links and source parity are verified. The unverified live coding-agent testnet criterion is explicitly transferred to #39. |
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
-| #39 | partial | Fifteen-stage testnet harness supports external wallet signing and separate CI-only disposable keys, exact exchange reconciliation, correlated WebSocket/follow/replay events, post-rotation trading, audit verification, partial-rotation cleanup and zero orders/agents/positions checks. Schema 2 reports and CI summaries require evidence. Offline regressions pass; nightly live journals and the independent coding-agent skill session transferred from #37 still require dedicated QA configuration and evidence. |
+| #39 | partial | Fifteen-stage testnet harness supports external wallet signing and separate CI-only disposable keys, exact price reconciliation, correlated WebSocket/follow/replay events, post-rotation trading, audit verification, partial-rotation cleanup and zero orders/agents/positions checks. Hyperliquid order placement/modify/cancel (and the order-book/order-update responses those stages use) are explicitly mocked and blocked from the exchange; approvals, account reads and Privy stay live. Schema 2 reports and CI summaries require evidence and record order coverage as mocked. Offline regressions pass; nightly journals and the independent coding-agent skill session transferred from #37 still require dedicated QA configuration and evidence. Test USDC pre-funding is no longer required. |
 | #40 | partial | Script-free tarball global install and actual installed bunx help/schema smoke pass locally; executable/skill/license checks and Node 22.12/24 macOS/Linux CI. Public registry installation awaits publication. |
 | #41 | partial | Validated Changesets patch workflow with optional version PR, native binary smoke/checksums, tagged-main version gates, exact tested tarball publication and registry verification. Publish runs on the Mac mini fleet with the organization `NPM_TOKEN` (no OIDC trusted publishing or automatic provenance). Manual candidates cannot publish. Actual release needs the publishing gate; organization policy blocks automatic version PRs, so the default workflow uploads a reviewable patch. |
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
@@ -80,9 +80,11 @@ This is release preparation; public npm installation is still pending.
 
 #39 now supports caller-controlled external wallet approvals alongside the
 separate disposable CI signer, with fifteen evidence-checked stages, correlated
-events and interrupted-rotation cleanup. Runner shutdown is confirmed before
-journal export. Build, lint, typecheck, 229 offline CLI tests, docs checks and the
-static docs build pass. Nightly CI maps `AGENT_CLI_TEST_MASTER_KEY`, `AGENT_CLI_PRIVY_APP_ID` and
+events and interrupted-rotation cleanup. Hyperliquid order placement, modification
+and cancellation never reach the exchange: the preload mocks those endpoints and
+fails closed if an order request escapes. 30 test USDC pre-funding is not required.
+Runner shutdown is confirmed before journal export. Nightly CI maps
+`AGENT_CLI_TEST_MASTER_KEY`, `AGENT_CLI_PRIVY_APP_ID` and
 `AGENT_CLI_PRIVY_APP_SECRET` from the `testnet` environment onto the harness
 `BLOXWAP_*` variables. Live journals and the independent coding-agent session
 are still not claimed.

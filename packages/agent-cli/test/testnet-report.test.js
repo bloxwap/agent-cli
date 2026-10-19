@@ -15,10 +15,17 @@ const complete = () => ({
   status: 'passed',
   network: 'testnet',
   coverage: {
-    hyperliquid: { mode: 'live testnet', verified: true },
+    hyperliquid: {
+      mode: 'live testnet approvals, account info and non-order websocket',
+      verified: true,
+    },
+    orders: {
+      mode: 'mocked placement, modification, cancellation and order websocket; exchange order endpoints blocked',
+      verified: true,
+    },
     privy: { mode: 'live dedicated test app', verified: true },
     relay: {
-      mode: 'mocked zero-value route; pre-funded collateral',
+      mode: 'mocked zero-value route; no token transfer',
       verified: true,
     },
   },
@@ -36,6 +43,7 @@ const failed = () => ({
   stages: [],
   coverage: {
     hyperliquid: { verified: false },
+    orders: { verified: false },
     privy: { verified: false },
     relay: { verified: false },
   },
@@ -53,6 +61,11 @@ test('a complete report validates without treating the script as an independent 
     'Independent agent session: **not-run (unverified)**',
   );
   expect(summary).toContain('live Relay remains unverified');
+  expect(summary).toContain('blocked from the exchange');
+  expect(summary).toContain('Hyperliquid orders (mocked): **verified**');
+  expect(summary).toContain(
+    'Hyperliquid testnet approvals and account reads: **verified**',
+  );
   expect(summary).toContain('verified (0 orders, 0 agents, 0 positions)');
   for (const name of lifecycleStages)
     expect(summary).toContain(`| ${name} | passed |`);
@@ -81,7 +94,7 @@ test('a passed report cannot leave a stage running', () => {
   expect(() => verifyTestnetReport(report)).toThrow('incomplete stage');
 });
 
-test.each(['hyperliquid', 'privy', 'relay'])(
+test.each(['hyperliquid', 'orders', 'privy', 'relay'])(
   'a passed report requires verified %s coverage',
   (name) => {
     for (const value of [false, undefined, 'true', 1]) {
@@ -117,7 +130,10 @@ test('a failed preflight remains a valid failed report with explicitly unverifie
   expect(verifyTestnetReport(report)).toBe(report);
   const summary = formatTestnetSummary(report);
   expect(summary).toContain('Deterministic testnet lifecycle: **failed**');
-  expect(summary).toContain('Hyperliquid testnet: **unverified**');
+  expect(summary).toContain(
+    'Hyperliquid testnet approvals and account reads: **unverified**',
+  );
+  expect(summary).toContain('Hyperliquid orders (mocked): **unverified**');
   expect(summary).toContain('Privy dedicated test app: **unverified**');
   expect(summary).toContain('Relay zero-value mock: **unverified**');
   expect(summary).toContain('Cleanup: **not-started (unverified)**');
@@ -133,7 +149,10 @@ test('a failed report preserves partial verified coverage and failed stage outco
   ];
   report.cleanup = { status: 'failed' };
   const summary = formatTestnetSummary(report);
-  expect(summary).toContain('Hyperliquid testnet: **verified**');
+  expect(summary).toContain(
+    'Hyperliquid testnet approvals and account reads: **verified**',
+  );
+  expect(summary).toContain('Hyperliquid orders (mocked): **unverified**');
   expect(summary).toContain('Privy dedicated test app: **unverified**');
   expect(summary).toContain(`| ${lifecycleStages[0]} | passed |`);
   expect(summary).toContain(`| ${lifecycleStages[1]} | failed |`);
@@ -153,7 +172,7 @@ test('failed cleanup can record unreadable resource counts as null without claim
   );
 });
 
-test.each(['hyperliquid', 'privy', 'relay'])(
+test.each(['hyperliquid', 'orders', 'privy', 'relay'])(
   'failed reports cannot claim verified %s without evidence',
   (service) => {
     const report = failed();
