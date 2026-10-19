@@ -174,6 +174,7 @@ try {
     throw new Error('Use a clean QA home without ~/.bloxwap');
   signer = await createTestnetSigner(configuration);
   report.signerMode = signer.mode;
+  report.masterAddress = signer.address;
   ownedState = true;
   childEnv = {
     ...process.env,
