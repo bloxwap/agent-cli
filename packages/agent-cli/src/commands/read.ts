@@ -8,6 +8,13 @@ import { loadConfig, type Config } from '../core/config.js';
 import { hlInfo } from '../core/http.js';
 import { pollDeposits } from '../funding/status.js';
 import { parseUsdc } from '../funding/amounts.js';
+import { paperDataNetwork } from '../core/mode.js';
+import { PaperStore } from '../paper/store.js';
+import {
+  paperAccountState,
+  paperData,
+  paperOpenOrders,
+} from '../paper/services.js';
 import { AgentCliError } from '../errors/index.js';
 import { mapHyperliquidError } from '../errors/mappers.js';
 export interface AccountState {
@@ -80,7 +87,41 @@ export function expiryStatus(config: Config, now = Date.now()) {
             .map((threshold) => `Agent expires within ${threshold} days`),
   };
 }
+export async function paperRead(name: string, config: Config) {
+  const store = new PaperStore();
+  const data = paperData();
+  const [state, marks] = await Promise.all([store.load(), data.marks()]);
+  const resolved = new Map<string, number>();
+  for (const coin of new Set(state.positions.map((p) => p.coin)))
+    resolved.set(coin, await data.maxLeverageOf(coin));
+  const maxLeverageOf = (coin: string) => resolved.get(coin) ?? 1;
+  if (name === 'orders') return paperOpenOrders(state);
+  const account = paperAccountState(state, marks, maxLeverageOf);
+  if (name === 'balance') return accountBalance(account);
+  if (name === 'positions') return positions(account);
+  return {
+    balance: accountBalance(account),
+    positions: positions(account),
+    mode: 'paper' as const,
+    dataNetwork: paperDataNetwork,
+    paper: {
+      startingBalance: state.startingBalance,
+      realizedPnl: state.realizedPnl,
+      feesPaid: state.feesPaid,
+      fundingPaid: state.fundingPaid,
+      openOrders: state.orders.length,
+      liquidations: state.liquidations,
+    },
+    policy: {
+      id: config.policyId ?? null,
+      version: String(config.policyVersion ?? 0),
+    },
+    deposits: [],
+    runner: await runnerHealth('paper'),
+  };
+}
 export async function readCommand(name: string, config: Config) {
+  if (config.mode === 'paper') return paperRead(name, config);
   if (!config.masterAddress)
     throw new AgentCliError('AGENT_NOT_APPROVED', 'Initialize master address');
   try {
@@ -158,6 +199,7 @@ export async function readCommand(name: string, config: Config) {
 export async function commandConfig(context: Context) {
   const config = await loadConfig(context.configPath);
   if (context.network) config.network = context.network;
+  if (context.paper !== undefined) config.mode = context.paper ? 'paper' : 'live';
   return config;
 }
 for (const name of ['status', 'balance', 'positions', 'orders'])

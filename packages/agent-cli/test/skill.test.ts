@@ -24,6 +24,7 @@ import '../src/commands/revoke.js';
 import '../src/commands/audit.js';
 import '../src/commands/skill.js';
 import '../src/commands/market.js';
+import '../src/commands/paper.js';
 
 test('skill frontmatter and embedded source match the published skill', async () => {
   const source = await readFile(new URL('../SKILL.md', import.meta.url), 'utf8');

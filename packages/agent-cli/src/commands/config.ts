@@ -4,8 +4,11 @@ import { loadConfig, saveConfig, migrate } from '../core/config.js';
 import { AgentCliError } from '../errors/index.js';
 register('config', {
   description: 'Get, set or validate local configuration',
-  schema: z.object({ args: z.array(z.string()).default([]) }),
-  execute: async ({ args }, context) => {
+  schema: z.object({
+    args: z.array(z.string()).default([]),
+    yes: z.boolean().default(false),
+  }),
+  execute: async ({ args, yes }, context) => {
     const [action = 'get', key, value] = args as string[];
     const config = await loadConfig(context.configPath, {});
     if (action === 'validate') return { valid: true, version: config.version };
@@ -26,6 +29,16 @@ register('config', {
     } catch {
       parsed = value;
     }
+    if (
+      key === 'mode' &&
+      parsed === 'live' &&
+      !yes &&
+      config.mode !== 'live'
+    )
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Switching to live mode requires explicit confirmation; re-run with --yes',
+      );
     const updated = structuredClone(config) as Record<string, unknown>;
     const parts = key.split('.');
     let cursor = updated;

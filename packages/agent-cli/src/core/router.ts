@@ -2,11 +2,13 @@ import { outputSchemas } from './output-schemas.js';
 import { errorDefaults } from '../errors/index.js';
 import { assertSafeInput } from '../wallet/safety.js';
 import { auditedAction } from './audit.js';
+import { resolveMode, modeFields, type Mode } from './mode.js';
 import { z } from 'zod';
 import { AgentCliError, normalizeError, success } from '../errors/index.js';
 export interface Context {
   configPath?: string;
   network?: 'mainnet' | 'testnet';
+  paper?: boolean;
   pretty: boolean;
   runner?: boolean;
   streaming?: boolean;
@@ -47,7 +49,7 @@ export function register(name: string, command: Command) {
             })
           : command.schema,
       execute: (input, context) =>
-        auditedAction(name, input, () => original(input, context)),
+        auditedAction(name, input, () => original(input, context), context),
     };
   }
   commands.set(name, command);
@@ -56,24 +58,41 @@ export function schemas(name: string) {
   const command = commands.get(name);
   if (!command)
     throw new AgentCliError('CONFIG_INVALID', `Unknown command: ${name}`);
+  const modeFieldsSchema = {
+    mode: { enum: ['live', 'paper'] },
+    paper: { type: 'boolean' },
+  } as const;
   return {
     input: z.toJSONSchema(command.schema),
     output: {
       oneOf: [
         {
           type: 'object',
-          required: ['ok', 'data'],
-          properties: { ok: { const: true }, data: outputSchemas[name] ?? {} },
+          required: ['ok', 'data', 'mode', 'paper'],
+          properties: {
+            ok: { const: true },
+            data: outputSchemas[name] ?? {},
+            ...modeFieldsSchema,
+          },
         },
         {
           type: 'object',
-          required: ['ok', 'code', 'message', 'retryable', 'details'],
+          required: [
+            'ok',
+            'code',
+            'message',
+            'retryable',
+            'details',
+            'mode',
+            'paper',
+          ],
           properties: {
             ok: { const: false },
             code: { enum: Object.keys(errorDefaults) },
             message: { type: 'string' },
             retryable: { type: 'boolean' },
             details: {},
+            ...modeFieldsSchema,
           },
         },
       ],
@@ -96,6 +115,7 @@ export async function dispatch(argv: string[], stdin = '') {
   const input = Object.create(null) as Record<string, unknown>;
   const positional: string[] = [];
   const context: Context = { pretty: false };
+  let mode: Mode = 'live';
   try {
     for (let i = 0; i < argv.length; i++) {
       const arg = argv[i];
@@ -115,6 +135,14 @@ export async function dispatch(argv: string[], stdin = '') {
       }
       if (arg === '--network') {
         context.network = z.enum(['mainnet', 'testnet']).parse(argv[++i]);
+        continue;
+      }
+      if (arg === '--paper') {
+        context.paper = true;
+        continue;
+      }
+      if (arg === '--live') {
+        context.paper = false;
         continue;
       }
       if (arg === '--json') {
@@ -158,20 +186,31 @@ export async function dispatch(argv: string[], stdin = '') {
     }
     if (stdin.trim()) Object.assign(input, parseJsonObject(stdin));
     const [name = 'help', ...args] = positional;
+    mode = await resolveMode(context, name);
     if (name === 'help')
       return {
-        body: success({
-          commands: [...commands].map(([name, c]) => ({
-            name,
-            description: c.description,
-          })),
-          globalFlags: ['--json', '--config', '--network', '--pretty'],
-        }),
+        body: success(
+          {
+            commands: [...commands].map(([name, c]) => ({
+              name,
+              description: c.description,
+            })),
+            globalFlags: [
+              '--json',
+              '--config',
+              '--network',
+              '--pretty',
+              '--paper',
+              '--live',
+            ],
+          },
+          mode,
+        ),
         exitCode: 0,
         context,
       };
     if (name === 'schema')
-      return { body: success(schemas(args[0])), exitCode: 0, context };
+      return { body: success(schemas(args[0]), mode), exitCode: 0, context };
     const command = commands.get(name);
     if (!command)
       throw new AgentCliError('CONFIG_INVALID', `Unknown command: ${name}`);
@@ -192,14 +231,14 @@ export async function dispatch(argv: string[], stdin = '') {
     const data = route?.routed
       ? route.data
       : await command.execute(parsed.data as Record<string, unknown>, context);
-    return { body: success(data), exitCode: 0, context };
+    return { body: success(data, mode), exitCode: 0, context };
   } catch (error) {
     const normalized =
       error instanceof z.ZodError || error instanceof SyntaxError
         ? new AgentCliError('CONFIG_INVALID', 'Invalid JSON or flags')
         : normalizeError(error);
     return {
-      body: normalized.toJSON(),
+      body: { ...normalized.toJSON(), ...modeFields(mode) },
       exitCode: normalized.exitCode,
       context,
     };

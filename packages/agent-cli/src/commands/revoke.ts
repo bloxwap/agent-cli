@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { register } from '../core/router.js';
 import { commandConfig } from './read.js';
+import { assertLiveMode } from '../core/trading.js';
 import { cancelOrders, cancelSchema } from './cancel.js';
 import {
   atomicWrite,
@@ -31,6 +32,7 @@ register('revoke', {
   }),
   execute: async (input, context) => {
     const config = await commandConfig(context);
+    assertLiveMode(config, 'revoke');
     if (!config.agentAddress)
       throw new AgentCliError('AGENT_NOT_APPROVED', 'No agent to revoke');
     if (input.cancelOrders && !config.revoked)

@@ -17,6 +17,7 @@ import './commands/revoke.js';
 import './commands/audit.js';
 import './commands/skill.js';
 import './commands/market.js';
+import './commands/paper.js';
 import { routeToRunner } from './runner/rpc.js';
 setRouting(routeToRunner);
 import { AgentCliError, normalizeError } from './errors/index.js';

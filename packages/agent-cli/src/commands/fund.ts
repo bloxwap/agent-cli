@@ -6,6 +6,7 @@ import { hlInfo } from '../core/http.js';
 import { RelayClient, PERPS_USDC, parseQuote } from '../funding/relay.js';
 import { parseUsdc, formatUsdc } from '../funding/amounts.js';
 import { renderQr } from '../funding/qr.js';
+import { assertLiveMode } from '../core/trading.js';
 import { readDeposits, writeDeposits } from '../funding/store.js';
 import { signatureSteps } from '../funding/signatures.js';
 import { builderRate } from '../core/builder.js';
@@ -122,6 +123,8 @@ register('fund', {
   schema: fundSchema,
   execute: async (input, context) => {
     const config = await loadConfig(context.configPath);
+    if (context.paper !== undefined) config.mode = context.paper ? 'paper' : 'live';
+    assertLiveMode(config, 'fund');
     if (context.network) config.network = context.network;
     return fund(config, input as z.infer<typeof fundSchema>);
   },

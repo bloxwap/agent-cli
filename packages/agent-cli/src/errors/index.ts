@@ -1,4 +1,5 @@
 import { redact } from '../core/logger.js';
+import { modeFields, type Mode } from '../core/mode.js';
 export const errorDefaults = {
   INSUFFICIENT_MARGIN: false,
   POLICY_REJECTED: false,
@@ -30,13 +31,14 @@ export class AgentCliError extends Error {
     this.name = 'AgentCliError';
     this.retryable = retryable;
   }
-  toJSON() {
+  toJSON(mode: Mode = 'live') {
     return {
       ok: false as const,
       code: this.code,
       message: String(redact(this.message)),
       retryable: this.retryable,
       details: redact(this.details),
+      ...modeFields(mode),
     };
   }
   get exitCode() {
@@ -51,4 +53,8 @@ export function normalizeError(error: unknown): AgentCliError {
         error instanceof Error ? error.message : String(error),
       );
 }
-export const success = <T>(data: T) => ({ ok: true as const, data });
+export const success = <T>(data: T, mode: Mode = 'live') => ({
+  ok: true as const,
+  data,
+  ...modeFields(mode),
+});

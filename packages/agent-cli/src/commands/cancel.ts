@@ -4,7 +4,7 @@ import { commandConfig } from './read.js';
 import type { Config } from '../core/config.js';
 import {
   assertCanTrade,
-  tradingServices,
+  servicesForMode,
   exchangeAction,
   type TradingServices,
 } from '../core/trading.js';
@@ -24,7 +24,7 @@ export async function cancelOrders(
   services?: TradingServices,
 ) {
   await assertCanTrade(config);
-  const clients = services ?? (await tradingServices(config));
+  const clients = services ?? (await servicesForMode(config));
   const orders = await clients.orders();
   const oids = input.oids ?? (input.oid ? [input.oid] : []),
     cloids = input.cloids ?? (input.cloid ? [input.cloid] : []);
