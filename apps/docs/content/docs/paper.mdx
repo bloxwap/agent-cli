@@ -38,8 +38,9 @@ simulator fills them:
   rest as limits.
 - Fees: Hyperliquid taker 4.5 bps / maker 1.5 bps plus the Bloxwap builder fee
   (default `f=10` = 1 bp).
-- Funding accrues hourly at `funding / 8` of notional; margin and liquidation
-  are approximated for cross and isolated leverage.
+- Funding accrues hourly at Hyperliquid's `funding` rate of notional; the
+  `metaAndAssetCtxs` field is already the hourly rate paid every hour.
+- Margin and liquidation are approximated for cross and isolated leverage.
 
 `status`, `balance`, `positions`, `orders`, `events` and `logs` all work in
 paper mode against paper state.
