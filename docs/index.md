@@ -1,7 +1,8 @@
 # agent-cli documentation
 
 Use the [command reference](commands.md) for JSON schemas, [configuration](config.md)
-for state/env settings, [funding](funding.md) for deposits/signatures,
+for state/env settings, [paper trading](paper.md) for risk-free simulation against
+real market data, [funding](funding.md) for deposits/signatures,
 [errors](errors.md) for recovery, [events](events.md) for streaming,
 [custody](custody.md) and [security](security.md) for key boundaries.
 Start with [working with a coding agent](agent-workflow.md) to configure your own

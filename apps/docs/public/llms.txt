@@ -4,6 +4,7 @@ Hyperliquid trading with user-owned Privy apps and Relay funding. Master keys st
 
 - [Overview and installation](https://bloxwap.github.io/docs/)
 - [quickstart](https://bloxwap.github.io/docs/quickstart/)
+- [paper](https://bloxwap.github.io/docs/paper/)
 - [commands](https://bloxwap.github.io/docs/commands/)
 - [config](https://bloxwap.github.io/docs/config/)
 - [errors](https://bloxwap.github.io/docs/errors/)

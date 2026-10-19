@@ -3,6 +3,7 @@
   "pages": [
     "index",
     "quickstart",
+    "paper",
     "commands",
     "config",
     "errors",
