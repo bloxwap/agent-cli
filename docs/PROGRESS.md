@@ -120,3 +120,21 @@ original baseline. [Integration evidence](../evidence/hig/og-font-refresh/main-i
 ## CI speed on the Mac mini fleet — 2026-10-20
 
 Self-hosted CI no longer saves or restores a remote npm cache (`package-manager-cache: false` in `ci.yml`, `install.yml`, `docs.yml`, `version.yml`). The minis already persist `~/.npm`; the GitHub cache post-step was the long pole (4s `npm ci` vs ~25 min save in job `118841894019`). `ci.yml` and `install.yml` now cancel superseded pull-request runs and leave main/release runs alone. Docs still build and validate on pull requests, but skip the Pages artifact upload (p50 38s) until main deploy. Testnet/e2e workflow logic is unchanged and Hyperliquid order placement stays mocked.
+
+
+## TypeScript 7 / tsrs migration — 2026-10-21
+
+Build tooling (no numbered issue) — done. Both workspaces pin tsrs to
+`0.18.0-ts7.1.0-dev.20260929` and use TypeScript `^7.0.2` for explicit and automatic
+fallback checks. The shared wrapper mirrors sibling sfx's native resolver, including
+Windows/Intel Mac fallback and `TYPECHECK=tsc`. CLI bundling remains tsup/esbuild.
+Docs generate Next route types and check before building; Next's duplicate check
+is skipped. Linux CI now runs CLI/docs checks with both compilers alongside the
+existing macOS arm64 jobs. README and the new development page explain usage.
+
+Node 24.22.0 verification: clean `npm ci`, build, lint, typecheck, typecheck:tsc,
+286 offline tests, docs:build, docs:check and docs:check:tsc pass. No source type
+fixes were needed. npm preserves TypeScript 6.0.3 for JavaScript compiler API
+consumers (tsup/typescript-eslint peers), with TypeScript 7.0.2 installed in both
+workspaces for checks. Forced fallback and simulated Windows/Intel Mac native
+resolution fallback were verified on Linux; macOS/Windows execution awaits CI.

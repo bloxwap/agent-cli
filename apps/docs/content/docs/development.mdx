@@ -1,0 +1,50 @@
+---
+title: Development
+description: Build, type-check, and contribute to the CLI and docs workspace.
+---
+
+Use Node.js 24 or newer and npm. One lockfile installs the CLI in
+`packages/agent-cli` and the Fumadocs app in `apps/docs`.
+
+```sh
+npm ci
+npm run build
+npm run lint
+npm run typecheck
+npm run typecheck:tsc
+npm test
+npm run docs:build
+npm run docs:check
+npm run docs:check:tsc
+```
+
+Type checking uses [tsrs](https://github.com/oxc-project/tsrs), the Rust port of the
+TypeScript 7 compiler, pinned to `0.18.0-ts7.1.0-dev.20260929`. The shared
+`packages/agent-cli/scripts/tsc-or-tsrs.mjs` wrapper resolves its native binary on
+macOS arm64 (Apple Silicon) and Linux x64/arm64, including glibc and musl.
+Windows and Intel Macs automatically use the installed TypeScript `^7.0.2`
+fallback; missing native binaries also fall back to tsc.
+The lockfile also retains TypeScript 6.0.3 for tsup and typescript-eslint peers
+that need the JavaScript compiler API; workspace fallback checks use TypeScript 7.0.2.
+
+Use `npm run typecheck:tsc` for the CLI and `npm run docs:check:tsc` for docs to
+select tsc explicitly. Setting `TYPECHECK=tsc` also forces the wrapper to use tsc,
+including during `npm run docs:build`.
+
+The CLI build continues to bundle with tsup/esbuild; tsrs only checks types here.
+Docs builds run `next typegen` and the wrapper with `--noEmit` before `next build`.
+`typescript.ignoreBuildErrors` skips Next's duplicate type check, so use the npm
+build script to keep the explicit check in the build path.
+
+Run `npm run docs:dev` for http://localhost:3903, or `npm run docs:preview` after
+a static build. Generated command and skill pages come from `npm run docs:generate`
+and are refreshed before docs builds. Edit their sources in the CLI rather than
+the generated pages.
+
+Before committing, build, lint, type-check, and run the offline unit tests. Tests
+mock Hyperliquid, Privy, and Relay and must never contact live services. Keep
+secrets out of commits. Local state always lives under `~/.bloxwap` and uses the
+`BLOXWAP_` environment prefix. Record issue progress in `docs/PROGRESS.md`.
+
+CI checks tsrs and the tsc fallback on Linux and macOS arm64. Docs CI builds and
+checks the static export before deployment.
