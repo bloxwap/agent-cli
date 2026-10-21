@@ -7,9 +7,36 @@ concurrency:
   group: install-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  install:
+  changes:
     # Security: never run fork PR code on the self-hosted runner.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ github.event_name != 'pull_request' && 'true' || steps.filter.outputs.code }}
+    steps:
+      # Run for package/build inputs, including packaged Markdown, workspace installs, and smoke helpers.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        if: github.event_name == 'pull_request'
+        id: filter
+        with:
+          predicate-quantifier: some-with-excludes
+          filters: |
+            code:
+              - 'packages/agent-cli/**'
+              - '**/package.json'
+              - '**/*lock*'
+              - '**/.npmrc'
+              - '**/.npmignore'
+              - '.github/scripts/**'
+              - '.github/workflows/install.yml'
+  install:
+    needs: changes
+    # Security: never run fork PR code on the self-hosted runner.
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
