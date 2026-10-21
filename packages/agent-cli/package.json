@@ -18,14 +18,15 @@
   "scripts": {
     "build": "node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/tsc-or-tsrs.mjs --noEmit",
     "test": "vitest run",
     "test:e2e": "node scripts/e2e-testnet.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "build:binaries": "node scripts/generate-skill.mjs && node scripts/build-binaries.mjs",
     "test:sandbox": "vitest run --config vitest.integration.config.ts",
     "skill:sync-version": "node scripts/sync-skill-version.mjs",
-    "skill:generate": "node scripts/generate-skill.mjs"
+    "skill:generate": "node scripts/generate-skill.mjs",
+    "typecheck:tsc": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
@@ -34,10 +35,11 @@
     "eslint": "^9.39.5",
     "prettier": "^3.9.10",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.71.2",
     "viem": "^2.57.5",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.4",
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929"
   },
   "dependencies": {
     "@bloxwap/hyperliquid": "^0.6.0",

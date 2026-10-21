@@ -24,7 +24,9 @@
     "docs:build": "npm --workspace @bloxwap/agent-cli-docs run build",
     "docs:check": "npm --workspace @bloxwap/agent-cli-docs run check",
     "docs:preview": "npm --workspace @bloxwap/agent-cli-docs run preview",
-    "docs:smoke": "npm --workspace @bloxwap/agent-cli-docs run smoke"
+    "docs:smoke": "npm --workspace @bloxwap/agent-cli-docs run smoke",
+    "typecheck:tsc": "npm --workspace @bloxwap/agent-cli run typecheck:tsc",
+    "docs:check:tsc": "npm --workspace @bloxwap/agent-cli-docs run check:tsc"
   },
   "engines": {
     "node": ">=24"

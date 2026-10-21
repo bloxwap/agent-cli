@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3903",
-    "build": "next build",
+    "build": "next typegen && node ../../packages/agent-cli/scripts/tsc-or-tsrs.mjs --noEmit -p . && next build",
     "postbuild": "node scripts/check-export.mjs",
-    "check": "node --test scripts/hig-css-guard.test.mjs && node scripts/check-content.mjs --check && node scripts/hig-tokens.mjs --check && next typegen && tsc --noEmit",
+    "check": "node --test scripts/hig-css-guard.test.mjs && node scripts/check-content.mjs --check && node scripts/hig-tokens.mjs --check && next typegen && node ../../packages/agent-cli/scripts/tsc-or-tsrs.mjs --noEmit -p .",
     "preview": "node scripts/preview.mjs",
     "postinstall": "fumadocs-mdx",
     "predev": "npm --workspace @bloxwap/agent-cli run build && node scripts/generate-content.mjs && node scripts/prepare-public.mjs",
     "prebuild": "npm --workspace @bloxwap/agent-cli run build && node scripts/generate-content.mjs && node scripts/prepare-public.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "check:tsc": "node --test scripts/hig-css-guard.test.mjs && node scripts/check-content.mjs --check && node scripts/hig-tokens.mjs --check && next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@bloxwap/font": "0.1.2",
@@ -36,7 +37,8 @@
     "@types/react-dom": "^19.2.0",
     "playwright": "1.64.1",
     "tailwindcss": "^4.2.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2",
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929"
   },
   "engines": {
     "node": ">=24"

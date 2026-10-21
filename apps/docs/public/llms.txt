@@ -15,6 +15,7 @@ Hyperliquid trading with user-owned Privy apps and Relay funding. Master keys st
 - [security](https://bloxwap.github.io/docs/security/)
 - [skill](https://bloxwap.github.io/docs/skill/)
 - [audit](https://bloxwap.github.io/docs/audit/)
+- [development](https://bloxwap.github.io/docs/development/)
 
 - [SKILL.md — agent instructions](https://bloxwap.github.io/SKILL.md)
 - [Sitemap](https://bloxwap.github.io/sitemap.xml)

@@ -107,6 +107,18 @@ The npm workspace keeps the publishable CLI in `packages/agent-cli` and the
 Fumadocs app in `apps/docs`. Use Node.js **24+** for repository development.
 The published CLI still supports Node.js **22.12+**.
 
+Type checking uses [tsrs](https://github.com/oxc-project/tsrs), the Rust port of
+TypeScript 7, pinned to `0.18.0-ts7.1.0-dev.20260929`. The shared wrapper uses its
+native binary on macOS arm64 and Linux x64/arm64 (glibc or musl), and automatically
+falls back to `tsc` on Windows, Intel Macs, or when the native binary is unavailable.
+TypeScript `^7.0.2` remains installed for the fallback. Run `npm run typecheck:tsc`
+and `npm run docs:check:tsc` to check explicitly with tsc, or set `TYPECHECK=tsc`
+for the normal check/build scripts. CLI bundling still uses tsup/esbuild.
+The lockfile also retains TypeScript 6.0.3 for tsup and typescript-eslint peers
+that need the JavaScript compiler API; workspace fallback checks use TypeScript 7.0.2.
+Docs builds run `next typegen` and the wrapper with `--noEmit` before `next build`;
+Next's duplicate type check is disabled. See the [development guide](apps/docs/content/docs/development.mdx).
+
 ```sh
 npm ci
 npm run docs:dev       # http://localhost:3903/
