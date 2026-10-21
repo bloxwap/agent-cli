@@ -116,3 +116,7 @@ build/check, 14 browser smoke checks and pinned drift check pass. Current 13-car
 output matches the historical manifest; earlier screenshot parity remains scoped to its
 original baseline. [Integration evidence](../evidence/hig/og-font-refresh/main-integration/report.json).
 [Draft PR #55](https://github.com/bloxwap/agent-cli/pull/55) tracks remote checks and adoption.
+
+## CI speed on the Mac mini fleet — 2026-10-20
+
+Self-hosted CI no longer saves or restores a remote npm cache (`package-manager-cache: false` in `ci.yml`, `install.yml`, `docs.yml`, `version.yml`). The minis already persist `~/.npm`; the GitHub cache post-step was the long pole (4s `npm ci` vs ~25 min save in job `118841894019`). `ci.yml` and `install.yml` now cancel superseded pull-request runs and leave main/release runs alone. Docs still build and validate on pull requests, but skip the Pages artifact upload (p50 38s) until main deploy. Testnet/e2e workflow logic is unchanged and Hyperliquid order placement stays mocked.

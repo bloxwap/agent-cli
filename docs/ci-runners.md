@@ -22,6 +22,16 @@ and automatic provenance**. Do not bind a trusted publisher to `release.yml`.
 
 GitHub Pages deploy still uses OIDC (`id-token: write`) on the minis.
 
+## No remote dependency cache
+
+The minis already keep `~/.npm` on disk, so `npm ci` is typically 3–5 seconds.
+`actions/setup-node` `cache: npm` (and any `actions/cache` of dependency
+directories) still saves a 1.1–1.4 GB archive to GitHub's cache at about
+1 MB/s. In job `118841894019`, `npm ci` took 4 seconds and the cache save
+took about 25 minutes. Workflows therefore set `package-manager-cache: false`
+and omit `cache:` so self-hosted jobs never upload or restore a remote
+dependency cache.
+
 ## Required software
 
 Install these on the runner account. Workflows never use `sudo` or `apt`.
