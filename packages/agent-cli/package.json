@@ -32,13 +32,13 @@
     "@types/node": "^26.6.5",
     "@types/qrcode": "^1.5.6",
     "@types/ws": "^8.18.2",
-    "eslint": "^9.39.5",
+    "eslint": "^10.13.0",
     "prettier": "^3.9.10",
-    "tsup": "^8.5.1",
+    "tsup": "^9.0.0",
     "typescript": "^7.0.2",
     "typescript-eslint": "^8.71.2",
-    "viem": "^2.57.5",
-    "vitest": "^5.0.4",
+    "viem": "^2.57.10",
+    "vitest": "^5.0.5",
     "tsrs": "0.18.0-ts7.1.0-dev.20260929"
   },
   "dependencies": {
