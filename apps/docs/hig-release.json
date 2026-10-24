@@ -1,0 +1,54 @@
+{
+  "repository": "bloxwap/hig",
+  "release": "https://github.com/bloxwap/hig/releases/tag/v0.1.0",
+  "version": "0.1.0",
+  "artifacts": [
+    {
+      "package": "@bloxwap/hig-tokens",
+      "tarball": "https://registry.npmjs.org/@bloxwap/hig-tokens/-/hig-tokens-0.1.0.tgz",
+      "integrity": "sha512-udpntFJd+V056S9CtBYQWFKY++me1h7fTTXfwq+ivyfDIveZrUW4tE10fghAtmDPz2m6jzOzMRCm/Cg5lw09GA==",
+      "bytes": 9729,
+      "sha256": "5b1e683c91d6be73d24687d2b14aacd45da07cdc7da9399695b9a95241bf7571"
+    },
+    {
+      "package": "@bloxwap/hig-react",
+      "tarball": "https://registry.npmjs.org/@bloxwap/hig-react/-/hig-react-0.1.0.tgz",
+      "integrity": "sha512-0LdFe1i79CHWi6wjZnC+Khj+2wyQgH6RHhu1EGSL0eL1W+jQhEAXr7GmMS7eulJJeijlW6a1wbQgA7FkczvyZw==",
+      "bytes": 26660,
+      "sha256": "94c3b79415b0b139772dc99772b947ba469d7011f9a2af181a9a1bb349b8abad"
+    },
+    {
+      "package": "@bloxwap/hig-contracts",
+      "tarball": "https://registry.npmjs.org/@bloxwap/hig-contracts/-/hig-contracts-0.1.0.tgz",
+      "integrity": "sha512-FshDRNoR8/qMySeQHzJE4VWN4X1W8XVoKH7Cx3bVD8e0Tw+eq9qU9KGVPzTbiHRa/Axp6xwNxrS81TPU90xzUA==",
+      "bytes": 7189,
+      "sha256": "c90bd22e43be2da453f4ef8babf9d63a2c709a68bd9799eb6ccbf7d5a0a4c890"
+    },
+    {
+      "package": "@bloxwap/hig-og-fonts",
+      "tarball": "https://registry.npmjs.org/@bloxwap/hig-og-fonts/-/hig-og-fonts-0.1.0.tgz",
+      "integrity": "sha512-Mu2bBjXL+SkswkTAS1m66M4x8r1qRFi6SM6LwJ3ehh99bJp2CBzVpLGVZWvIzR+lJ5nzl5kyE12+Pitq/HW5FA==",
+      "bytes": 844017,
+      "sha256": "7026a1f942c9703010c6989a63af8aa32cd89237ff087dd8912b95b805ad51c7"
+    }
+  ],
+  "ogFonts": [
+    {
+      "asset": "BloxwapSans-Bold.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 700,
+      "style": "normal",
+      "bytes": 447388,
+      "sha256": "13e10451ecec4e33733b196454f1232a16d34d5014dce66daaee4d0c58600e1b"
+    },
+    {
+      "asset": "BloxwapSans-Black.ttf",
+      "name": "Bloxwap Sans",
+      "weight": 900,
+      "style": "normal",
+      "bytes": 445912,
+      "sha256": "a99894c158cff3cff828b7d17ec12f075352848843944a730caa9d64c0362ea2"
+    }
+  ],
+  "commit": "bdf8d07014fea5e69ea51a061b82707661a9d701"
+}

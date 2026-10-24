@@ -201,7 +201,7 @@ html > body[data-scroll-locked] {
 
 /* Hero code window: zero-stroke fill card with the Bloxwap code palette (as on the Hyperliquid SDK site). */
 .code-window {
-  --code-keyword: color-mix(in oklab, #ff479c 70%, var(--hig-text));
+  --code-keyword: color-mix(in oklab, var(--hig-negative) 70%, var(--hig-text));
   --code-type: color-mix(in oklab, var(--hig-info) 60%, var(--hig-text));
   min-width: 0; margin: 0; overflow: hidden; border-radius: var(--hig-radius-xl); background: var(--hig-surface); color: var(--hig-text);
 }

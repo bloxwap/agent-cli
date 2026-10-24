@@ -138,3 +138,18 @@ fixes were needed. npm preserves TypeScript 6.0.3 for JavaScript compiler API
 consumers (tsup/typescript-eslint peers), with TypeScript 7.0.2 installed in both
 workspaces for checks. Forced fallback and simulated Windows/Intel Mac native
 resolution fallback were verified on Linux; macOS/Windows execution awaits CI.
+
+## HIG registry adoption — 2026-10-23
+
+[bloxwap/hig#56](https://github.com/bloxwap/hig/issues/56) — implemented. Docs now
+install tokens, contracts, React and OG fonts from npm at exact version 0.1.0. The
+four obsolete candidate archives (881,378 bytes) are removed. The install guard
+checks reviewed registry URLs, lockfile integrity, installed versions, and unchanged
+Bold/Black font hashes. The HIG drift checker follows the release source commit;
+existing pink/yellow literals now read their identical HIG token values. #115
+workaround removal was already merged in [#55](https://github.com/bloxwap/agent-cli/pull/55).
+
+Node 24.22.1 verification: clean npm ci, build, lint, typecheck, 286 CLI tests,
+production docs build (18 HTML pages, 707 links/assets, 15 social cards), docs check,
+14 Chromium smoke checks, package-install smoke and scoped drift pass. Historical
+candidate evidence is retained; registry metadata is in apps/docs/hig-release.json.
