@@ -34,11 +34,11 @@ jobs:
       - run: npm run docs:build
       - run: npm run docs:check
       - run: npm run lint
-      # Scoped HIG anti-drift check from the same HIG commit as vendor/bloxwap-hig (bloxwap/hig#58).
+      # Scoped HIG anti-drift check from the exact source of registry release 0.1.0.
       - uses: actions/checkout@v7
         with:
           repository: bloxwap/hig
-          ref: e3390bbd0ac12b9d4b371175bd250d01ea866abe
+          ref: bdf8d07014fea5e69ea51a061b82707661a9d701
           path: .hig
           sparse-checkout: scripts/drift.mjs
           sparse-checkout-cone-mode: false

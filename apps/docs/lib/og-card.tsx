@@ -7,12 +7,12 @@ import { socialImageSize } from './social';
 
 // Modeled on GitHub's repository cards, in the site's dark theme (the same card as bloxwap/sfx): the Bloxwap black
 // canvas, owner/repo title, muted description, the logo tile top right, a stats row, and a color bar along the
-// bottom (the Bloxwap brand palette). Shared colors come from HIG tokens; purple, pink and yellow are brand-bar
-// accents outside HIG's semantic palette.
+// bottom (the Bloxwap brand palette). Shared colors come from HIG tokens; purple remains a brand-bar
+// accent outside HIG's semantic palette.
 const { colors } = tokens;
 const ink = colors.text.srgb;
 const muted = colors.muted.srgb;
-const bar: [color: string, share: number][] = [[colors.action.srgb, 62], [colors.info.srgb, 14], ['#b300ff', 10], ['#ff479c', 8], ['#fffb38', 6]];
+const bar: [color: string, share: number][] = [[colors.action.srgb, 62], [colors.info.srgb, 14], ['#b300ff', 10], [colors.negative.srgb, 8], [colors.warning.srgb, 6]];
 // The OG-only build dependency verifies the approved static @bloxwap/font 0.1.2 TTFs.
 // Family names, weights and bytes remain identical to the previous social cards.
 const assets = Promise.all([

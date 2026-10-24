@@ -1,7 +1,7 @@
-// Verifies the HIG package install: vendored candidate tarballs match their recorded hashes, the docs and the root
-// overrides depend on exactly those files, the installed packages are the same build, and app/global.css reads HIG
+// Verifies the HIG registry install: exact dependencies and lockfile integrity match the reviewed release,
+// installed packages are the same version, and app/global.css reads HIG
 // values through --hig-* roles instead of copying token numbers or bridging font families.
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { tokens } from '@bloxwap/hig-tokens';
@@ -11,10 +11,10 @@ import { assertNoCopiedHigTokens } from './hig-css-guard.mjs';
 
 const root = new URL('../../../', import.meta.url);
 const docs = new URL('../', import.meta.url);
-const vendor = new URL('vendor/bloxwap-hig/', root);
-const provenance = JSON.parse(await readFile(new URL('provenance.json', vendor), 'utf8'));
+const provenance = JSON.parse(await readFile(new URL('hig-release.json', docs), 'utf8'));
 const manifest = JSON.parse(await readFile(new URL('package.json', docs), 'utf8'));
 const workspace = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
+const lock = JSON.parse(await readFile(new URL('package-lock.json', root), 'utf8'));
 /** npm workspaces install a package in apps/docs/node_modules or hoist it to the root. */
 async function installedManifest(name) {
   for (const base of [docs, root]) {
@@ -23,20 +23,23 @@ async function installedManifest(name) {
   throw new Error(`${name} is not installed; run npm install`);
 }
 
-for (const { package: name, file, sha256 } of provenance.artifacts) {
-  const digest = createHash('sha256').update(await readFile(new URL(file, vendor))).digest('hex');
-  assert.equal(digest, sha256, `Vendored HIG tarball changed: ${file}`);
+for (const { package: name, tarball, integrity } of provenance.artifacts) {
   const spec = manifest.dependencies[name] ?? manifest.devDependencies?.[name];
-  assert.equal(spec, `file:../../vendor/bloxwap-hig/${file}`, `${name} must install from vendor/bloxwap-hig/${file}`);
+  assert.equal(spec, provenance.version, `${name} must pin the reviewed registry version`);
   if (name in (workspace.overrides ?? {})) {
-    assert.equal(workspace.overrides[name], `file:./vendor/bloxwap-hig/${file}`, `root override for ${name} must point at vendor/bloxwap-hig/${file}`);
+    assert.equal(workspace.overrides[name], provenance.version, `${name} override must pin the reviewed registry version`);
   }
+  const locked = lock.packages[`apps/docs/node_modules/${name}`] ?? lock.packages[`node_modules/${name}`];
+  assert.ok(locked, `${name} must be recorded in package-lock.json`);
+  assert.equal(locked.version, provenance.version, `${name}: lockfile version differs from reviewed release`);
+  assert.equal(locked.resolved, tarball, `${name}: lockfile must resolve the reviewed registry tarball`);
+  assert.equal(locked.integrity, integrity, `${name}: lockfile integrity differs from reviewed release`);
   const installed = await installedManifest(name);
-  assert.equal(installed.version, provenance.version, `${name}: installed ${installed.version}, vendored ${provenance.version}; run npm install`);
+  assert.equal(installed.version, provenance.version, `${name}: installed ${installed.version}, reviewed ${provenance.version}; run npm ci`);
 }
 assert.equal(tokens.version, provenance.version.split('-')[0]);
 assert.ok(!manifest.dependencies['@bloxwap/hig-native-fonts'] && !manifest.devDependencies?.['@bloxwap/hig-native-fonts'], 'OG cards must use the OG-only package');
-assert.ok(!(await readdir(vendor)).some(file => file.includes('hig-native-fonts')), 'Do not vendor the native font bundle for OG cards');
+await assert.rejects(stat(new URL('vendor/bloxwap-hig', root)), 'Install HIG from npm; do not restore vendored candidates');
 assert.equal(provenance.ogFonts.length, 2, 'The renderer uses only the approved Bold and Black faces');
 for (const face of provenance.ogFonts) {
   const descriptor = ogFonts.find(font => font.asset === face.asset);
@@ -66,4 +69,4 @@ for (const path of ['vendor/hig', 'styles', 'fonts']) {
   await assert.rejects(stat(new URL(path, docs)), `apps/docs/${path} must not exist; use the HIG packages`);
 }
 assert.ok(!/--bloxwap-[\w-]+\s*:/.test(css), 'app/global.css must not define --bloxwap-* aliases; use --hig-* roles');
-console.log(`HIG ${provenance.version}: ${provenance.artifacts.length} vendored tarballs, installed packages, exact OG faces and HIG role usage verified.`);
+console.log(`HIG ${provenance.version}: ${provenance.artifacts.length} registry packages, lockfile integrity, exact OG faces and HIG role usage verified.`);
