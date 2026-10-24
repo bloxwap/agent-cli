@@ -98,8 +98,11 @@ function command(name, input = {}) {
   } catch {
     throw new Error(`Command ${name} did not return one JSON envelope`);
   }
-  if (result.status !== 0 || !envelope.ok)
-    throw new Error(`Command ${name} failed`);
+  if (result.status !== 0 || !envelope.ok) {
+    const errorMsg = envelope.message || 'Unknown error';
+    const errorCode = envelope.code || 'UNKNOWN';
+    throw new Error(`Command ${name} failed: [${errorCode}] ${errorMsg}`);
+  }
   if (name === 'run') {
     runnerPid = envelope.data.pid;
     if (
@@ -171,6 +174,7 @@ try {
     throw new Error('Use a clean QA home without ~/.bloxwap');
   signer = await createTestnetSigner(configuration);
   report.signerMode = signer.mode;
+  report.masterAddress = signer.address;
   ownedState = true;
   childEnv = {
     ...process.env,
@@ -227,18 +231,49 @@ try {
     },
   });
   report.status = 'passed';
-} catch {
-  fail(
+} catch (error) {
+  const stageName =
     report.stages.find((stage) => stage.status === 'failed')?.name ??
-      'testnet-preflight',
-  );
+    'testnet-preflight';
+  fail(stageName);
   report.missingConfiguration = missingTestnetConfiguration();
   report.missingSecrets = requiredTestnetSecrets.filter((name) =>
     report.missingConfiguration.includes(name),
   );
+  // Sanitize error message, redacting secrets and private keys
+  let errorMessage = 'Unknown error';
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  } else if (typeof error === 'string') {
+    errorMessage = error;
+  } else {
+    try {
+      errorMessage = JSON.stringify(error);
+    } catch {
+      errorMessage = String(error);
+    }
+  }
+  // Redact secrets from error message
+  for (const secretName of requiredTestnetSecrets) {
+    const secret = process.env[secretName];
+    if (secret && secret.length >= 4) {
+      errorMessage = errorMessage.split(secret).join('[REDACTED]');
+    }
+  }
+  // Redact private keys
+  errorMessage = errorMessage
+    .replace(/-----BEGIN [^-]+PRIVATE KEY-----[\s\S]*?-----END [^-]+PRIVATE KEY-----/g, '[REDACTED]')
+    .replace(/[A-Za-z0-9+/]{80,}={0,2}/g, '[REDACTED]')
+    .replace(/(?:0x)?[a-fA-F0-9]{64,}/g, '[REDACTED]')
+    .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]');
+  report.error = {
+    stage: stageName,
+    message: errorMessage,
+  };
   console.error(
-    'FAIL: dedicated testnet lifecycle; inspect lifecycle-report.json',
+    `FAIL: dedicated testnet lifecycle at stage '${stageName}': ${errorMessage}`,
   );
+  console.error('Full report: lifecycle-report.json');
 } finally {
   if (ownedState && existsSync(config)) {
     report.cleanup = await cleanupTestnetAccount({
