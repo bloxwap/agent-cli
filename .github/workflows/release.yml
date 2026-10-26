@@ -9,6 +9,18 @@ concurrency:
   group: agent-cli-release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  security:
+    # Release scan, parallel with build.
+    uses: bloxwap/.github/.github/workflows/security-scan.yml@90c5e7f20cef611a83ea7db51f9b85478d714fa6 # v1
+    permissions:
+      contents: read
+    with:
+      runs-on: '["self-hosted","macOS","ARM64"]'
+      profile: release
+      secrets-days: "7"
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_SECURITY_WEBHOOK_URL }}
+
   build:
     name: Candidate
     runs-on: [self-hosted, macOS, ARM64]
@@ -96,7 +108,7 @@ jobs:
   # the organization NPM_TOKEN secret instead. That drops OIDC trusted
   # publishing and automatic provenance.
   publish:
-    needs: build
+    needs: [build, security]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && vars.BLOXWAP_PUBLISH == '1'
     runs-on: [self-hosted, macOS, ARM64]
     environment: npm-release

@@ -1,0 +1,3 @@
+# Historical gitleaks findings accepted on 2026-10-26 (false positives or already rotated).
+# Triage tracked in bloxwap/.github-private. New findings still fail CI.
+20e3544d7c79997c9ad8f4cb614a190542352012:apps/docs/vendor/hig/provenance.json:generic-api-key:7
