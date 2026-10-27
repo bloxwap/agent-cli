@@ -21,8 +21,8 @@ jobs:
       BLOXWAP_PRIVY_APP_ID: ${{ secrets.AGENT_CLI_PRIVY_APP_ID }}
       BLOXWAP_PRIVY_APP_SECRET: ${{ secrets.AGENT_CLI_PRIVY_APP_SECRET }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
       - name: Verify the testnet lifecycle (Relay and Hyperliquid orders mocked)
@@ -30,7 +30,7 @@ jobs:
       - name: Record testnet coverage and outcome
         if: always()
         run: node packages/agent-cli/scripts/testnet-summary.mjs packages/agent-cli/artifacts/lifecycle-report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: testnet-journals-${{ github.run_id }}
