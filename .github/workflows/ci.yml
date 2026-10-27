@@ -53,8 +53,13 @@ jobs:
       - run: npm run typecheck:tsc
       - run: npm test
 
-  typecheck-linux:
-    runs-on: ubuntu-latest
+  # Docs type check with tsrs and the tsc fallback. Formerly typecheck-linux on ubuntu-latest;
+  # all Bloxwap CI runs on the self-hosted minis.
+  typecheck-docs:
+    needs: changes
+    # Security: never run fork PR code on the self-hosted runner.
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, macOS, ARM64]
     permissions:
       contents: read
     steps:
