@@ -3,8 +3,10 @@ name: security-nightly
 
 on:
   schedule:
-    - cron: "38 11 * * 1-6"   # Mon-Sat 11:38 UTC: incremental secrets window
-    - cron: "38 11 * * 0"     # Sunday: full git history for gitleaks
+    - cron: "9 2 * * 1-6"   # Mon-Sat 2:09 AM Pacific: incremental secrets window
+      timezone: "America/Los_Angeles"
+    - cron: "9 2 * * 0"     # Sunday 2:09 AM Pacific: full git history for gitleaks
+      timezone: "America/Los_Angeles"
   workflow_dispatch:
     inputs:
       secrets-mode:
@@ -35,7 +37,7 @@ jobs:
     with:
       runs-on: '["self-hosted","macOS","ARM64"]'
       profile: nightly
-      secrets-mode: ${{ inputs.secrets-mode || (github.event.schedule == '38 11 * * 0' && 'full' || 'incremental') }}
+      secrets-mode: ${{ inputs.secrets-mode || (github.event.schedule == '9 2 * * 0' && 'full' || 'incremental') }}
       upload-sarif: false     # no GHAS code scanning
       upload-secret-report: false
     secrets:
