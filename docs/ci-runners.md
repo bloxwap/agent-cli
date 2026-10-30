@@ -11,7 +11,9 @@ The labels are case-sensitive. Register each runner with exactly `self-hosted`,
 `macOS`, and `ARM64`. Do not use GitHub-hosted `ubuntu-*` or `macos-*` images.
 
 Jobs may stay queued when the fleet is busy. That is expected: the Mac minis are
-the only runners. Register them in runner group **JWS** as macOS user `admin`.
+the only runners. They run as macOS user `admin` in the enterprise runner group
+**Mini Cluster**. Target the labels above, never a runner group: the old org
+group `JWS` is empty, and jobs aimed at it queue forever.
 
 ## Trusted publishing is unavailable
 
@@ -43,9 +45,9 @@ Install these on the runner account. Workflows never use `sudo` or `apt`.
 | GitHub Actions runner | Must stay logged in as a user that can run Colima and Docker without privilege escalation |
 | Xcode Command Line Tools | `git`, `clang`, `tar`, `unzip`, `curl` |
 | Homebrew + `gnu-tar` | `actions/upload-pages-artifact` needs `gtar` (`brew install gnu-tar`) |
-| `gh` | Optional local debugging; already on the JWS minis |
-| `gnupg` | Already on the JWS minis |
-| Colima + Docker CLI | Linux containers for binary and install smokes |
+| `gh` | Optional local debugging; already on the minis |
+| `gnupg` | Already on the minis |
+| Colima + Docker CLI | Linux containers for binary and install smokes and the `typecheck-linux` job |
 | Node.js 24 | Workflows also pin Node with `actions/setup-node` |
 | Bun 1.3.10 | Native compiles and package smokes; workflows also pin Bun with `oven-sh/setup-bun` |
 
