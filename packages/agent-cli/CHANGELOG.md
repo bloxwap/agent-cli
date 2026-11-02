@@ -1,5 +1,15 @@
 # @bloxwap/agent-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- Support user-owned EOA trading agents (`signerType: eoa` with a local `eoaKeyRef`)
+  alongside user-owned Privy apps. The default Bloxwap builder fee is now zero, with
+  optional non-zero overrides, and the default BLOXWAP referral is applied after
+  agent approval when the account has none. Testnet approval errors now keep the
+  action and upstream rejection, and preflight requires a positive test USDC balance.
+
 ## 0.2.0
 
 ### Minor Changes
