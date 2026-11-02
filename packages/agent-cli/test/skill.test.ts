@@ -38,7 +38,7 @@ test('skill frontmatter and embedded source match the published skill', async ()
   for (const code of Object.keys(errorDefaults)) expect(source).toContain(code);
   for (const required of [
     '8 decimals', '6', 'two distinct signatures', '180 days',
-    'own Privy account and app', 'Bloxwap does not', 'external wallet',
+    'own Privy app or dedicated EOA', 'no wallet or credentials are bundled', 'external wallet',
     'never be reported as live validation',
   ]) expect(source).toContain(required);
 });

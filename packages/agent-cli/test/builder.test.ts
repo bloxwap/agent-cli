@@ -14,3 +14,11 @@ test('builder fee cannot exceed master approval', async () => {
     code: 'AGENT_NOT_APPROVED',
   });
 });
+
+test('zero builder fee omits the builder without an approval lookup', async () => {
+  const config = migrate({});
+  const fetchMaximum = async () => {
+    throw new Error('unexpected approval lookup');
+  };
+  expect(await approvedBuilder(config, fetchMaximum)).toBeUndefined();
+});

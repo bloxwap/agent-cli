@@ -39,8 +39,9 @@ trading; a local simulator fills them against the live market:
   would increase it; TP/SL trigger orders fire when the trade/mark price
   crosses the trigger in the trigger direction, then execute as market
   (walking the book) or rest as limits.
-- Fees: Hyperliquid base taker 4.5 bps / maker 1.5 bps plus the Bloxwap
-  builder fee (default `f=10` = 1 bp, `config set builder.fee`).
+- Fees: Hyperliquid base taker 4.5 bps / maker 1.5 bps plus the optional
+  Bloxwap builder fee (default `f=0`, `config set builder.fee`). Live referral
+  discounts are not simulated.
 - Funding accrues hourly at Hyperliquid's `funding` rate (from
   `metaAndAssetCtxs`) of perp notional — the field is the hourly rate, paid
   every hour (longs pay positive funding).

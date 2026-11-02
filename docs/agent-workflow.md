@@ -4,15 +4,20 @@ The AI decides which authorized actions to request. `agent-cli` provides JSON
 commands, a signing runner, risk checks and event/audit journals; it does not
 choose a trading strategy or supply a Bloxwap-owned wallet.
 
-Create your own Privy account and app, and configure them on your own machine or
-runner. Bloxwap never receives your app secret, authorization key or master key.
-Keep the master wallet external and review each approval there. Privy manages the
-separate trading-agent key inside your app. Set `BLOXWAP_PRIVY_APP_SECRET` in your
-local secret manager or process environment, outside the AI conversation. Then:
+Choose your own Privy app or dedicated EOA agent on your own machine or runner.
+Bloxwap bundles no wallet or credentials and never receives your secrets. Keep
+the master wallet external and review each approval there. Set the selected secret
+in your local secret manager or process environment, outside the AI conversation:
 
 ```sh
+# Privy option:
+agent-cli config set signerType privy
 agent-cli config set privyAppId YOUR_APP_ID
 agent-cli config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
+# Or dedicated EOA agent option (never the master key):
+agent-cli config set signerType eoa
+agent-cli config set eoaKeyRef env:BLOXWAP_EOA_KEY
+
 agent-cli config set network testnet
 agent-cli skill install --target codex
 # Or: agent-cli skill install --target claude
@@ -24,8 +29,10 @@ you authorize. Configure the corresponding local limits before trading. Never
 paste a private key, seed or Privy app secret into the conversation or CLI input.
 
 The workflow is `init` → `fund` → poll `status` until settled → `run --detach`.
-`init` returns separate agent and builder approval payloads. Sign them externally
-and resume the same `init`; proceed only when `approved:true`. Funding returns a
+`init` returns an agent approval payload (plus a builder approval only for an
+optional non-zero fee). Sign externally and resume the same `init`; proceed only
+when `approved:true`. Once approved, init applies the configured `BLOXWAP`
+referral if the account has none and preserves any existing referral. Funding returns a
 QR/address and possibly ordered signature steps. On testnet, verify a supported
 test route and token; the default origin chain/token describes Arbitrum mainnet
 and must not be used as a test route. If no route is available, stop and report

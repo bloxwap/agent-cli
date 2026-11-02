@@ -8,7 +8,7 @@ import {
   type ExchangeAdapter,
   type Market,
 } from './hlclient.js';
-import { privyClient, privySigner } from '../wallet/privy.js';
+import { openSigner } from '../wallet/signer.js';
 import { nextNonce } from './nonce.js';
 import { hlInfo } from './http.js';
 import { type AccountState, type OpenOrder } from '../commands/read.js';
@@ -31,9 +31,7 @@ export interface TradingServices {
 export async function tradingServices(
   config: Config,
 ): Promise<TradingServices> {
-  const signer =
-    activeRunner?.signer ??
-    (await privySigner(config, await privyClient(config)));
+  const signer = activeRunner?.signer ?? (await openSigner(config));
   const clients = createClients(config.network, signer, () =>
     nextNonce(signer.address),
   );

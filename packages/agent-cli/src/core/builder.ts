@@ -6,6 +6,7 @@ export async function approvedBuilder(
   fetchMaximum = (user: string, builder: string) =>
     hlInfo<number>(config.network, 'maxBuilderFee', { user, builder }),
 ) {
+  if (config.builder.fee === 0) return undefined;
   if (!config.builder.address) {
     if (config.builder.fee)
       throw new AgentCliError(

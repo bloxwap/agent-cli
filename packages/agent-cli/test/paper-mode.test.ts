@@ -159,7 +159,7 @@ test('paper market order fills against the live book and reads reflect it', asyn
   const balance = await dispatch(['balance', '--paper']);
   expect(
     (balance.body as { data: { accountValue: string } }).data.accountValue,
-  ).toBe('9999.945');
+  ).toBe('9999.955');
 });
 test('paper trading still enforces configured risk limits', async () => {
   const clients = mockTrading();
@@ -175,7 +175,7 @@ test('paper trading still enforces configured risk limits', async () => {
     orderSchema.parse({ coin: 'BTC', side: 'buy', size: '1', price: '20000' }),
     clients,
   );
-  expect(placed.builderFeeRate).toBe('0.01%');
+  expect(placed.builderFeeRate).toBe('0%');
 });
 test('paper actions audit into the paper chain, never the live chain', async () => {
   stubHyperliquid({

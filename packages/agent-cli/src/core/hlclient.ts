@@ -80,6 +80,7 @@ export interface ExchangeAdapter {
   cancelByCloid(params: Record<string, unknown>): Promise<unknown>;
   batchModify(params: Record<string, unknown>): Promise<unknown>;
   updateLeverage(params: Record<string, unknown>): Promise<unknown>;
+  setReferrer?(params: { code: string }): Promise<unknown>;
 }
 const readClients = new Map<
   'mainnet' | 'testnet',

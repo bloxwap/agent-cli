@@ -161,10 +161,10 @@ export async function testnetLifecycle({
   }
   await stage('test-account-preflight', async () => {
     const state = await info('clearinghouseState', { user: masterAddress });
-    assert.match(
-      String(state.withdrawable),
-      /^-?\d+(\.\d+)?$/,
-      'Disposable account did not return a withdrawable balance',
+    const balance = decimal(state.withdrawable);
+    assert.ok(
+      balance.units > 0n,
+      'Disposable test account requires a positive test USDC balance before approvals',
     );
     assert.ok(
       state.assetPositions.every(
@@ -196,7 +196,7 @@ export async function testnetLifecycle({
     ])
       await command('config', { args: ['set', key, value] });
   });
-  await stage('init-agent-and-builder-approvals', async () => {
+  await stage('init-agent-approval-and-referral', async () => {
     const pending = await command('init', { masterAddress, qr: false });
     await remember(pending.agentAddress, pending.approvals.agent);
     assert.equal(pending.approved, false);
@@ -210,11 +210,8 @@ export async function testnetLifecycle({
         builderSignature: await sign(pending.approvals.builder),
         qr: false,
       });
-    assert.equal(
-      approved.approved,
-      true,
-      'Both exchange approvals must be visible',
-    );
+    assert.equal(approved.approved, true, 'Agent approval must be visible');
+    assert.equal(approved.referralApplied, true, 'Referral must be active');
   });
   await stage('mock-relay-funding-and-settlement', async () => {
     const deposit = await command('fund', {

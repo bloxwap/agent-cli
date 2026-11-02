@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 const environment = vi.hoisted(() => ({
   home: `/tmp/bloxwap-e2e-${process.pid}-${Math.random().toString(16).slice(2)}`,
   wallets: 0,
@@ -13,6 +14,7 @@ const environment = vi.hoisted(() => ({
   }[],
   agents: [] as { address: string; validUntil: number; name: string }[],
   builderFee: 0,
+  referralCode: null as string | null,
   balance: '0',
 }));
 vi.mock('node:os', async (importOriginal) => ({
@@ -94,6 +96,7 @@ beforeEach(async () => {
   environment.agents = [];
   environment.balance = '0';
   environment.builderFee = 0;
+  environment.referralCode = null;
   await saveConfig(
     migrate({ privyAppId: 'mock', masterAddress: '0x' + 'a'.repeat(40) }),
     path,
@@ -144,14 +147,14 @@ beforeEach(async () => {
         environment.builderFee = 10;
         return Response.json({ status: 'ok', response: { type: 'default' } });
       }
+      if (action?.type === 'setReferrer') {
+        environment.referralCode = action.code;
+        return Response.json({ status: 'ok', response: { type: 'default' } });
+      }
       if (body.type === 'maxBuilderFee')
         return Response.json(environment.builderFee);
       if (action) {
-        if (action.type === 'order')
-          expect(action.builder).toEqual({
-            b: '0x71b09a08257078a4d642f7dd7315e656c837329a',
-            f: 10,
-          });
+        if (action.type === 'order') expect(action.builder).toBeUndefined();
         const statuses =
           action.type === 'order' ? [{ resting: { oid: 1 } }] : ['success'];
         if (action.type === 'order') {
@@ -188,6 +191,12 @@ beforeEach(async () => {
           assetPositions: [],
         });
       if (body.type === 'extraAgents') return Response.json(environment.agents);
+      if (body.type === 'referral')
+        return Response.json({
+          referredBy: environment.referralCode
+            ? { code: environment.referralCode }
+            : null,
+        });
       if (body.type === 'frontendOpenOrders')
         return Response.json(environment.orders);
       if (body.type === 'allMids') return Response.json({ BTC: '20000' });
@@ -200,6 +209,8 @@ afterEach(async () => {
   setActiveRunner(undefined);
   setRouting(undefined);
   delete process.env.BLOXWAP_E2E_AUTH;
+  delete process.env.BLOXWAP_TEST_EOA;
+  delete process.env.BLOXWAP_TEST_NEXT_EOA;
   vi.unstubAllGlobals();
   await rm(environment.home, { recursive: true, force: true });
 });
@@ -217,25 +228,22 @@ async function command(name: string, input: Record<string, unknown> = {}) {
 test('mocked full account lifecycle through real CLI router, SDK and runner RPC', async () => {
   const initialized = await command('init', { qr: false });
   expect(initialized.requiresSignature).toBe(true);
-  expect(initialized.approvals).toMatchObject({
-    builder: { typedData: { message: { maxFeeRate: '0.01%' } } },
+  expect(initialized).toMatchObject({
+    referralCode: 'BLOXWAP',
+    referralApplied: false,
   });
+  expect(initialized.approvals).not.toHaveProperty('builder');
   expect(
-    (
-      await command('init', {
-        qr: false,
-        signature: '0x' + '11'.repeat(64) + '1b',
-      })
-    ).approved,
-  ).toBe(false);
-  expect(
-    (
-      await command('init', {
-        qr: false,
-        builderSignature: '0x' + '11'.repeat(64) + '1b',
-      })
-    ).approved,
-  ).toBe(true);
+    await command('init', {
+      qr: false,
+      signature: '0x' + '11'.repeat(64) + '1b',
+    }),
+  ).toMatchObject({
+    approved: true,
+    referralCode: 'BLOXWAP',
+    referralApplied: true,
+  });
+  expect(environment.referralCode).toBe('BLOXWAP');
   expect((await command('init', { qr: false })).approved).toBe(true);
   const deposit = await command('fund', { qr: false, amount: '10' });
   expect(deposit.depositId).toBe('deposit-1');
@@ -264,7 +272,7 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     intentId: 'lifecycle',
   });
   expect(placed).toMatchObject({
-    builderFeeRate: '0.01%',
+    builderFeeRate: '0%',
     builderAddress: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
   });
   await command('modify', { oid: 1, price: '20100' });
@@ -316,4 +324,59 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   expect(replay.map((event) => event.type)).toContain('order_update');
   expect(replay.map((event) => event.type)).toContain('fill');
   expect(await command('events', { since: replay[0].seq })).toEqual(replay.slice(1));
+}, 20000);
+
+test('user-provided EOA agent completes onboarding, runner trading and rotation without Privy', async () => {
+  const master = privateKeyToAccount(generatePrivateKey());
+  const agentKey = generatePrivateKey();
+  const agent = privateKeyToAccount(agentKey);
+  const nextAgentKey = generatePrivateKey();
+  const nextAgent = privateKeyToAccount(nextAgentKey);
+  process.env.BLOXWAP_TEST_EOA = agentKey;
+  process.env.BLOXWAP_TEST_NEXT_EOA = nextAgentKey;
+  await saveConfig(
+    migrate({
+      signerType: 'eoa',
+      eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
+      masterAddress: master.address,
+    }),
+    path,
+  );
+
+  const initialized = await command('init', { qr: false });
+  expect(initialized).toMatchObject({
+    signerType: 'eoa',
+    agentAddress: agent.address,
+    policyId: null,
+  });
+  expect(
+    await command('init', { signature: '0x' + '11'.repeat(64) + '1b' }),
+  ).toMatchObject({ approved: true, referralApplied: true });
+  environment.balance = '10';
+  await command('run');
+  expect(activeRunner?.signer?.address).toBe(agent.address);
+  await command('order', {
+    coin: 'BTC',
+    side: 'buy',
+    size: '0.001',
+    price: '20000',
+  });
+
+  const rotation = await command('rotate', {
+    eoaKeyRef: 'env:BLOXWAP_TEST_NEXT_EOA',
+  });
+  expect(rotation.newAgent).toBe(nextAgent.address);
+  const swapped = await command('rotate', {
+    signature: '0x' + '11'.repeat(64) + '1b',
+  });
+  expect(swapped.swapped).toBe(true);
+  expect(activeRunner?.signer?.address).toBe(nextAgent.address);
+  expect(
+    (
+      await command('rotate', {
+        revokeSignature: '0x' + '11'.repeat(64) + '1b',
+      })
+    ).oldRevoked,
+  ).toBe(true);
+  await command('revoke', { signature: '0x' + '11'.repeat(64) + '1b' });
 }, 20000);

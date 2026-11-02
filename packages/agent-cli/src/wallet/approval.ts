@@ -62,8 +62,18 @@ export async function submitApproval(
       v,
     },
   })) as { status: string; response: unknown };
-  if (response.status !== 'ok')
-    throw new AgentCliError('UPSTREAM_ERROR', 'Approval failed');
+  if (response.status !== 'ok') {
+    const actionType = String(pending.action.type ?? 'approval');
+    const rejection =
+      typeof response.response === 'string'
+        ? response.response
+        : (JSON.stringify(response.response) ?? 'Unknown rejection');
+    throw new AgentCliError(
+      'UPSTREAM_ERROR',
+      `${actionType} failed: ${rejection}`,
+      { hyperliquidResponse: response },
+    );
+  }
   return response;
 }
 export const rejectMasterKey = assertSafeInput;

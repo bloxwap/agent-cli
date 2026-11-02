@@ -52,14 +52,15 @@ function fixture(overrides = {}) {
       },
       typedData: {},
     },
-    builder: { kind: 'builder', typedData: {} },
   };
   const command = vi.fn(async (name, input = {}) => {
     if (name === 'config') return {};
     if (name === 'init')
       return {
         agentAddress: oldAgent,
-        approved: !!input.builderSignature,
+        approved: !!input.signature,
+        referralCode: 'BLOXWAP',
+        referralApplied: !!input.signature,
         approvals,
       };
     if (name === 'fund')
@@ -187,12 +188,11 @@ function fixture(overrides = {}) {
   };
 }
 
-test('offline lifecycle driver verifies both approvals, settlement, reconciled writes, replay and revocation', async () => {
+test('offline lifecycle driver verifies agent approval, referral, settlement, reconciled writes, replay and revocation', async () => {
   const f = fixture();
   await testnetLifecycle(f);
   expect(f.sign.mock.calls.map(([approval]) => approval.kind)).toEqual([
     'agent',
-    'builder',
     'rotate',
     'old-revoke',
     'final-revoke',
@@ -251,12 +251,15 @@ test('a successful envelope without exchange acceptance cannot complete the life
   expect(f.stop).toHaveBeenCalledOnce();
 });
 
-test('preflight accepts an unfunded account because orders never reach the exchange', async () => {
+test('preflight accepts any positive exact test USDC balance', async () => {
   const f = fixture();
   const info = f.info;
   f.info = vi.fn(async (type) =>
     type === 'clearinghouseState'
-      ? { withdrawable: '0', assetPositions: [] }
+      ? {
+          withdrawable: '0.' + '0'.repeat(400) + '1',
+          assetPositions: [],
+        }
       : info(type),
   );
   await testnetLifecycle(f);
@@ -264,6 +267,23 @@ test('preflight accepts an unfunded account because orders never reach the excha
     f.checkpoint.mock.calls.filter(([stage]) => stage.status === 'passed'),
   ).toHaveLength(15);
 });
+
+test.each([null, '', 0, '0', '0.000', '-1', 'not-a-number'])(
+  'unfunded or invalid account balance fails before any write (%#)',
+  async (withdrawable) => {
+    const f = fixture({
+      info: async (type) =>
+        type === 'clearinghouseState'
+          ? { withdrawable, assetPositions: [] }
+          : [],
+    });
+    await expect(testnetLifecycle(f)).rejects.toThrow(
+      /decimal string|positive test USDC/,
+    );
+    expect(f.command).not.toHaveBeenCalled();
+    expect(f.sign).not.toHaveBeenCalled();
+  },
+);
 
 test('a funded but non-disposable account is rejected before any write', async () => {
   const f = fixture({
@@ -483,6 +503,9 @@ test('credential absence fails the actual entrypoint with a failure artifact and
     );
     expect(result.status).toBe(1);
     expect(result.stdout).not.toMatch(/SKIP|PASS/);
+    expect(result.stderr).toContain(
+      "stage 'testnet-preflight': Missing testnet configuration",
+    );
     const report = JSON.parse(
       await readFile(join(cwd, 'artifacts/lifecycle-report.json'), 'utf8'),
     );
@@ -490,6 +513,11 @@ test('credential absence fails the actual entrypoint with a failure artifact and
     expect(report).toMatchObject({
       status: 'failed',
       failure: 'testnet-preflight',
+      error: {
+        stage: 'testnet-preflight',
+        message:
+          'Missing testnet configuration: BLOXWAP_TEST_MASTER_KEY, BLOXWAP_PRIVY_APP_ID, BLOXWAP_PRIVY_APP_SECRET',
+      },
       stages: [],
     });
     expect(report.missingSecrets).toEqual([

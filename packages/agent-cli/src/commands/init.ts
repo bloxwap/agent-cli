@@ -10,6 +10,7 @@ import {
   stateDir,
 } from '../core/config.js';
 import { privyClient, createAgent } from '../wallet/privy.js';
+import { prepareEoaAgent } from '../wallet/eoa.js';
 import { applyPolicy } from '../wallet/policy.js';
 import {
   newApproval,
@@ -18,6 +19,7 @@ import {
   type Approval,
 } from '../wallet/approval.js';
 import { hlInfo } from '../core/http.js';
+import { ensureReferral } from '../core/referral.js';
 import { assertLiveMode } from '../core/trading.js';
 import { AgentCliError } from '../errors/index.js';
 register('init', {
@@ -26,6 +28,11 @@ register('init', {
     masterAddress: z
       .string()
       .regex(/^0x[0-9a-fA-F]{40}$/)
+      .optional(),
+    signerType: z.enum(['privy', 'eoa']).optional(),
+    eoaKeyRef: z
+      .string()
+      .regex(/^env:[A-Z_][A-Z0-9_]*$|^file:.+/)
       .optional(),
     validUntil: z.number().int().optional(),
     signature: z.string().optional(),
@@ -37,17 +44,25 @@ register('init', {
     const config = await loadConfig(context.configPath);
     if (context.paper !== undefined) config.mode = context.paper ? 'paper' : 'live';
     assertLiveMode(config, 'init');
+    const signerType =
+      (input.signerType as 'privy' | 'eoa' | undefined) ?? config.signerType;
+    if (config.agentAddress && signerType !== config.signerType)
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Initialized signer type differs; use a separate config for another agent',
+      );
+    config.signerType = signerType;
     if (
       context.network &&
       context.network !== config.network &&
-      (config.privyWalletId || config.approved)
+      (config.agentAddress || config.approved)
     )
       throw new AgentCliError(
         'CONFIG_INVALID',
         'Initialized wallet network differs; use a separate config for another network',
       );
     if (
-      config.privyWalletId &&
+      config.agentAddress &&
       config.masterAddress &&
       input.masterAddress &&
       (input.masterAddress as string).toLowerCase() !==
@@ -72,11 +87,25 @@ register('init', {
         'Expiry must be within 180 days',
       );
     config.agentExpiry = expiry;
-    const client = await privyClient(config);
-    const policyId = await applyPolicy(config, client, context.configPath);
-    await createAgent(config, client, context.configPath, policyId);
+    let policyId: string | undefined;
+    if (signerType === 'eoa') {
+      await prepareEoaAgent(
+        config,
+        context.configPath,
+        input.eoaKeyRef as string | undefined,
+      );
+    } else {
+      const client = await privyClient(config);
+      policyId = await applyPolicy(config, client, context.configPath);
+      await createAgent(config, client, context.configPath, policyId);
+    }
     if (config.approved && !config.revoked)
-      return { ...config, expiry: config.agentExpiry };
+      return {
+        ...config,
+        policyId: config.policyId ?? null,
+        expiry: config.agentExpiry,
+        ...(await ensureReferral(config)),
+      };
     const path = join(
       stateDir(),
       `approval-${config.network}-${config.agentAddress}.json`,
@@ -92,7 +121,7 @@ register('init', {
           agentName: `${config.agentName} valid_until ${expiry}`,
         }),
       };
-      if (config.builder.address)
+      if (config.builder.fee > 0 && config.builder.address)
         pending.builder = await newApproval(config, 'approveBuilderFee', {
           builder: config.builder.address,
           maxFeeRate: `${config.builder.fee / 1000}%`,
@@ -121,7 +150,7 @@ register('init', {
         agent.address.toLowerCase() === config.agentAddress?.toLowerCase() &&
         agent.validUntil >= expiry,
     );
-    if (config.builder.address) {
+    if (config.builder.fee > 0 && config.builder.address) {
       const max = await hlInfo<number>(config.network, 'maxBuilderFee', {
         user: config.masterAddress,
         builder: config.builder.address,
@@ -134,9 +163,13 @@ register('init', {
     return {
       masterAddress: config.masterAddress,
       agentAddress: config.agentAddress,
+      signerType,
       expiry,
-      policyId,
+      policyId: policyId ?? null,
       approved: config.approved,
+      ...(config.approved
+        ? await ensureReferral(config)
+        : { referralCode: config.referralCode, referralApplied: false }),
       requiresSignature: !config.approved,
       approvals: pending,
       deeplink,

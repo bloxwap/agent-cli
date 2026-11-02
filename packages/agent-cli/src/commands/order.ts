@@ -102,9 +102,11 @@ export async function placeOrder(
   const clients = services ?? (await servicesForMode(config));
   const order = await prepareOrder(config, input, clients);
   const builder =
-    config.mode === 'paper'
-      ? { b: config.builder.address.toLowerCase(), f: config.builder.fee }
-      : await approvedBuilder(config);
+    config.builder.fee === 0
+      ? undefined
+      : config.mode === 'paper'
+        ? { b: config.builder.address.toLowerCase(), f: config.builder.fee }
+        : await approvedBuilder(config);
   const result = await exchangeAction('order', () =>
     clients.exchange.order({
       orders: [order],

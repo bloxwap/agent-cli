@@ -3,8 +3,9 @@ title: "Overview and installation"
 description: "An agent-native Hyperliquid trading CLI with JSON input and output."
 ---
 
-The CLI combines a persistent signing runner, Privy managed agents, Relay funding,
-a packaged agent skill, and paper trading against real mainnet market data.
+The CLI combines a persistent signing runner, user-owned Privy or EOA agents,
+Relay funding, a packaged agent skill, and paper trading against real mainnet
+market data.
 Master custody stays external.
 
 ## Install
@@ -35,4 +36,5 @@ Start with [Quickstart](/docs/quickstart), inspect the [Command reference](/docs
 and read [Custody](/docs/custody) before operating a funded account.
 
 Local state always lives in `~/.bloxwap`. Environment variables use `BLOXWAP_`.
-The default Bloxwap builder rate is `f=10`, **0.01%**, and requires master approval.
+The default Bloxwap builder rate is `f=0` (no added fee). Approved onboarding
+applies the `BLOXWAP` referral when the account has no existing referral.

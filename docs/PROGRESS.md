@@ -15,7 +15,7 @@
 | #10 | done | Privy server SDK create/link, P-256 owner, private authorization storage and typed-data signer; sandbox test env-gated. |
 | #11 | partial | Each user brings their own external master wallet and Privy app. v2 domain/network and no-export policy, authorized wallet attachment and init revalidation; local typed-data and withdrawal rejection tests pass. Direct live Privy rejection still needs a dedicated test app. L1 action hashes prevent Privy per-action/notional inspection; exchange agent permissions enforce the withdrawal boundary. |
 | #12 | done | Idempotent managed-wallet onboarding, persisted external master EIP-712 approvals/deeplink, expiry bound, agent/builder verification and master-key rejection. |
-| #13 | done | Default Bloxwap builder address with f=10 (0.01%); config/env overrides, init approval, approved-maximum checks and fund/order address/rate reporting. |
+| #13 | done | Default Bloxwap builder address with f=0 (no added fee); optional non-zero config/env overrides retain init approval and approved-maximum checks. Default BLOXWAP referral is applied after agent approval when no referral exists; existing referrals are preserved. Fund/order address/rate reporting remains. |
 | #14 | done | Typed validated Relay quote/status adapter, perps USDC destination, multiple origin routes and fee parsing; mocked fixtures. |
 | #15 | done | Exact bigint decimal parse/format and loss-detecting 6↔8 conversions with property-style round trips. |
 | #16 | done | Terminal QR on stderr and JSON field, optional PNG/SVG, no-qr support and snapshot. |
@@ -41,14 +41,14 @@
 | #36 | done | Pre-schema recursive CLI/RPC secret detector, BIP39-like seed rejection, private authorization refs and env/log/error scrubbing; threat model docs. |
 | #37 | done | Skill content, packaged/embedded installation, schema-validated examples and public /SKILL.md hosting are complete. Frontmatter, gotchas, error handling, discovery links and source parity are verified. The unverified live coding-agent testnet criterion is explicitly transferred to #39. |
 | #38 | done | Install/testnet README, custody architecture, schema-generated command reference and static docs site with gated Pages workflow. |
-| #39 | partial | Fifteen-stage testnet harness supports external wallet signing and separate CI-only disposable keys, exact price reconciliation, correlated WebSocket/follow/replay events, post-rotation trading, audit verification, partial-rotation cleanup and zero orders/agents/positions checks. Hyperliquid order placement/modify/cancel (and the order-book/order-update responses those stages use) are explicitly mocked and blocked from the exchange; approvals, account reads and Privy stay live. Schema 2 reports and CI summaries require evidence and record order coverage as mocked. Offline regressions pass; nightly journals and the independent coding-agent skill session transferred from #37 still require dedicated QA configuration and evidence. Test USDC pre-funding is no longer required. |
+| #39 | partial | Fifteen-stage testnet harness supports external wallet signing and separate CI-only disposable keys, exact price reconciliation, correlated WebSocket/follow/replay events, post-rotation trading, audit verification, partial-rotation cleanup and zero orders/agents/positions checks. Hyperliquid order placement/modify/cancel (and the order-book/order-update responses those stages use) are explicitly mocked and blocked from the exchange; approvals, account reads and Privy stay live. Schema 2 reports and CI summaries require evidence and record order coverage as mocked. Offline regressions cover sanitized causal errors and the positive-balance preflight; Hyperliquid requires test USDC before approvals even with orders mocked. Nightly journals and the independent coding-agent skill session transferred from #37 still require a funded dedicated QA wallet and live evidence. |
 | #40 | partial | Script-free tarball global install and actual installed bunx help/schema smoke pass locally; executable/skill/license checks and Node 22.12/24 macOS/Linux CI. Public registry installation awaits publication. |
 | #41 | partial | Validated Changesets patch workflow with optional version PR, native binary smoke/checksums, tagged-main version gates, exact tested tarball publication and registry verification. Publish runs on the Mac mini fleet with the organization `NPM_TOKEN` (no OIDC trusted publishing or automatic provenance). Manual candidates cannot publish. Actual release needs the publishing gate; organization policy blocks automatic version PRs, so the default workflow uploads a reviewable patch. |
 | #42 | done | Final packaged flow audited and corrected (network/config isolation, exact loss/exposure/receipt checks, trigger preservation, readiness and stream errors). Skill shipped/embedded in npm and compiled CLI; Claude/Codex installation with CODEX_HOME, version synchronization, idempotency and overwrite protection. |
 | #49 | done | Docs token guard checks declarations anywhere on a line; regression coverage includes formatted and minified radius, motion, density and type copies. The issue's same-line mutation makes docs:check fail. |
-| #61 | done | Paper trading mode: global `--paper`, `config set mode paper` (live return needs `--yes`) and `run --paper` simulate orders against real mainnet Hyperliquid public data (info + WS l2Book/trades/bbo, meta, funding) with no signing, Privy, approval or deposit. Deterministic simulator walks the live book for market/IOC, rests limits until trade-through, supports reduce-only and TP/SL, charges HL taker/maker + 1 bp builder fees, accrues funding and approximates cross/isolated margin and liquidation. Restartable state under `~/.bloxwap/paper/` with locked persistence, separate runner pid/socket/logs/audit/events; `paper reset` and `paper summary`. Every envelope and event labels `mode`/`paper`; live and paper state never mix. Fixture-book simulator, store, exchange, engine, mode and dispatch tests; env-gated mainnet smoke test. Skill, READMEs, docs pages and command reference updated. |
+| #61 | done | Paper trading mode: global `--paper`, `config set mode paper` (live return needs `--yes`) and `run --paper` simulate orders against real mainnet Hyperliquid public data (info + WS l2Book/trades/bbo, meta, funding) with no signing, Privy, approval or deposit. Deterministic simulator walks the live book for market/IOC, rests limits until trade-through, supports reduce-only and TP/SL, charges HL taker/maker + optional builder fees (zero by default), accrues funding and approximates cross/isolated margin and liquidation. Restartable state under `~/.bloxwap/paper/` with locked persistence, separate runner pid/socket/logs/audit/events; `paper reset` and `paper summary`. Every envelope and event labels `mode`/`paper`; live and paper state never mix. Fixture-book simulator, store, exchange, engine, mode and dispatch tests; env-gated mainnet smoke test. Skill, READMEs, docs pages and command reference updated. |
 
-Original implementation verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. This did not establish live Privy/testnet or registry acceptance. Bloxwap builder defaults to f=10 (0.01%), with config/env overrides.
+Original implementation verification: supported Node 22, strict build/lint/typecheck and isolated offline tests. This did not establish live Privy/testnet or registry acceptance. Bloxwap builder defaults to f=0, with optional non-zero config/env overrides and a default BLOXWAP referral.
 
 ## Workspace and Fumadocs migration
 
@@ -99,8 +99,9 @@ publication and deployment are outside this refresh.
 separate disposable CI signer, with fifteen evidence-checked stages, correlated
 events and interrupted-rotation cleanup. Hyperliquid order placement, modification
 and cancellation never reach the exchange: the preload mocks those endpoints and
-fails closed if an order request escapes. 30 test USDC pre-funding is not required.
-Runner shutdown is confirmed before journal export. Nightly CI maps
+fails closed if an order request escapes. A positive test USDC balance remains
+required for live agent/builder approvals. Runner shutdown is confirmed before
+journal export. Nightly CI maps
 `AGENT_CLI_TEST_MASTER_KEY`, `AGENT_CLI_PRIVY_APP_ID` and
 `AGENT_CLI_PRIVY_APP_SECRET` from the `testnet` environment onto the harness
 `BLOXWAP_*` variables. Live journals and the independent coding-agent session
@@ -153,3 +154,31 @@ Node 24.22.1 verification: clean npm ci, build, lint, typecheck, 286 CLI tests,
 production docs build (18 HTML pages, 707 links/assets, 15 social cards), docs check,
 14 Chromium smoke checks, package-install smoke and scoped drift pass. Historical
 candidate evidence is retained; registry metadata is in apps/docs/hig-release.json.
+
+## Testnet diagnostics and funding preflight — 2026-10-27
+
+#39 remains partial. Approval errors retain the action and upstream rejection;
+the lifecycle entrypoint records sanitized causal errors and the public master
+address. Preflight again requires an exact positive test USDC balance before any
+write, because Hyperliquid rejects agent/builder approvals on an unfunded account.
+The canonical skill and testnet docs now state that prerequisite. This addresses
+the latest remote failure diagnostically; it is not a new live testnet pass.
+
+Node 24 verification: clean `npm ci`, build, lint, CLI tsrs/tsc checks, 296
+offline tests in 57 files, packed global npm and installed Bun smoke, docs
+build/check/smoke and docs tsrs/tsc checks pass. No credentialed lifecycle,
+independent coding-agent session, remote workflow or package publication was
+run. #11, #39, #40 and #41 retain their live/public acceptance boundaries.
+
+## User-owned signer settings — 2026-10-31
+
+Live agents can use the user's own Privy app or a dedicated user-provided EOA.
+`signerType` selects the signer; `eoaKeyRef` accepts only local environment/private
+file references, never raw command-line keys. EOA agents remain separate from the
+external master wallet and use the same approval, typed-data, risk, audit, runner,
+rotation and revocation flows. No runtime sample wallets or credentials are shipped.
+Generated-key offline tests cover EOA onboarding, restricted signing, SDK trading
+and hot-swap rotation; documentation covers both user-owned setup paths.
+Verification: build, lint, tsrs/tsc, 300 offline tests in 58 files, docs
+build/check with both compilers, packed global-install smoke and compiled EOA
+config/schema smoke pass. No live wallet or exchange operation was used.

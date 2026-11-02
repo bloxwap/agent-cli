@@ -67,15 +67,25 @@ export const outputSchemas: Record<string, unknown> = {
     {
       masterAddress: string,
       agentAddress: string,
+      signerType: { enum: ['privy', 'eoa'] },
       expiry: { type: 'number' },
-      policyId: string,
+      policyId: { type: ['string', 'null'] },
       approved: boolean,
+      referralCode: string,
+      referralApplied: boolean,
       requiresSignature: boolean,
       approvals: unknown,
       deeplink: string,
       qrAscii: { type: ['string', 'null'] },
     },
-    ['masterAddress', 'agentAddress', 'expiry', 'policyId', 'approved'],
+    [
+      'masterAddress',
+      'agentAddress',
+      'signerType',
+      'expiry',
+      'policyId',
+      'approved',
+    ],
   ),
   fund: object(
     {

@@ -36,8 +36,8 @@ simulator fills them:
 - Reduce-only caps at the open position; TP/SL triggers fire when the
   trade/mark price crosses the trigger direction, then execute as market or
   rest as limits.
-- Fees: Hyperliquid taker 4.5 bps / maker 1.5 bps plus the Bloxwap builder fee
-  (default `f=10` = 1 bp).
+- Fees: Hyperliquid taker 4.5 bps / maker 1.5 bps plus the optional Bloxwap
+  builder fee (default `f=0`). Live referral discounts are not simulated.
 - Funding accrues hourly at Hyperliquid's `funding` rate of notional; the
   `metaAndAssetCtxs` field is already the hourly rate paid every hour.
 - Margin and liquidation are approximated for cross and isolated leverage.

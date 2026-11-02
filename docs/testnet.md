@@ -82,11 +82,13 @@ not a production CLI key-import feature. Missing secrets fail the nightly job.
 
 ## Account preparation and coverage
 
-The dedicated Hyperliquid **testnet** account must have no positions, open orders
-or leftover agent approvals. 30 test USDC pre-funding is **not** required: the
-harness never places, modifies or cancels orders on the exchange. Use a clean
+The dedicated Hyperliquid **testnet** account must have a positive test USDC
+balance and no positions, open orders or leftover agent approvals. Hyperliquid
+requires deposited test collateral before the master account can approve an
+agent or builder, even though the harness mocks exchange orders. Any exact
+positive balance satisfies the preflight; no real funds are needed. Use a clean
 OS account or container: the harness refuses existing `~/.bloxwap` state, and
-never changes the CLI's state location. Do not use a mainnet account or real funds.
+never changes the CLI's state location. Do not use a mainnet account.
 
 Privy and Hyperliquid agent approvals/revocation stay live, as do account info
 reads (balances, positions, open orders, extra agents) and non-order WebSocket

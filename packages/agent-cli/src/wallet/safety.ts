@@ -23,7 +23,7 @@ export function assertSafeInput(value: unknown): void {
   if (typeof value === 'string' && resemblesSecret(value))
     throw new AgentCliError(
       'POLICY_REJECTED',
-      'Private keys and seed phrases are forbidden; use external wallet signing',
+      'Private keys and seed phrases are forbidden as command input; use external master signing or a local EOA key reference',
     );
   if (Array.isArray(value)) value.forEach(assertSafeInput);
   else if (value && typeof value === 'object')

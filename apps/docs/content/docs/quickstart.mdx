@@ -3,29 +3,41 @@ title: "Quickstart"
 description: "Initialize, show the funding QR, confirm settlement, and start the runner."
 ---
 
-Use a dedicated testnet account and Privy sandbox credentials. Replace address
-and signature placeholders with values from the external wallet. Never supply a
-private key, seed, or mnemonic to the CLI.
+Use a dedicated testnet account and your own Privy sandbox app or EOA agent.
+Replace placeholders with your own values. Never supply a private key, seed,
+mnemonic, or app secret to CLI input or a conversation.
 
 ## 1. Initialize
 
+Choose one signer and set its secret securely outside the CLI first:
+
 ```sh
+# Privy option:
+agent-cli config set signerType privy
 agent-cli config set privyAppId YOUR_APP_ID
 agent-cli config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
-# Set the secret securely outside the CLI and conversation.
+
+# Or dedicated EOA agent option (never the master key):
+agent-cli config set signerType eoa
+agent-cli config set eoaKeyRef env:BLOXWAP_EOA_KEY
+
 agent-cli init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
 ```
 
+No wallet or credentials are bundled. The EOA key is read only through your local
+reference; config stores the reference and derived public agent address.
+
 Show the returned EIP-712 agent approval payload, deeplink, and QR to the user.
-The master wallet signs externally. Submit the resulting 65-byte signature and
-complete the separate builder fee approval:
+The master wallet signs externally. Submit the resulting 65-byte signature:
 
 ```sh
 agent-cli init --network testnet --signature 0xYOUR_AGENT_SIGNATURE
-agent-cli init --network testnet --builder-signature 0xYOUR_BUILDER_SIGNATURE
 ```
 
-Continue only when `approved:true`. The default builder fee is `f=10` (0.01%).
+Continue only when `approved:true`. The default builder fee is `f=0`. Once
+approved, init applies the `BLOXWAP` referral if the account has none and leaves
+an existing referral unchanged. A separate builder approval is needed only for
+an optional non-zero builder fee.
 
 ## 2. Fund and show the QR
 

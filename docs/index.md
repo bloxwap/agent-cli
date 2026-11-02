@@ -6,7 +6,7 @@ real market data, [funding](funding.md) for deposits/signatures,
 [errors](errors.md) for recovery, [events](events.md) for streaming,
 [custody](custody.md) and [security](security.md) for key boundaries.
 Start with [working with a coding agent](agent-workflow.md) to configure your own
-Privy app and understand approvals, funding and completion checks.
+Privy app or EOA agent and understand approvals, funding and completion checks.
 
 Development progress is recorded in [PROGRESS](PROGRESS.md). GitHub Actions runs
 on the self-hosted Mac mini fleet; see [CI runners](ci-runners.md). Documentation is

@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { stateDir, atomicWrite, type Config } from '../core/config.js';
 import { paperDir, type Mode } from '../core/mode.js';
 import { Logger } from '../core/logger.js';
-import { privyClient, privySigner } from '../wallet/privy.js';
+import { openSigner as configuredSigner } from '../wallet/signer.js';
 import type { Signer } from '../core/hlclient.js';
 import { AgentCliError } from '../errors/index.js';
 export interface RunnerInfo {
@@ -65,8 +65,8 @@ export class Runner {
     });
   }
   async start(
-    openSigner: () => Promise<Signer> = async () =>
-      privySigner(this.config, await privyClient(this.config)),
+    loadSigner: () => Promise<Signer> = async () =>
+      configuredSigner(this.config),
   ) {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     await chmod(this.directory, 0o700);
@@ -98,7 +98,7 @@ export class Runner {
       await unlink(startupLock);
     }
     try {
-      this.signer = await openSigner();
+      this.signer = await loadSigner();
       this.timer = setInterval(() => {}, 30_000);
       this.logger.log('info', 'Runner started', { ...this.info });
       await this.logger.flush();

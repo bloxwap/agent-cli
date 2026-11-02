@@ -18,6 +18,12 @@ export const configSchema = z
       })
       .default({ startingBalance: 10_000 }),
     agentName: z.string().max(16).default('bloxwap'),
+    referralCode: z.string().min(1).max(20).default('BLOXWAP'),
+    signerType: z.enum(['privy', 'eoa']).default('privy'),
+    eoaKeyRef: z
+      .string()
+      .regex(/^env:[A-Z_][A-Z0-9_]*$|^file:.+/)
+      .optional(),
     masterAddress: address.optional(),
     agentAddress: address.optional(),
     agentExpiry: z.number().int().positive().optional(),
@@ -49,11 +55,11 @@ export const configSchema = z
     builder: z
       .object({
         address: address.default('0x71b09A08257078A4d642F7Dd7315e656c837329a'),
-        fee: z.number().int().min(0).max(100).default(10),
+        fee: z.number().int().min(0).max(100).default(0),
       })
       .default({
         address: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
-        fee: 10,
+        fee: 0,
       }),
     logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
     runnerFallback: z.boolean().default(true),
@@ -100,9 +106,12 @@ export async function loadConfig(
     BLOXWAP_LOG_LEVEL: 'logLevel',
     BLOXWAP_PRIVY_APP_ID: 'privyAppId',
     BLOXWAP_MASTER_ADDRESS: 'masterAddress',
+    BLOXWAP_SIGNER_TYPE: 'signerType',
   })) {
     if (env[name]) Object.assign(config, { [key]: env[name] });
   }
+  if (env.BLOXWAP_REFERRAL_CODE !== undefined)
+    config.referralCode = env.BLOXWAP_REFERRAL_CODE;
   if (env.BLOXWAP_BUILDER_ADDRESS !== undefined)
     config.builder.address = env.BLOXWAP_BUILDER_ADDRESS;
   if (env.BLOXWAP_BUILDER_FEE !== undefined)

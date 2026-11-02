@@ -37,6 +37,7 @@ afterEach(() => {
 test('approvals stay live while order and fund-moving actions cannot escape', () => {
   expect(inspectExchangeAction({ type: 'approveAgent' })).toBe('live');
   expect(inspectExchangeAction({ type: 'approveBuilderFee' })).toBe('live');
+  expect(inspectExchangeAction({ type: 'setReferrer' })).toBe('live');
   expect(inspectExchangeAction({ type: 'order' })).toBe('order');
   expect(inspectExchangeAction({ type: 'cancel' })).toBe('order');
   expect(inspectExchangeAction({ type: 'batchModify' })).toBe('order');

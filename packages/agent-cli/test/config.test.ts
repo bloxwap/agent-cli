@@ -29,34 +29,43 @@ test('builder defaults, persisted overrides and validated environment precedence
   const path = join(dir, 'config.json');
   const address = '0x' + 'b'.repeat(40);
   try {
-    expect((await loadConfig(path, {})).builder).toEqual({
+    const defaults = await loadConfig(path, {});
+    expect(defaults.builder).toEqual({
       address: '0x71b09A08257078A4d642F7Dd7315e656c837329a',
-      fee: 10,
+      fee: 0,
     });
-    expect(migrate({ builder: {} }).builder.fee).toBe(10);
+    expect(defaults.referralCode).toBe('BLOXWAP');
+    expect(migrate({ builder: {} }).builder.fee).toBe(0);
     for (const [key, value] of [
       ['builder.address', address],
-      ['builder.fee', '0'],
+      ['builder.fee', '10'],
+      ['referralCode', 'CUSTOM'],
     ]) {
       expect(
         (await dispatch(['config', 'set', key, value, '--config', path])).body,
       ).toMatchObject({ ok: true });
     }
-    expect((await loadConfig(path, {})).builder).toEqual({ address, fee: 0 });
-    expect(
-      (
-        await loadConfig(path, {
-          BLOXWAP_BUILDER_ADDRESS: '0x' + 'c'.repeat(40),
-          BLOXWAP_BUILDER_FEE: '20',
-        })
-      ).builder,
-    ).toEqual({ address: '0x' + 'c'.repeat(40), fee: 20 });
+    expect((await loadConfig(path, {})).builder).toEqual({ address, fee: 10 });
+    expect((await loadConfig(path, {})).referralCode).toBe('CUSTOM');
+    const overridden = await loadConfig(path, {
+      BLOXWAP_BUILDER_ADDRESS: '0x' + 'c'.repeat(40),
+      BLOXWAP_BUILDER_FEE: '20',
+      BLOXWAP_REFERRAL_CODE: 'OVERRIDE',
+    });
+    expect(overridden.builder).toEqual({
+      address: '0x' + 'c'.repeat(40),
+      fee: 20,
+    });
+    expect(overridden.referralCode).toBe('OVERRIDE');
     for (const fee of ['bad', '', '-1', '101', '1.5'])
       await expect(
         loadConfig(path, { BLOXWAP_BUILDER_FEE: fee }),
       ).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
     await expect(
       loadConfig(path, { BLOXWAP_BUILDER_ADDRESS: 'bad' }),
+    ).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
+    await expect(
+      loadConfig(path, { BLOXWAP_REFERRAL_CODE: '' }),
     ).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
   } finally {
     await rm(dir, { recursive: true, force: true });

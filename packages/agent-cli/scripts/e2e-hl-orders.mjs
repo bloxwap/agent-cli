@@ -8,7 +8,11 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 export const mockOrdersEnv = 'BLOXWAP_E2E_MOCK_HL_ORDERS';
-const liveExchangeActions = new Set(['approveAgent', 'approveBuilderFee']);
+const liveExchangeActions = new Set([
+  'approveAgent',
+  'approveBuilderFee',
+  'setReferrer',
+]);
 const mockedExchangeActions = new Set([
   'order',
   'cancel',

@@ -47,7 +47,7 @@ test('IOC order walks the live book and reports a fill', async () => {
   });
   const state = await paper.load();
   expect(state.positions[0]).toMatchObject({ coin: 'BTC', size: '1', entryPx: '100' });
-  expect(state.balance).toBe('9999.945');
+  expect(state.balance).toBe('9999.955');
   expect(emitted.map(([type]) => type)).toEqual(['fill']);
 });
 test('IOC without liquidity returns an error status', async () => {
@@ -218,8 +218,8 @@ test('paperTradingServices exposes account state, open orders and daily loss', a
     ],
   });
   const state = await services.state();
-  expect(state.marginSummary.accountValue).toBe('9999.945');
-  expect(state.withdrawable).toBe('9999.945');
+  expect(state.marginSummary.accountValue).toBe('9999.955');
+  expect(state.withdrawable).toBe('9999.955');
   expect(state.assetPositions[0].position).toMatchObject({
     coin: 'BTC',
     szi: '1',
@@ -235,6 +235,6 @@ test('paperTradingServices exposes account state, open orders and daily loss', a
     triggerPx: '105',
   });
   expect(await services.mids()).toEqual({ BTC: '100' });
-  expect(await services.dailyLoss!()).toBe('0.055');
+  expect(await services.dailyLoss!()).toBe('0.045');
   expect(vi.isMockFunction(services.exchange.order)).toBe(false);
 });

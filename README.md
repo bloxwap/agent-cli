@@ -1,7 +1,7 @@
 # agent-cli
 
 An agent-native Hyperliquid trading CLI with JSON input/output, a persistent
-signing runner, Privy managed agents, Relay funding, a packaged agent skill,
+signing runner, user-owned Privy or EOA agents, Relay funding, a packaged agent skill,
 and a paper trading mode that runs against real mainnet market data.
 
 Install: `npm i -g @bloxwap/agent-cli` or `bunx @bloxwap/agent-cli --help`.
@@ -25,8 +25,8 @@ node packages/agent-cli/dist/cli.js paper summary   # PnL, fees, funding, trades
 
 The local simulator fills market/IOC orders by walking the live book with
 slippage, rests limits until the market trades through them, supports
-reduce-only and TP/SL, charges Hyperliquid taker/maker fees plus the 1 bp
-Bloxwap builder fee, accrues funding, and approximates margin and liquidation
+reduce-only and TP/SL, charges Hyperliquid taker/maker fees plus the optional
+Bloxwap builder fee (zero by default), accrues funding, and approximates margin and liquidation
 with cross/isolated leverage. State lives under `~/.bloxwap/paper/` and
 survives restarts; `paper reset` clears it. Every output envelope and event is
 labeled `mode`/`paper`, paper state is fully separated from live state, and
@@ -36,64 +36,69 @@ proven. See [docs/paper.md](docs/paper.md).
 
 ## Testnet quickstart
 
-Create your own [Privy account and app](https://dashboard.privy.io/) first.
-Use your app ID and secret on your machine or infrastructure you control.
-Bloxwap does not provide a shared Privy app, receive these credentials, or operate
-a hosted signing service. Keep the master wallet separate from the Privy agent.
+Choose your own signer. Bloxwap ships no wallet, credentials, or shared Privy app.
+For **Privy**, create your own [account and app](https://dashboard.privy.io/) and
+configure its ID and local secret reference. For an **EOA**, create a dedicated
+agent EOA yourself and set its key in your local environment or a mode-0600 file.
+Never use the master EOA as the agent or put any private key in CLI input.
 
 ```sh
 npm ci
 npm run build
 node packages/agent-cli/dist/cli.js --help
+
+# Privy option (set BLOXWAP_PRIVY_APP_SECRET locally, outside the conversation):
+node packages/agent-cli/dist/cli.js config set signerType privy
 node packages/agent-cli/dist/cli.js config set privyAppId YOUR_APP_ID
 node packages/agent-cli/dist/cli.js config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
-# Set your own app's BLOXWAP_PRIVY_APP_SECRET locally, outside the conversation.
+
+# EOA option instead (set BLOXWAP_EOA_KEY locally, outside the conversation):
+node packages/agent-cli/dist/cli.js config set signerType eoa
+node packages/agent-cli/dist/cli.js config set eoaKeyRef env:BLOXWAP_EOA_KEY
+
 node packages/agent-cli/dist/cli.js init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
 # Sign returned EIP-712 approval externally, then submit its 65-byte signature:
 node packages/agent-cli/dist/cli.js init --network testnet --signature 0xYOUR_SIGNATURE
-# Fund only with a supported test origin chain/token; inspect schema fund.
-# Chain 42161 and the default origin token are mainnet values.
-# Show QR/address and exact origin token/fees to user; complete any deposit steps.
+# Init applies the BLOXWAP referral if the account has none. Fund through a
+# supported route and continue only after approved:true and settled deposits.
 node packages/agent-cli/dist/cli.js status --network testnet
-# Continue only when active deposits report settled.
 node packages/agent-cli/dist/cli.js run --network testnet --detach
 node packages/agent-cli/dist/cli.js market --coin BTC
-node packages/agent-cli/dist/cli.js order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc"}'
 node packages/agent-cli/dist/cli.js events --follow
 ```
 
-Testnet onboarding/trades require Privy sandbox credentials, an externally signed
-testnet master approval and testnet collateral. Relay HyperCore testnet routes may
-be unavailable; the e2e suite mocks Relay. The placeholders above must be replaced
-with addresses/signatures from your test environment. Never paste a private key.
+Testnet onboarding requires your selected signer, an externally signed testnet
+master approval and testnet collateral. Relay HyperCore testnet routes may be
+unavailable; the e2e suite mocks Relay. Replace every placeholder with your own
+values. Never paste a private key, seed, or app secret into CLI input or a conversation.
 
 ## Architecture and custody
 
 ```mermaid
 flowchart LR
   Agent[Agent / CLI] -->|private JSON-RPC| Runner[Persistent runner]
-  Runner -->|P-256 authorization| Privy[Agent in user's Privy app]
-  Privy -->|EIP-712 signature| HL[Hyperliquid exchange]
+  Runner --> Signer[User-owned Privy or EOA agent]
+  Signer -->|EIP-712 signature| HL[Hyperliquid exchange]
   Agent --> Relay[Relay funding quote]
   Master[External master wallet] -->|one-time approvals| HL
   Runner --> Journal[Events / audit / logs]
 ```
 
-You own the Privy account/app. Privy manages the separate agent wallet key in
-that app; its P-256 authorization key stays on your machine or infrastructure.
-Your master key stays in your external wallet. Bloxwap never receives or stores
-these keys, your Privy app secret, or your authorization key on Bloxwap servers.
-The CLI talks directly to Privy, Hyperliquid, and Relay. Hyperliquid agent
-permissions prevent withdrawals from the master account. Privy policies restrict
-the visible signing envelope; local checks enforce configured risk limits.
+You own all settings and signer credentials. Privy manages the agent key in your
+app, or the CLI reads your dedicated EOA agent key through a local secret reference.
+Your master key always stays in your external wallet. Bloxwap never receives or
+stores these credentials on its infrastructure. Hyperliquid agent permissions
+prevent withdrawals from the master account. Local checks restrict typed data and
+enforce configured risk limits; Privy adds its remote policy for Privy signers.
 Read [custody limits](docs/custody.md) before using a funded account.
 
 State: `~/.bloxwap`; config: `~/.bloxwap/config.json`; IPC:
 `~/.bloxwap/run.sock`; env prefix: `BLOXWAP_`. All local state is private to the OS
 user. The default Bloxwap builder address is
-`0x71b09A08257078A4d642F7Dd7315e656c837329a`, with `f=10` (0.01%).
-Override via `config set builder.address` / `config set builder.fee` or
-`BLOXWAP_BUILDER_ADDRESS` / `BLOXWAP_BUILDER_FEE`; init requests builder approval.
+`0x71b09A08257078A4d642F7Dd7315e656c837329a`, with `f=0` (no added fee).
+The default `BLOXWAP` referral is applied during approved onboarding when the
+account has no referral. Optional non-zero builder fees remain configurable and
+require master approval.
 
 ## Development and docs
 

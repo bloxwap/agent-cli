@@ -30,6 +30,8 @@ vi.mock('../src/core/http.js', async (importOriginal) => ({
   hlInfo: async (_network: string, method: string) => {
     if (method === 'extraAgents') return [];
     if (method === 'maxBuilderFee') return 0;
+    if (method === 'referral')
+      return { referredBy: { code: 'BLOXWAP' } };
     if (method === 'clearinghouseState')
       return {
         marginSummary: {

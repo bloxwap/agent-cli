@@ -166,7 +166,7 @@ export async function readCommand(name: string, config: Config) {
             : undefined,
         },
       ),
-      config.builder.address
+      config.builder.fee > 0 && config.builder.address
         ? hlInfo<number>(config.network, 'maxBuilderFee', {
             user: config.masterAddress,
             builder: config.builder.address,

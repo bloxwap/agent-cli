@@ -31,20 +31,25 @@ continue with live onboarding below and real funding.
 
 ## Onboarding sequence
 
-1. The user creates and owns their own Privy account and app. Configure that
-   app ID and a local secret reference, e.g. `config set privyAppId APP` and
-   `config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET`. The user sets the
-   environment secret outside the conversation on their own machine or runner.
-   Bloxwap does not host the app, receive credentials, or custody user keys.
-   Privy manages the trading-agent key in the user's app; master-wallet approval
-   always remains in the user's external wallet. The default Bloxwap builder is
-   `0x71b09A08257078A4d642F7Dd7315e656c837329a`, with `f=10` (1 bp = 0.01%).
-   Override with `config set builder.address` / `config set builder.fee` or
+1. The user owns all settings and chooses their own Privy app or dedicated EOA
+   agent; no wallet or credentials are bundled. For Privy, set `signerType` to
+   `privy` and configure the app ID and `privyAppSecretRef`. For EOA, set
+   `signerType` to `eoa` and configure `eoaKeyRef`, e.g. `env:BLOXWAP_EOA_KEY`
+   or a mode-0600 `file:` path.
+   The user creates the key and sets the secret outside the conversation on their
+   own machine or runner. Never accept raw keys in CLI input or use the master EOA
+   as the agent. Master-wallet approval always remains in the user's external wallet.
+   The default Bloxwap builder is `0x71b09A08257078A4d642F7Dd7315e656c837329a`,
+   with `f=0` (no builder fee). The default referral code is `BLOXWAP`; override
+   with `config set referralCode` or `BLOXWAP_REFERRAL_CODE`. Optional non-zero
+   builder fees use `config set builder.address` / `config set builder.fee` or
    `BLOXWAP_BUILDER_ADDRESS` / `BLOXWAP_BUILDER_FEE`.
 2. Run `init --master-address 0x... --network testnet`. Show the returned approval
    payload/deeplink/QR. The user signs in their master wallet; submit only the
-   resulting signature with `init --signature 0x...`. Submit builder approval
-   separately with `init --builder-signature 0x...` for the configured 0.01% default. Continue only after `approved:true`.
+   resulting signature with `init --signature 0x...`. After agent approval, init
+   applies the configured referral if the account has none and leaves existing
+   referrals unchanged. Builder approval is needed only for a non-zero configured
+   fee. Continue only after `approved:true`.
 3. Run `fund --amount 10 --origin-chain 42161`. Show `qrAscii`/deposit address,
    origin chain/token, minimum, fees, expected received amount and expiry. On
    testnet, do not treat the default Arbitrum mainnet chain/token as a test route:
@@ -69,16 +74,17 @@ continue with live onboarding below and real funding.
 
 Read this skill and query schemas before acting. Keep a progress record with the
 network, current stage, deposit IDs, last event sequence and order cloid/oid;
-record public IDs only. A missing user-owned Privy app, wallet signature, funding
-route or settled balance is a blocked stage. Report the exact next action without
-requesting any secret in chat or moving to the next stage. Repeat `init` to resume
-persisted approvals rather than creating another agent. An `ok:true` transport
-envelope does not imply exchange acceptance: inspect `data.result` and reconcile
-`orders`/`events` after uncertain mutations. Never retry an order with a new cloid
-until the original intent has been reconciled.
+record public IDs only. Missing selected-signer settings, a wallet signature,
+funding route or settled balance is a blocked stage. Report the exact next action
+without requesting any secret in chat or moving to the next stage. Repeat `init`
+to resume persisted approvals rather than creating another agent. An `ok:true`
+transport envelope does not imply exchange acceptance: inspect `data.result` and
+reconcile `orders`/`events` after uncertain mutations. Never retry an order with
+a new cloid until the original intent has been reconciled.
 
-For rotation, verify `swapped:true` before asking the external wallet to sign old
-agent revocation. Require `oldRevoked:true` before claiming rotation complete.
+For EOA rotation, the user sets a new local key and supplies only its reference
+with `rotate --eoa-key-ref env:NEW_EOA_KEY`. For either signer, verify
+`swapped:true` before asking the external wallet to sign old agent revocation. Require `oldRevoked:true` before claiming rotation complete.
 `revoke` immediately disables local signing; only `exchangeRevoked:true` confirms
 that the signed exchange revocation was submitted. Inspect `status` to verify the
 agent is absent from exchange approvals. Cancel outstanding orders before final
@@ -97,7 +103,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `config set limits.maxLeverage 5` | `{"ok":true,"data":{"version":1,"limits":{"maxLeverage":5}}}` |
 | `config validate` | `{"ok":true,"data":{"valid":true,"version":1}}` |
 | `init --master-address 0x...` | `{"ok":true,"data":{"approved":false,"requiresSignature":true,"approvals":{"agent":{"typedData":{}}},"qrAscii":"..."}}` |
-| `fund --amount 10 --no-qr` | `{"ok":true,"data":{"depositId":"...","depositAddress":"0x...","expectedReceived":"100000000","builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","state":"awaiting_funds","qrAscii":null}}` |
+| `fund --amount 10 --no-qr` | `{"ok":true,"data":{"depositId":"...","depositAddress":"0x...","expectedReceived":"100000000","builderFeeRate":"0%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","state":"awaiting_funds","qrAscii":null}}` |
 | `deposit --deposit-id ID` | `{"ok":true,"data":{"depositId":"ID","steps":[{"id":"step:0","requiresSignature":true,"payload":{}}]}}` |
 | `deposit --deposit-id ID --step-id step:0 --signature 0x...` | `{"ok":true,"data":{"depositId":"ID","steps":[]}}` |
 | `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"2"},"runner":{"pid":"123"}}}` |
@@ -105,7 +111,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `market --coin BTC` | `{"ok":true,"data":{"coin":"BTC","asset":"0","szDecimals":"5","maxLeverage":"40","mid":"20000"}}` |
 | `positions` | `{"ok":true,"data":[{"coin":"BTC","size":"0.001","entryPrice":"20000","leverage":"5","marginMode":"cross"}]}` |
 | `orders` | `{"ok":true,"data":[{"coin":"BTC","oid":"123","sz":"0.001","limitPx":"20000","side":"B"}]}` |
-| `order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc","cloid":"0x11111111111111111111111111111111"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"resting":{"oid":123}}]}}},"builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":"0x..."}}` |
+| `order --json '{"coin":"BTC","side":"buy","size":"0.001","price":"20000","tif":"Gtc","cloid":"0x11111111111111111111111111111111"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"resting":{"oid":123}}]}}},"builderFeeRate":"0%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":"0x..."}}` |
 | `order --json '{"coin":"BTC","side":"sell","size":"0.001","type":"market","slippage":0.01,"reduceOnly":true}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"filled":{"oid":123}}]}}}}}` |
 | `cancel --oid 123` or `cancel --all` | `{"ok":true,"data":{"cancelled":["123"],"result":{"status":"ok"}}}` |
 | `modify --json '{"modifications":[{"oid":123,"price":"20100","size":"0.001"}]}'` | `{"ok":true,"data":{"status":"ok"}}` |
@@ -116,7 +122,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `logs --follow --level warn` | `{"level":"warn","requestId":"...","message":"Risk rejected","time":"..."}` (JSON lines) |
 | `paper reset --yes` | `{"ok":true,"data":{"paper":true,"mode":"paper","reset":true,"startingBalance":"10000"},"mode":"paper","paper":true}` |
 | `paper summary` | `{"ok":true,"data":{"paper":true,"mode":"paper","equity":"10000","netPnl":"0","feesPaid":"0","fundingPaid":"0","trades":0,"positions":[]}}` |
-| `order --paper --json '{"coin":"BTC","side":"buy","size":"0.001","type":"market"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"filled":{"oid":1,"totalSz":"0.001","avgPx":"20000","status":"filled"}}]}}},"builderFeeRate":"0.01%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":null},"mode":"paper","paper":true}` |
+| `order --paper --json '{"coin":"BTC","side":"buy","size":"0.001","type":"market"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"filled":{"oid":1,"totalSz":"0.001","avgPx":"20000","status":"filled"}}]}}},"builderFeeRate":"0%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":null},"mode":"paper","paper":true}` |
 | `run --paper --detach` | `{"ok":true,"data":{"pid":123,"startedAt":1700000000000,"network":"mainnet","paper":true}}` |
 | `rotate` then `rotate --signature 0x...` | `{"ok":true,"data":{"oldAgent":"0x...","newAgent":"0x...","swapped":true,"oldRevoked":false,"revokeApproval":{}}}` |
 | `rotate --revoke-signature 0x...` | `{"ok":true,"data":{"swapped":true,"oldRevoked":true}}` |
@@ -158,12 +164,13 @@ market orders use an explicit slippage-bounded IOC, not an unbounded market orde
 HyperCore perps USDC uses **8 decimals**; EVM USDC uses **6**. Preserve strings and
 bigints. Some deposits require **two distinct signatures**; resume stored steps
 rather than restarting the route. Agent expiry is at most **180 days**. Never
-ask for, paste, log or import a master private key or seed. The managed agent is
-trade-only; local limits include markets, size/notional, leverage, daily loss and
-open orders — in paper mode these limits are enforced exactly the same way.
-Privy sees an L1 action hash, so it cannot independently inspect
-notional/action contents; Hyperliquid agent permissions and local checks enforce
-those boundaries. State is always `~/.bloxwap`, env prefix `BLOXWAP_`; paper
+ask for, paste, log or import a master private key or seed. EOA agent keys are
+accepted only through user-configured local references, never command input.
+The agent is trade-only; local limits include markets, size/notional, leverage,
+daily loss and open orders — in paper mode these limits are enforced exactly the
+same way. Privy sees an L1 action hash, so it cannot independently inspect
+notional/action contents; EOA agents have no remote Privy policy. Hyperliquid
+agent permissions and local checks enforce those boundaries for both signers. State is always `~/.bloxwap`, env prefix `BLOXWAP_`; paper
 state is `~/.bloxwap/paper/` and is never read by live commands (or vice
 versa). Envelopes and events always state `mode`/`paper`.
 
@@ -176,7 +183,8 @@ and failure handling. These checks do **not** prove a live agent or
 exchange run. The nightly testnet lifecycle uses only a company-owned disposable
 CI master account and separate test Privy app, live Privy and Hyperliquid
 approvals/revocation, and explicitly mocked Relay plus mocked Hyperliquid orders
-that never reach the exchange. Test USDC pre-funding is not required for that job.
+that never reach the exchange. The dedicated master account still needs a positive
+test USDC balance because live approvals require prior test collateral.
 The same harness supports a caller-controlled external wallet approval adapter
 on a clean QA runner; its private key stays in that wallet. It never transfers
 real funds. Missing CI credentials fail the job; a skipped or

@@ -23,6 +23,10 @@ import { startEventFollower } from './testnet-follower.mjs';
 import { cleanupTestnetAccount } from './testnet-cleanup.mjs';
 import { stopTestnetRunner } from './testnet-runner.mjs';
 import { mockOrdersEnv } from './e2e-hl-orders.mjs';
+import {
+  commandEnvelopeError,
+  safeTestnetError,
+} from './testnet-errors.mjs';
 import './e2e-relay-hook.mjs';
 
 const directory = join(homedir(), '.bloxwap');
@@ -99,7 +103,7 @@ function command(name, input = {}) {
     throw new Error(`Command ${name} did not return one JSON envelope`);
   }
   if (result.status !== 0 || !envelope.ok)
-    throw new Error(`Command ${name} failed`);
+    throw commandEnvelopeError(name, envelope);
   if (name === 'run') {
     runnerPid = envelope.data.pid;
     if (
@@ -171,6 +175,7 @@ try {
     throw new Error('Use a clean QA home without ~/.bloxwap');
   signer = await createTestnetSigner(configuration);
   report.signerMode = signer.mode;
+  report.masterAddress = signer.address;
   ownedState = true;
   childEnv = {
     ...process.env,
@@ -227,17 +232,22 @@ try {
     },
   });
   report.status = 'passed';
-} catch {
-  fail(
+} catch (error) {
+  const stage =
     report.stages.find((stage) => stage.status === 'failed')?.name ??
-      'testnet-preflight',
-  );
+    'testnet-preflight';
+  fail(stage);
   report.missingConfiguration = missingTestnetConfiguration();
   report.missingSecrets = requiredTestnetSecrets.filter((name) =>
     report.missingConfiguration.includes(name),
   );
+  const message = safeTestnetError(
+    error,
+    requiredTestnetSecrets.map((name) => process.env[name]),
+  );
+  report.error = { stage, message };
   console.error(
-    'FAIL: dedicated testnet lifecycle; inspect lifecycle-report.json',
+    `FAIL: dedicated testnet lifecycle at stage '${stage}': ${message}`,
   );
 } finally {
   if (ownedState && existsSync(config)) {

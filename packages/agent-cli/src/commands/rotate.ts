@@ -10,7 +10,9 @@ import {
   stateDir,
   type Config,
 } from '../core/config.js';
-import { privyClient, createAgent, privySigner } from '../wallet/privy.js';
+import { privyClient, createAgent } from '../wallet/privy.js';
+import { prepareEoaAgent } from '../wallet/eoa.js';
+import { openSigner } from '../wallet/signer.js';
 import {
   newApproval,
   submitApproval,
@@ -53,6 +55,10 @@ register('rotate', {
   schema: z.object({
     signature: z.string().optional(),
     revokeSignature: z.string().optional(),
+    eoaKeyRef: z
+      .string()
+      .regex(/^env:[A-Z_][A-Z0-9_]*$|^file:.+/)
+      .optional(),
   }),
   execute: async (input, context) => {
     const current = await commandConfig(context);
@@ -64,7 +70,8 @@ register('rotate', {
       `rotation-${current.network}-${current.masterAddress}.json`,
     );
     let rotation: Rotation;
-    const client = await privyClient(current);
+    const client =
+      current.signerType === 'privy' ? await privyClient(current) : undefined;
     try {
       rotation = JSON.parse(await readFile(path, 'utf8'));
       if (rotation.revoked && !input.signature && !input.revokeSignature) {
@@ -83,16 +90,30 @@ register('rotate', {
         privyWalletId: undefined,
         agentAddress: undefined,
         authorizationKeyRef: undefined,
+        eoaKeyRef: undefined,
         agentExpiry: Date.now() + 179 * 86400000,
         approved: false,
         revoked: false,
       };
-      await createAgent(
-        next,
-        client,
-        join(stateDir(), 'rotation-next.json'),
-        current.policyId,
-      );
+      if (current.signerType === 'eoa') {
+        await prepareEoaAgent(
+          next,
+          join(stateDir(), 'rotation-next.json'),
+          input.eoaKeyRef as string | undefined,
+        );
+      } else {
+        await createAgent(
+          next,
+          client!,
+          join(stateDir(), 'rotation-next.json'),
+          current.policyId,
+        );
+      }
+      if (next.agentAddress === current.agentAddress)
+        throw new AgentCliError(
+          'CONFIG_INVALID',
+          'Rotation requires a different EOA agent key',
+        );
       next.agentName = `blox-${next.agentAddress!.slice(-8)}`;
       rotation = {
         old: current,
@@ -129,7 +150,7 @@ register('rotate', {
           );
         },
         swap: async (next) => {
-          const signer = await privySigner(next, client);
+          const signer = await openSigner(next);
           next.approved = true;
           await saveConfig(next, context.configPath);
           if (activeRunner) {
