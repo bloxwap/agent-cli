@@ -18,15 +18,14 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          node-version: 24
-          package-manager-cache: false
-      - run: npm ci
+          bun-version: '1.4.4'
+      - run: bun install --frozen-lockfile
       - name: Prepare and validate a version patch
         if: ${{ !inputs.create_pr }}
         run: |
-          npm run version:candidate
+          bun run version:candidate
           git diff --binary HEAD > version.patch
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !inputs.create_pr }}
@@ -37,7 +36,7 @@ jobs:
       - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         if: inputs.create_pr
         with:
-          version: npm run version:candidate
+          version: bun run version:candidate
           title: 'chore: version agent-cli for release'
           commit: 'chore: version agent-cli for release'
         env:
