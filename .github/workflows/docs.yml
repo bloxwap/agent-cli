@@ -3,9 +3,9 @@ name: Documentation
 on:
   push:
     branches: [main]
-    paths: ['apps/**', 'packages/**', 'vendor/**', 'hig-drift.json', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
+    paths: ['apps/**', 'packages/**', 'vendor/**', 'hig-drift.json', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/docs.yml']
   pull_request:
-    paths: ['apps/**', 'packages/**', 'vendor/**', 'hig-drift.json', 'package.json', 'package-lock.json', '.github/workflows/docs.yml']
+    paths: ['apps/**', 'packages/**', 'vendor/**', 'hig-drift.json', 'package.json', 'package-lock.json', 'bun.lock', '.github/workflows/docs.yml']
   workflow_dispatch:
 
 permissions:
@@ -43,10 +43,13 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - run: npm ci
-      - run: npm run docs:build
-      - run: npm run docs:check
-      - run: npm run lint
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.4'
+      - run: bun install --frozen-lockfile
+      - run: bun run docs:build
+      - run: bun run docs:check
+      - run: bun run lint
       # Scoped HIG anti-drift check from the exact source of registry release 0.1.0.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,8 +59,8 @@ jobs:
           sparse-checkout: scripts/drift.mjs
           sparse-checkout-cone-mode: false
       - run: node .hig/scripts/drift.mjs --root . --config hig-drift.json
-      - run: npx playwright install chromium
-      - run: npm run docs:smoke
+      - run: bun x playwright install chromium
+      - run: bun run docs:smoke
       - name: Ensure GNU tar
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: .github/scripts/ensure-gnu-tar.sh

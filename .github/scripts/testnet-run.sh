@@ -62,6 +62,10 @@ git -C "$workspace" archive --format=tar HEAD > "$stage/source.tar"
 tar -xf "$stage/source.tar" -C "$stage"
 rm "$stage/source.tar"
 
+bun_dir=$(BUN_VERSION=1.4.4 sh "$script_dir/fetch-linux-bun.sh" aarch64)
+mkdir -p "$stage/bun"
+cp "$bun_dir/bun" "$stage/bun/bun"
+
 # Secret values stay out of argv/env files. Docker copies only these named
 # variables into its fresh environment; the image keeps its own default HOME.
 docker run --rm --init --platform linux/arm64 \
@@ -71,7 +75,8 @@ docker run --rm --init --platform linux/arm64 \
   -e BLOXWAP_TEST_MASTER_KEY -e BLOXWAP_PRIVY_APP_ID -e BLOXWAP_PRIVY_APP_SECRET \
   -v "$stage:/work" -w /work node:24-bookworm \
   sh -eu -c '
-npm ci
-npm run build
-npm run test:e2e
+export PATH="/work/bun:$PATH"
+bun install --frozen-lockfile
+bun run build
+bun run test:e2e
 '
