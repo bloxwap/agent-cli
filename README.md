@@ -119,7 +119,7 @@ falls back to `tsc` on Windows, Intel Macs, or when the native binary is unavail
 TypeScript `^7.0.2` remains installed for the fallback. Run `npm run typecheck:tsc`
 and `npm run docs:check:tsc` to check explicitly with tsc, or set `TYPECHECK=tsc`
 for the normal check/build scripts. CLI bundling still uses tsup/esbuild.
-The lockfile also retains TypeScript 6.0.3 for tsup and typescript-eslint peers
+The lockfile also retains TypeScript 6.0.3 for tsup peers
 that need the JavaScript compiler API; workspace fallback checks use TypeScript 7.0.2.
 Docs builds run `next typegen` and the wrapper with `--noEmit` before `next build`;
 Next's duplicate type check is disabled. See the [development guide](apps/docs/content/docs/development.mdx).

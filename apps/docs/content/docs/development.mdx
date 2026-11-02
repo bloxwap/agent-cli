@@ -24,7 +24,7 @@ TypeScript 7 compiler, pinned to `0.18.0-ts7.1.0-dev.20260929`. The shared
 macOS arm64 (Apple Silicon) and Linux x64/arm64, including glibc and musl.
 Windows and Intel Macs automatically use the installed TypeScript `^7.0.2`
 fallback; missing native binaries also fall back to tsc.
-The lockfile also retains TypeScript 6.0.3 for tsup and typescript-eslint peers
+The lockfile also retains TypeScript 6.0.3 for tsup peers
 that need the JavaScript compiler API; workspace fallback checks use TypeScript 7.0.2.
 
 Use `npm run typecheck:tsc` for the CLI and `npm run docs:check:tsc` for docs to

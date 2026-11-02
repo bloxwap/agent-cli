@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "node scripts/generate-skill.mjs && tsup src/cli.ts --format esm --clean && node scripts/finalize-build.mjs",
-    "lint": "eslint .",
+    "lint": "oxlint .",
     "typecheck": "node scripts/tsc-or-tsrs.mjs --noEmit",
     "test": "vitest run",
     "test:e2e": "node scripts/e2e-testnet.mjs",
@@ -32,14 +32,13 @@
     "@types/node": "^26.6.5",
     "@types/qrcode": "^1.5.6",
     "@types/ws": "^8.18.2",
-    "eslint": "^10.13.0",
     "prettier": "^3.9.10",
     "tsup": "^9.0.0",
     "typescript": "^7.0.2",
-    "typescript-eslint": "^8.71.2",
     "viem": "^2.57.10",
     "vitest": "^5.0.5",
-    "tsrs": "0.18.0-ts7.1.0-dev.20260929"
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929",
+    "oxlint": "^1.90.0"
   },
   "dependencies": {
     "@bloxwap/hyperliquid": "^0.6.0",
