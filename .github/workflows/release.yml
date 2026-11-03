@@ -26,15 +26,19 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+          persist-credentials: false
+      # Do not restore dependency caches in release jobs (cache poisoning).
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
+          package-manager-cache: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: '1.3.10'
+          no-cache: true
       - name: Verify version, skill, release notes and tagged main ancestry
         run: node packages/agent-cli/scripts/verify-release.mjs
       - run: npm ci
@@ -103,36 +107,53 @@ jobs:
           name: npm-package
           path: packages/agent-cli/artifacts/*
           if-no-files-found: error
-  # npm trusted publishing does not support self-hosted runners
-  # (https://docs.npmjs.com/trusted-publishers/). This job authenticates with
-  # the organization NPM_TOKEN secret instead. That drops OIDC trusted
-  # publishing and automatic provenance.
+  # Only the publish job uses GitHub-hosted Ubuntu: npm trusted publishing (OIDC)
+  # and provenance require it (https://docs.npmjs.com/trusted-publishers/).
+  # The organization NPM_TOKEN stays as a transitional fallback until the npm
+  # Trusted Publisher for @bloxwap/agent-cli is verified (same as chart, font,
+  # haptic and sfx).
   publish:
     needs: [build, security]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && vars.BLOXWAP_PUBLISH == '1'
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: ubuntu-24.04
     environment: npm-release
+    timeout-minutes: 30
     concurrency:
       group: agent-cli-npm-publish
       cancel-in-progress: false
     permissions:
-      contents: write
+      contents: write   # GitHub release with the checksummed binaries
+      id-token: write   # npm trusted publishing (OIDC) and provenance
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Job-level env cannot use the runner context; RUNNER_TEMP is set by the runner.
+      - name: Point TMPDIR at runner temp
+        run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+          persist-credentials: false
+      # Do not restore dependency caches in the release job.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Install npm with trusted publishing support
+        # Bootstrap a fixed OIDC-capable npm CLI outside the project dependency lockfile.
+        run: npm install --global npm@11.6.1 # zizmor: ignore[adhoc-packages]
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: '1.3.10'
+          no-cache: true
       - name: Recheck tagged main ancestry before publishing
         run: node packages/agent-cli/scripts/verify-release.mjs
-      - name: Verify npm publish authentication
+      - name: Verify the fallback npm token
+        # Only checks the transitional NPM_TOKEN fallback. Trusted publishing needs no token.
+        if: env.HAS_NPM_TOKEN == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node packages/agent-cli/scripts/check-publish-auth.mjs
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -145,7 +166,10 @@ jobs:
           path: release
       - name: Prepare release checksums
         run: node packages/agent-cli/scripts/release-checksums.mjs release
-      - name: Publish the tested tarball
+      - name: Publish the tested tarball (with provenance)
+        env:
+          # Transitional fallback: delete once the npm Trusted Publisher is verified.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node packages/agent-cli/scripts/publish-artifact.mjs release
       - name: Verify published integrity
         run: node packages/agent-cli/scripts/verify-publication.mjs release

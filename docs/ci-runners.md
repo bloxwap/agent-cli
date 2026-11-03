@@ -15,12 +15,18 @@ the only runners. They run as macOS user `admin` in the enterprise runner group
 **Mini Cluster**. Target the labels above, never a runner group: the old org
 group `JWS` is empty, and jobs aimed at it queue forever.
 
-## Trusted publishing is unavailable
+## npm publish runs on GitHub-hosted Ubuntu
 
-[npm trusted publishing does not support self-hosted runners](https://docs.npmjs.com/trusted-publishers/).
-The release `publish` job therefore authenticates with the organization
-`NPM_TOKEN` secret (`NODE_AUTH_TOKEN`). That **drops OIDC trusted publishing
-and automatic provenance**. Do not bind a trusted publisher to `release.yml`.
+[npm trusted publishing does not support self-hosted runners](https://docs.npmjs.com/trusted-publishers/),
+so only the release `publish` job runs on `ubuntu-24.04`, in the `npm-release`
+environment with `id-token: write`. It publishes the tarball that was tested on
+the minis with `--provenance`, using OIDC trusted publishing (npm 11.6.1) with
+no dependency caches. Bind the npm Trusted Publisher for `@bloxwap/agent-cli` to
+`bloxwap/agent-cli`, workflow `release.yml`, environment `npm-release`.
+
+The organization `NPM_TOKEN` stays as a transitional fallback (same as chart,
+font, haptic and sfx). Delete it from the workflow once a release has been
+verified to publish through the Trusted Publisher.
 
 GitHub Pages deploy still uses OIDC (`id-token: write`) on the minis.
 
@@ -122,7 +128,8 @@ The runner needs outbound access to:
 ## How jobs use the Mac mini
 
 - **CI / version / docs deploy** run natively on darwin-arm64. **npm publish**
-  also runs natively and uses `NPM_TOKEN` (no provenance).
+  runs on GitHub-hosted Ubuntu with OIDC trusted publishing and provenance
+  (see above).
 - **Release** cross-compiles `linux-x64`, `linux-arm64`, `darwin-x64`, and
   `darwin-arm64` with Bun on the Mac. Linux binaries are smoke-tested in
   `linux/amd64` and `linux/arm64` containers. The `darwin-x64` binary is
