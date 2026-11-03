@@ -57,15 +57,15 @@ test('an existing version must match the tested archive', () => {
     'differs',
   );
 });
-test('token publish does not request npm provenance', () => {
+test('publish requests npm provenance for the tested tarball', () => {
   expect(npmPublishArgs('release.tgz')).toEqual([
     'publish',
     'release.tgz',
     '--access',
     'public',
     '--ignore-scripts',
+    '--provenance',
   ]);
-  expect(npmPublishArgs('release.tgz')).not.toContain('--provenance');
 });
 test('publish auth fails closed without a token and does not print secrets', () => {
   expect(() =>

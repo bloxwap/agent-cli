@@ -39,7 +39,14 @@ export function readRegistryDist(spec, run = execFileSync) {
 }
 
 export function npmPublishArgs(tarball) {
-  return ['publish', tarball, '--access', 'public', '--ignore-scripts'];
+  return [
+    'publish',
+    tarball,
+    '--access',
+    'public',
+    '--ignore-scripts',
+    '--provenance',
+  ];
 }
 
 export function verifyPublication(dist, integrity) {
