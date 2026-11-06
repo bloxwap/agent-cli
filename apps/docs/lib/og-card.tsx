@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { readOgFont } from '@bloxwap/hig-og-fonts/node';
-import { tokens } from '@bloxwap/hig-tokens';
+import { readOgFont } from '@bloxwap/hig/og-fonts/node';
+import { tokens } from '@bloxwap/hig/tokens';
 import { ImageResponse } from 'next/og';
 import { socialImageSize } from './social';
 

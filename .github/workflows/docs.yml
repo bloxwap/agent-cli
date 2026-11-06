@@ -50,11 +50,11 @@ jobs:
       - run: bun run docs:build
       - run: bun run docs:check
       - run: bun run lint
-      # Scoped HIG anti-drift check from the exact source of registry release 0.1.0.
+      # Scoped HIG anti-drift check from the source commit of @bloxwap/hig@0.2.0.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: bloxwap/hig
-          ref: bdf8d07014fea5e69ea51a061b82707661a9d701
+          ref: f4c23cc98d7e034062e82deba222bcb2dadbe2a1
           path: .hig
           sparse-checkout: scripts/drift.mjs
           sparse-checkout-cone-mode: false

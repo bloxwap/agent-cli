@@ -4,9 +4,9 @@
 import { readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-import { tokens } from '@bloxwap/hig-tokens';
-import { ogFonts } from '@bloxwap/hig-og-fonts';
-import { readOgFont } from '@bloxwap/hig-og-fonts/node';
+import { tokens } from '@bloxwap/hig/tokens';
+import { ogFonts } from '@bloxwap/hig/og-fonts';
+import { readOgFont } from '@bloxwap/hig/og-fonts/node';
 import { assertNoCopiedHigTokens } from './hig-css-guard.mjs';
 
 const root = new URL('../../../', import.meta.url);
@@ -37,8 +37,12 @@ for (const { package: name, tarball, integrity } of provenance.artifacts) {
   const installed = await installedManifest(name);
   assert.equal(installed.version, provenance.version, `${name}: installed ${installed.version}, reviewed ${provenance.version}; run npm ci`);
 }
-assert.equal(tokens.version, provenance.version.split('-')[0]);
-assert.ok(!manifest.dependencies['@bloxwap/hig-native-fonts'] && !manifest.devDependencies?.['@bloxwap/hig-native-fonts'], 'OG cards must use the OG-only package');
+// The npm package is 0.2.0; tokens.version is the catalog inside that package (0.1.1), not the package version.
+assert.equal(tokens.version, provenance.tokensVersion, 'installed HIG token catalog version differs from the reviewed release');
+const retired = ['@bloxwap/hig-tokens', '@bloxwap/hig-contracts', '@bloxwap/hig-react', '@bloxwap/hig-native', '@bloxwap/hig-native-fonts', '@bloxwap/hig-og-fonts', '@bloxwap/hig-chart', '@bloxwap/hig-feedback'];
+for (const name of retired) {
+  assert.ok(!(name in (manifest.dependencies ?? {})) && !(name in (manifest.devDependencies ?? {})), `${name} is retired; depend on @bloxwap/hig and import its subpath`);
+}
 await assert.rejects(stat(new URL('vendor/bloxwap-hig', root)), 'Install HIG from npm; do not restore vendored candidates');
 assert.equal(provenance.ogFonts.length, 2, 'The renderer uses only the approved Bold and Black faces');
 for (const face of provenance.ogFonts) {
@@ -51,15 +55,15 @@ for (const face of provenance.ogFonts) {
 }
 
 const css = await readFile(new URL('app/global.css', docs), 'utf8');
-// Radius, motion, type, density and font families are CSS roles in @bloxwap/hig-tokens/css; a host copy would drift.
+// Radius, motion, type, density and font families are CSS roles in @bloxwap/hig/tokens/css; a host copy would drift.
 assertNoCopiedHigTokens(css);
 assert.ok(!/var\(--font-bloxwap-(?:sans|mono)\)/.test(css), 'app/global.css must read fonts through --hig-font-sans/--hig-font-mono');
 assert.ok(!/\.hig-(?:button|number)[^{]*\{[^}]*font-family/.test(css), 'HIG controls resolve the font roles themselves; no font-family bridge');
 const roles = ['--hig-radius-xl', '--hig-motion-duration-fast', '--hig-type-body-size', '--hig-density-compact-control', '--hig-font-sans'];
-const tokenCss = await readFile(new URL(import.meta.resolve('@bloxwap/hig-tokens/css')), 'utf8');
-for (const role of roles) assert.ok(tokenCss.includes(`${role}:`), `installed @bloxwap/hig-tokens/css must define ${role}`);
+const tokenCss = await readFile(new URL(import.meta.resolve('@bloxwap/hig/tokens/css')), 'utf8');
+for (const role of roles) assert.ok(tokenCss.includes(`${role}:`), `installed @bloxwap/hig/tokens/css must define ${role}`);
 // Every role the host reads must exist in the installed HIG CSS, so a renamed or misspelled role fails here, not visually.
-const reactCss = await readFile(new URL(import.meta.resolve('@bloxwap/hig-react/css')), 'utf8');
+const reactCss = await readFile(new URL(import.meta.resolve('@bloxwap/hig/react/css')), 'utf8');
 for (const [, role] of css.matchAll(/var\((--hig-[\w-]+)/g)) {
   assert.ok(tokenCss.includes(`${role}:`) || reactCss.includes(`${role}:`), `app/global.css reads ${role}, which HIG does not define`);
 }

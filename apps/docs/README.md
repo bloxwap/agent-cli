@@ -41,11 +41,11 @@ are generated for the configured deployment URL. The Pages workflow builds and
 checks PRs and deploys only main.
 
 The design mirrors Chart's dark surfaces, green accents, typography, navigation and
-footer. Shared presentation comes from the Bloxwap HIG packages, installed from the
-npm at exact version `0.1.0`, recorded in [`hig-release.json`](hig-release.json):
-`@bloxwap/hig-tokens/css` and `@bloxwap/hig-react/css` supply the `--hig-*` roles and
-control recipes, and the install tabs, copy buttons, search states and MDX callouts
-use HIG `Tabs`, `InstallCommand`, `IconButton`, `Alert`, `EmptyState` and `Callout`.
+footer. Shared presentation comes from `@bloxwap/hig` at exact version `0.2.0`,
+recorded in [`hig-release.json`](hig-release.json). `@bloxwap/hig/tokens/css` and
+`@bloxwap/hig/react/css` supply the `--hig-*` roles and control recipes, and the
+install tabs, copy buttons, search states and MDX callouts use HIG `Tabs`,
+`InstallCommand`, `IconButton`, `Alert`, `EmptyState` and `Callout`.
 `app/global.css` maps Fumadocs onto the HIG roles and keeps only site layout; radius,
 motion, type, density and font families are read from the `--hig-radius-*`,
 `--hig-motion-*`, `--hig-type-*`, `--hig-density-*` and `--hig-font-*` roles. Never
@@ -60,16 +60,18 @@ Bloxwap faces on HIG controls, and reduced motion against the static export.
 Bloxwap Sans and Mono are self-hosted by `@bloxwap/font@0.1.4`; its Next loader variables
 sit on `<html>`, where `--hig-font-sans`/`--hig-font-mono` pick them up. The social
 renderer needs static TTFs, which `@bloxwap/font` does not ship, so it reads the Bold/Black
-instances through `@bloxwap/hig-og-fonts/node` (a build-time dev dependency).
+instances through `@bloxwap/hig/og-fonts/node`.
 Brand marks in `public/logos/` are supplied artwork, never typeset replacements.
 Every MDX page receives a static social card via `app/og/[...slug]/route.tsx`.
 
-To update HIG, pin all four packages to the same reviewed registry version, refresh
-`hig-release.json` with registry tarball hashes and integrity, and regenerate the npm
-lockfile. Keep the approved Bold/Black face hashes unless a font change is intentional.
-Run a clean `npm ci`, repository checks, and the docs build/check/browser gates.
-The pinned drift checker in CI follows the release source commit. Reverting the
-adoption commit restores the previous candidate archives and lockfile for rollback.
+To update HIG, pin `@bloxwap/hig` to the reviewed registry version, refresh
+`hig-release.json` with the registry tarball, integrity and token catalog version
+(`tokens.version`, currently `0.1.1`), and regenerate `bun.lock` and `package-lock.json`.
+`@bloxwap/chart` is the one required peer of `@bloxwap/hig`; both lockfiles record
+it, and this app does not import the chart entry.
+Keep the approved Bold/Black face hashes unless a font change is intentional.
+Run a clean install, repository checks, and the docs build/check/browser gates.
+The pinned drift checker in CI follows the release source commit.
 
 The workspace pins `mdast-util-to-markdown` to Chart's 2.1.2: version 2.2.0
 changes attention handlers in a way incompatible with Fumadocs 16.15.14's
