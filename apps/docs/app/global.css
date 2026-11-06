@@ -1,9 +1,9 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
-@import '@bloxwap/hig-tokens/css';
-@import '@bloxwap/hig-react/css/base';
-@import '@bloxwap/hig-react/css';
+@import '@bloxwap/hig/tokens/css';
+@import '@bloxwap/hig/react/css/base';
+@import '@bloxwap/hig/react/css';
 
 @theme inline {
   --font-sans: var(--hig-font-sans);
@@ -13,7 +13,7 @@
 }
 
 /*
- * Every HIG value comes from @bloxwap/hig-tokens/css as a --hig-* role: colors, spacing, control heights, radius
+ * Every HIG value comes from @bloxwap/hig/tokens/css as a --hig-* role: colors, spacing, control heights, radius
  * (--hig-radius-*), motion (--hig-motion-*, already 0ms under prefers-reduced-motion), type (--hig-type-*), density
  * (--hig-density-*) and the font families (--hig-font-sans/mono resolve the @bloxwap/font loader variables on <html>).
  * The host keeps only its own icon size.
@@ -158,7 +158,7 @@ html > body[data-scroll-locked] {
 }
 
 /*
- * HIG buttons (@bloxwap/hig-react/css) supply paint, height, font and states. The host adds layout only: icon
+ * HIG buttons (@bloxwap/hig/react/css) supply paint, height, font and states. The host adds layout only: icon
  * slots and anchors rendered as buttons.
  */
 .hig-button {
