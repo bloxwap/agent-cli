@@ -182,3 +182,13 @@ and hot-swap rotation; documentation covers both user-owned setup paths.
 Verification: build, lint, tsrs/tsc, 300 offline tests in 58 files, docs
 build/check with both compilers, packed global-install smoke and compiled EOA
 config/schema smoke pass. No live wallet or exchange operation was used.
+
+## HIG 0.2 package — 2026-11-06
+
+Docs depend on the published `@bloxwap/hig@0.2.0` package. The 0.1 split packages
+(`@bloxwap/hig-tokens`, `@bloxwap/hig-react`, `@bloxwap/hig-contracts`,
+`@bloxwap/hig-og-fonts`) are no longer installed. Imports, CSS and the provenance
+check use the slash subpaths. Approved Bold/Black face hashes are unchanged. The
+token catalog inside the package remains `tokens.version` `0.1.1`. `bun.lock` and
+`package-lock.json` resolve the registry tarball. The drift checker follows
+`f4c23cc98d7e034062e82deba222bcb2dadbe2a1`.
