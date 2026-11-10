@@ -1,5 +1,6 @@
+import { readFile } from 'node:fs/promises';
 import { nextNonce } from '../core/nonce.js';
-import type { Config } from '../core/config.js';
+import { atomicWrite, type Config } from '../core/config.js';
 import { assertSafeInput } from './safety.js';
 import { ApproveAgentTypes } from '@bloxwap/hyperliquid/api/exchange/approveAgent';
 import { ApproveBuilderFeeTypes } from '@bloxwap/hyperliquid/api/exchange/approveBuilderFee';
@@ -8,6 +9,14 @@ import { jsonRequest, hlEndpoint } from '../core/http.js';
 export interface Approval {
   action: Record<string, unknown>;
   typedData: Record<string, unknown>;
+}
+// Hyperliquid accepts nonces from roughly T-2d to T+1d. Regenerating after 24h
+// keeps a payload inside that window even if the user signs near the end of it.
+export const APPROVAL_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+export interface PendingApproval {
+  createdAt: number;
+  expiresAt: number;
+  approval: Approval;
 }
 export function approval(
   network: 'mainnet' | 'testnet',
@@ -68,13 +77,80 @@ export async function submitApproval(
       typeof response.response === 'string'
         ? response.response
         : (JSON.stringify(response.response) ?? 'Unknown rejection');
+    const nonceRejected = /nonce/i.test(rejection);
     throw new AgentCliError(
       'UPSTREAM_ERROR',
       `${actionType} failed: ${rejection}`,
-      { hyperliquidResponse: response },
+      { hyperliquidResponse: response, nonceRejected },
+      false,
     );
   }
   return response;
+}
+export function isFreshApproval(createdAt: number | undefined, now = Date.now()) {
+  return (
+    typeof createdAt === 'number' &&
+    now >= createdAt &&
+    now - createdAt < APPROVAL_MAX_AGE_MS
+  );
+}
+export async function resolvePendingApproval(
+  path: string,
+  create: () => Promise<Approval>,
+  now = Date.now(),
+): Promise<PendingApproval> {
+  try {
+    const stored = JSON.parse(await readFile(path, 'utf8')) as PendingApproval &
+      Approval;
+    const approval = stored.approval?.action ? stored.approval : stored.action ? stored : undefined;
+    if (approval?.action && isFreshApproval(stored.createdAt, now))
+      return {
+        approval,
+        createdAt: stored.createdAt,
+        expiresAt: stored.expiresAt ?? stored.createdAt + APPROVAL_MAX_AGE_MS,
+      };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  const pending: PendingApproval = {
+    approval: await create(),
+    createdAt: now,
+    expiresAt: now + APPROVAL_MAX_AGE_MS,
+  };
+  await atomicWrite(path, JSON.stringify(pending));
+  return pending;
+}
+export async function submitFreshApproval(
+  network: 'mainnet' | 'testnet',
+  path: string,
+  pending: PendingApproval,
+  signature: string,
+  refresh: () => Promise<Approval>,
+) {
+  if (!isFreshApproval(pending.createdAt)) {
+    const next = await resolvePendingApproval(path, refresh, Date.now());
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Approval payload expired; sign the regenerated payload',
+      { expiresAt: next.expiresAt, approval: next.approval },
+    );
+  }
+  try {
+    return await submitApproval(network, pending.approval, signature);
+  } catch (error) {
+    if (
+      error instanceof AgentCliError &&
+      (error.details as { nonceRejected?: boolean } | null)?.nonceRejected
+    ) {
+      const next = await resolvePendingApproval(path, refresh, Date.now());
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Approval nonce was rejected; sign the regenerated payload',
+        { expiresAt: next.expiresAt, approval: next.approval },
+      );
+    }
+    throw error;
+  }
 }
 export const rejectMasterKey = assertSafeInput;
 

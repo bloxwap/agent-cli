@@ -121,7 +121,11 @@ test('config set mode paper switches reads to the paper account', async () => {
   });
 });
 test('switching back to live requires explicit --yes confirmation', async () => {
-  await saveConfig(migrate({ mode: 'paper' }));
+  const { readStoredConfig } = await import('../src/core/config.js');
+  const current = await readStoredConfig();
+  await saveConfig(
+    migrate({ ...(current ?? {}), mode: 'paper', revision: current?.revision ?? 0 }),
+  );
   const refused = await dispatch(['config', 'set', 'mode', 'live']);
   expect(refused.body).toMatchObject({ ok: false, code: 'CONFIG_INVALID' });
   const confirmed = await dispatch(['config', 'set', 'mode', 'live', '--yes']);

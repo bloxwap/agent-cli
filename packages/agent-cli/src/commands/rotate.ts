@@ -3,10 +3,12 @@ import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { register } from '../core/router.js';
 import { commandConfig } from './read.js';
-import { assertLiveMode } from '../core/trading.js';
+import { assertApprovedNetwork, assertLiveMode } from '../core/trading.js';
 import {
   atomicWrite,
-  saveConfig,
+  copyAgentFields,
+  updateConfig,
+  configPath,
   stateDir,
   type Config,
 } from '../core/config.js';
@@ -16,6 +18,8 @@ import { openSigner } from '../wallet/signer.js';
 import {
   newApproval,
   submitApproval,
+  isFreshApproval,
+  APPROVAL_MAX_AGE_MS,
   type Approval,
 } from '../wallet/approval.js';
 import { hlInfo } from '../core/http.js';
@@ -27,6 +31,10 @@ export interface Rotation {
   next: Config;
   approval: Approval;
   revoke: Approval;
+  approvalCreatedAt?: number;
+  approvalExpiresAt?: number;
+  revokeCreatedAt?: number;
+  revokeExpiresAt?: number;
   swapped: boolean;
   revoked: boolean;
 }
@@ -63,6 +71,7 @@ register('rotate', {
   execute: async (input, context) => {
     const current = await commandConfig(context);
     assertLiveMode(current, 'rotate');
+    assertApprovedNetwork(current);
     if (!current.masterAddress || !current.agentAddress)
       throw new AgentCliError('AGENT_NOT_APPROVED', 'Initialize first');
     const path = join(
@@ -115,6 +124,7 @@ register('rotate', {
           'Rotation requires a different EOA agent key',
         );
       next.agentName = `blox-${next.agentAddress!.slice(-8)}`;
+      const now = Date.now();
       rotation = {
         old: current,
         next,
@@ -126,17 +136,96 @@ register('rotate', {
           agentAddress: '0x' + '0'.repeat(40),
           agentName: current.agentName,
         }),
+        approvalCreatedAt: now,
+        approvalExpiresAt: now + APPROVAL_MAX_AGE_MS,
+        revokeCreatedAt: now,
+        revokeExpiresAt: now + APPROVAL_MAX_AGE_MS,
         swapped: false,
         revoked: false,
       };
       await atomicWrite(path, JSON.stringify(rotation));
     }
+    if (!rotation.swapped && !isFreshApproval(rotation.approvalCreatedAt)) {
+      const now = Date.now();
+      rotation.approval = await newApproval(current, 'approveAgent', {
+        agentAddress: rotation.next.agentAddress,
+        agentName: `${rotation.next.agentName} valid_until ${rotation.next.agentExpiry}`,
+      });
+      rotation.approvalCreatedAt = now;
+      rotation.approvalExpiresAt = now + APPROVAL_MAX_AGE_MS;
+      await atomicWrite(path, JSON.stringify(rotation));
+      if (input.signature)
+        throw new AgentCliError(
+          'CONFIG_INVALID',
+          'Approval payload expired; sign the regenerated payload',
+          { expiresAt: rotation.approvalExpiresAt, approval: rotation.approval },
+        );
+    }
+    if (!rotation.revoked && !isFreshApproval(rotation.revokeCreatedAt)) {
+      const now = Date.now();
+      rotation.revoke = await newApproval(current, 'approveAgent', {
+        agentAddress: '0x' + '0'.repeat(40),
+        agentName: rotation.old.agentName,
+      });
+      rotation.revokeCreatedAt = now;
+      rotation.revokeExpiresAt = now + APPROVAL_MAX_AGE_MS;
+      await atomicWrite(path, JSON.stringify(rotation));
+      if (input.revokeSignature)
+        throw new AgentCliError(
+          'CONFIG_INVALID',
+          'Revoke payload expired; sign the regenerated payload',
+          {
+            expiresAt: rotation.revokeExpiresAt,
+            revokeApproval: rotation.revoke,
+          },
+        );
+    }
+    const refreshSigned = async (
+      kind: 'approval' | 'revoke',
+      signature: string,
+    ) => {
+      try {
+        await submitApproval(current.network, rotation[kind], signature);
+      } catch (error) {
+        if (
+          !(error instanceof AgentCliError) ||
+          !(error.details as { nonceRejected?: boolean } | null)?.nonceRejected
+        )
+          throw error;
+        const now = Date.now();
+        rotation[kind] = await newApproval(current, 'approveAgent', {
+          agentAddress:
+            kind === 'approval'
+              ? rotation.next.agentAddress
+              : '0x' + '0'.repeat(40),
+          agentName:
+            kind === 'approval'
+              ? `${rotation.next.agentName} valid_until ${rotation.next.agentExpiry}`
+              : rotation.old.agentName,
+        });
+        if (kind === 'approval') {
+          rotation.approvalCreatedAt = now;
+          rotation.approvalExpiresAt = now + APPROVAL_MAX_AGE_MS;
+        } else {
+          rotation.revokeCreatedAt = now;
+          rotation.revokeExpiresAt = now + APPROVAL_MAX_AGE_MS;
+        }
+        await atomicWrite(path, JSON.stringify(rotation));
+        throw new AgentCliError(
+          'CONFIG_INVALID',
+          'Approval nonce was rejected; sign the regenerated payload',
+          {
+            expiresAt:
+              kind === 'approval'
+                ? rotation.approvalExpiresAt
+                : rotation.revokeExpiresAt,
+            approval: rotation[kind],
+          },
+        );
+      }
+    };
     if (input.signature) {
-      await submitApproval(
-        current.network,
-        rotation.approval,
-        input.signature as string,
-      );
+      await refreshSigned('approval', input.signature as string);
       await rotationHandoff(rotation, {
         verify: async () => {
           const agents = await hlInfo<
@@ -149,18 +238,26 @@ register('rotate', {
               a.validUntil >= rotation.next.agentExpiry!,
           );
         },
-        swap: async (next) => {
-          const signer = await openSigner(next);
-          next.approved = true;
-          await saveConfig(next, context.configPath);
+        swap: async (nextConfig) => {
+          const saved = await updateConfig(
+            context.configPath ?? configPath(),
+            (latest) => {
+              copyAgentFields(latest, nextConfig);
+              latest.approved = true;
+              latest.revoked = false;
+            },
+          );
+          const signer = await openSigner(saved);
           if (activeRunner) {
             activeRunner.signer = signer;
-            Object.assign(activeRunner.config, next);
+            copyAgentFields(activeRunner.config, saved);
+            activeRunner.config.approved = true;
+            activeRunner.config.revoked = false;
           }
           await events.append('runner_state', {
             rotation: {
               old: rotation.old.agentAddress,
-              next: next.agentAddress,
+              next: nextConfig.agentAddress,
             },
           });
         },
@@ -173,11 +270,7 @@ register('rotate', {
           'POLICY_REJECTED',
           'Approve and swap new agent before revoking old',
         );
-      await submitApproval(
-        current.network,
-        rotation.revoke,
-        input.revokeSignature as string,
-      );
+      await refreshSigned('revoke', input.revokeSignature as string);
       rotation.revoked = true;
       await atomicWrite(path, JSON.stringify(rotation));
     }
@@ -187,6 +280,10 @@ register('rotate', {
       swapped: rotation.swapped,
       oldRevoked: rotation.revoked,
       requiresSignature: !rotation.swapped,
+      approvalExpiresAt: rotation.approvalExpiresAt ?? null,
+      revokeExpiresAt: rotation.swapped
+        ? (rotation.revokeExpiresAt ?? null)
+        : undefined,
       approval: rotation.approval,
       ...(rotation.swapped ? { revokeApproval: rotation.revoke } : {}),
     };

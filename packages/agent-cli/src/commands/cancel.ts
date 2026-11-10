@@ -6,6 +6,7 @@ import {
   assertCanTrade,
   servicesForMode,
   exchangeAction,
+  withTradeLock,
   type TradingServices,
 } from '../core/trading.js';
 import { AgentCliError } from '../errors/index.js';
@@ -23,7 +24,14 @@ export async function cancelOrders(
   input: z.infer<typeof cancelSchema>,
   services?: TradingServices,
 ) {
-  await assertCanTrade(config);
+  return withTradeLock(config, () => cancelLocked(config, input, services));
+}
+async function cancelLocked(
+  config: Config,
+  input: z.infer<typeof cancelSchema>,
+  services?: TradingServices,
+) {
+  await assertCanTrade(config, { cancel: true });
   const clients = services ?? (await servicesForMode(config));
   const orders = await clients.orders();
   const oids = input.oids ?? (input.oid ? [input.oid] : []),

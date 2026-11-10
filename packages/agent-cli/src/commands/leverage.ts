@@ -7,6 +7,7 @@ import {
   servicesForMode,
   exchangeAction,
   requiredDailyLoss,
+  withTradeLock,
   type TradingServices,
 } from '../core/trading.js';
 import { parseUsdc } from '../funding/amounts.js';
@@ -22,6 +23,7 @@ export async function setLeverage(
   input: z.infer<typeof leverageSchema>,
   services?: TradingServices,
 ) {
+  return withTradeLock(config, async () => {
   await assertCanTrade(config);
   const clients = services ?? (await servicesForMode(config));
   const market = await clients.market(input.coin);
@@ -48,6 +50,7 @@ export async function setLeverage(
       leverage: input.leverage,
     }),
   );
+  });
 }
 register('leverage', {
   description: 'Set market leverage and cross/isolated margin mode',

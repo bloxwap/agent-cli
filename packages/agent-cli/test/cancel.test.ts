@@ -5,6 +5,7 @@ import { migrate } from '../src/core/config.js';
 test('batch cancellation selects requested orders and rejects unknown ids', async () => {
   const config = migrate({
     approved: true,
+    approvedNetwork: 'testnet',
     masterAddress: '0x' + '1'.repeat(40),
     agentExpiry: Date.now() + 10000,
   });

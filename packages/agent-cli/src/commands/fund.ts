@@ -7,7 +7,7 @@ import { RelayClient, PERPS_USDC, parseQuote } from '../funding/relay.js';
 import { parseUsdc, formatUsdc } from '../funding/amounts.js';
 import { renderQr } from '../funding/qr.js';
 import { assertLiveMode } from '../core/trading.js';
-import { readDeposits, writeDeposits } from '../funding/store.js';
+import { readDeposits, updateDeposits } from '../funding/store.js';
 import { signatureSteps } from '../funding/signatures.js';
 import { builderRate } from '../core/builder.js';
 import { AgentCliError } from '../errors/index.js';
@@ -70,6 +70,25 @@ export async function fund(
       tradeType: 'EXACT_INPUT',
     });
     const parsed = parseQuote(quote);
+    const quotedDecimals = quote.details.currencyIn?.currency?.decimals;
+    const quotedAmount = quote.details.currencyIn?.amount;
+    if (typeof quotedDecimals !== 'number')
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Quote did not include origin token decimals',
+      );
+    if (quotedDecimals !== input.originDecimals)
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Origin decimals do not match the quoted token',
+        { originDecimals: input.originDecimals, quoteDecimals: quotedDecimals },
+      );
+    if (quotedAmount !== amount.toString())
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Quote amount does not match the requested amount',
+        { requested: amount.toString(), quoted: quotedAmount ?? null },
+      );
     if (amount < BigInt(parsed.minAmount))
       throw new AgentCliError('INVALID_SIZE', 'Below minimum deposit', {
         minimum: parsed.minAmount,
@@ -93,8 +112,16 @@ export async function fund(
       createdAt: Date.now(),
       completedSteps: [],
     };
-    deposits.push(deposit);
-    await writeDeposits(deposits, dependencies.path);
+    await updateDeposits(dependencies.path, (fresh) => {
+      const raced = fresh.find(
+        (item) =>
+          item.route === route &&
+          item.expiresAt > Date.now() &&
+          item.state === 'awaiting_funds',
+      );
+      if (raced) deposit = raced;
+      else fresh.push(deposit!);
+    });
   }
   const parsed = parseQuote(deposit.quote);
   const received = formatUsdc(

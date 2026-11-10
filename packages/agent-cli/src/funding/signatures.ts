@@ -1,6 +1,6 @@
 import { AgentCliError } from '../errors/index.js';
 import { jsonRequest } from '../core/http.js';
-import { readDeposits, writeDeposits, type Deposit } from './store.js';
+import { readDeposits, updateDeposits, type Deposit } from './store.js';
 export function signatureSteps(deposit: Deposit) {
   return deposit.quote.steps.flatMap((step) =>
     step.kind === 'signature'
@@ -69,9 +69,15 @@ export async function submitDepositSignature(
   // Relay's generic step contract puts the wallet signature in the query.
   url.searchParams.set('signature', signature);
   await (options.submit ?? jsonRequest)(url.toString(), post.body);
-  deposit.completedSteps.push(step.id);
-  await writeDeposits(deposits, options.path);
-  return { depositId, steps: signatureSteps(deposit) };
+  let steps = signatureSteps(deposit);
+  await updateDeposits(options.path, (fresh) => {
+    const current = fresh.find((item) => item.id === depositId);
+    if (!current) throw new AgentCliError('CONFIG_INVALID', 'Unknown deposit');
+    if (!current.completedSteps.includes(step.id))
+      current.completedSteps.push(step.id);
+    steps = signatureSteps(current);
+  });
+  return { depositId, steps };
 }
 
 function signaturePayload(value: unknown) {

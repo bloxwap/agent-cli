@@ -32,6 +32,9 @@ export function mockTrading(): TradingServices {
     state: async () => accountFixture,
     orders: async () => [],
     mids: async () => ({ BTC: '20000' }),
+    assetLeverage: async () =>
+      accountFixture.assetPositions[0]?.position.leverage.value ?? 1,
+    orderByCloid: async () => null,
     exchange: {
       order: vi.fn(async () => ({ status: 'ok' })),
       cancel: vi.fn(async () => ({ status: 'ok' })),
@@ -58,6 +61,10 @@ export const quoteFixture = {
   },
   details: {
     currencyOut: { amount: '100000000', currency: { decimals: 8 } },
+    currencyIn: {
+      amount: '10000000',
+      currency: { decimals: 6, symbol: 'USDC' },
+    },
     minAmount: '1000000',
     expiresAt: 2000000000000,
   },

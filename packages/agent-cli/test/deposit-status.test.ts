@@ -15,8 +15,10 @@ test('settlement requires Relay success plus expected balance increase', () => {
     createdAt: 0,
     completedSteps: [],
   } satisfies Deposit;
-  expect(advanceDeposit(deposit, 'success', '2.9')).toBe('pending');
-  expect(advanceDeposit(deposit, 'success', '3')).toBe('settled');
+  expect(advanceDeposit(deposit, 'success', '3')).toBe('pending');
+  expect(advanceDeposit(deposit, 'success', '2.9', { ledgerCredit: '1' })).toBe(
+    'settled',
+  );
   expect(advanceDeposit(deposit, 'failed', '3')).toBe('failed');
   expect(advanceDeposit({ ...deposit, state: 'settled' }, 'failed', '0')).toBe(
     'settled',

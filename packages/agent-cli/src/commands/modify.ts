@@ -7,6 +7,7 @@ import {
   servicesForMode,
   checkRisk,
   exchangeAction,
+  withTradeLock,
   type TradingServices,
 } from '../core/trading.js';
 import { roundSize, roundPrice } from '../core/hlclient.js';
@@ -29,14 +30,19 @@ export async function modifyOrders(
   input: z.infer<typeof modifySchema>,
   services?: TradingServices,
 ) {
-  await assertCanTrade(config);
+  return withTradeLock(config, () => modifyLocked(config, input, services));
+}
+async function modifyLocked(
+  config: Config,
+  input: z.infer<typeof modifySchema>,
+  services?: TradingServices,
+) {
   const clients = services ?? (await servicesForMode(config));
   const orders = await clients.orders();
   const staged = [...orders];
   const stagedServices = { ...clients, orders: async () => staged };
   const requests = input.modifications ?? [input];
-  const modifies: Record<string, unknown>[] = [];
-  for (const request of requests) {
+  const originals = requests.map((request) => {
     if (!request.oid && !request.cloid)
       throw new AgentCliError('CONFIG_INVALID', 'Specify oid or cloid');
     const original = orders.find((o) =>
@@ -44,6 +50,14 @@ export async function modifyOrders(
     );
     if (!original)
       throw new AgentCliError('ORDER_NOT_FOUND', 'Resting order absent');
+    return original;
+  });
+  await assertCanTrade(config, {
+    reduceOnly: originals.length > 0 && originals.every((order) => order.reduceOnly),
+  });
+  const modifies: Record<string, unknown>[] = [];
+  for (const [requestIndex, request] of requests.entries()) {
+    const original = originals[requestIndex];
     if (
       original.isTrigger &&
       (!original.triggerPx ||
@@ -59,10 +73,6 @@ export async function modifyOrders(
       request.price ?? original.limitPx,
       market.szDecimals,
     );
-    const state = await clients.state();
-    const leverage =
-      state.assetPositions.find((p) => p.position.coin === original.coin)
-        ?.position.leverage.value ?? 1;
     await checkRisk(
       config,
       {
@@ -70,7 +80,7 @@ export async function modifyOrders(
         size,
         price,
         side: original.side === 'B' ? 'buy' : 'sell',
-        leverage,
+        leverage: 1,
         reduceOnly: original.reduceOnly,
       },
       stagedServices,

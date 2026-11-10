@@ -4,10 +4,16 @@ description: "Replayable JSON lines from the persistent runner."
 ---
 
 Each JSON line is `{seq,timestamp,type,data}`. Sequence numbers strictly increase
-across restarts; timestamps are ISO UTC. Types: `fill` (upstream fill with tid),
-Fill fees additionally have exact 8-decimal `feeUnits` strings.
-`order_update`, `position_change`, `deposit` (id/state), `error` (normalized
-failure), `agent_expiry_warning`, `runner_state`. Secret fields are redacted.
+across restarts; timestamps are ISO UTC. Each exchange fill is appended once,
+including fills that occur while the runner is down: the runner backfills from
+the last cursor on startup and dedupes by `tid`. A crash cannot mint a second
+`seq` for the same `tid`. Consumers should still persist the last handled `seq`
+and may dedupe by `tid`. A torn final line is quarantined beside the journal
+before the next append, and a `journal_repaired` event records that repair.
+Types: `fill` (upstream fill with tid; fees also include exact 8-decimal
+`feeUnits` strings), `order_update`, `position_change`, `deposit` (id/state),
+`error` (normalized failure), `agent_expiry_warning`, `runner_state`, and
+`journal_repaired`. Secret fields are redacted.
 
 `events --since 12` returns events after sequence 12. `--follow` is an explicit
 streaming exception to the one-document command contract: each event is one JSON

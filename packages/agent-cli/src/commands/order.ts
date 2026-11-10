@@ -10,9 +10,11 @@ import {
   servicesForMode,
   checkRisk,
   exchangeAction,
+  withTradeLock,
   type TradingServices,
 } from '../core/trading.js';
 import { AgentCliError } from '../errors/index.js';
+import { newCloid } from '../core/idempotency.js';
 export const orderSchema = z.object({
   coin: z.string(),
   side: z.enum(['buy', 'sell']),
@@ -53,10 +55,6 @@ export async function prepareOrder(
   }
   if (!price) throw new AgentCliError('INVALID_PRICE', 'Provide limit price');
   price = roundPrice(price, market.szDecimals);
-  const state = await services.state();
-  const leverage =
-    state.assetPositions.find((p) => p.position.coin === input.coin)?.position
-      .leverage.value ?? 1;
   await checkRisk(
     config,
     {
@@ -64,7 +62,7 @@ export async function prepareOrder(
       size,
       price,
       side: input.side,
-      leverage,
+      leverage: 1,
       reduceOnly: input.reduceOnly,
     },
     services,
@@ -90,36 +88,71 @@ export async function prepareOrder(
     s: size,
     r: input.reduceOnly,
     t: type,
-    ...(input.cloid ? { c: input.cloid } : {}),
+    c: input.cloid,
   };
+}
+function annotate(error: unknown, cloid: string): AgentCliError {
+  if (error instanceof AgentCliError) {
+    const details =
+      error.details && typeof error.details === 'object' && !Array.isArray(error.details)
+        ? { ...(error.details as Record<string, unknown>), cloid }
+        : { cloid };
+    return new AgentCliError(error.code, error.message, details, error.retryable);
+  }
+  return new AgentCliError(
+    'INTERNAL',
+    error instanceof Error ? error.message : String(error),
+    { cloid },
+  );
 }
 export async function placeOrder(
   config: Config,
   input: OrderInput,
   services?: TradingServices,
 ) {
-  await assertCanTrade(config);
-  const clients = services ?? (await servicesForMode(config));
-  const order = await prepareOrder(config, input, clients);
-  const builder =
-    config.builder.fee === 0
-      ? undefined
-      : config.mode === 'paper'
-        ? { b: config.builder.address.toLowerCase(), f: config.builder.fee }
-        : await approvedBuilder(config);
-  const result = await exchangeAction('order', () =>
-    clients.exchange.order({
-      orders: [order],
-      grouping: 'na',
-      ...(builder ? { builder } : {}),
-    }),
-  );
-  return {
-    result,
-    builderFeeRate: builderRate(config),
-    builderAddress: config.builder.address,
-    cloid: input.cloid ?? null,
-  };
+  const cloid = input.cloid ?? newCloid();
+  const orderInput = { ...input, cloid };
+  try {
+    return await withTradeLock(config, async () => {
+      await assertCanTrade(config, { reduceOnly: orderInput.reduceOnly });
+      const clients = services ?? (await servicesForMode(config));
+      const existing = await clients.orderByCloid(cloid);
+      const builder =
+        config.builder.fee === 0
+          ? undefined
+          : config.mode === 'paper'
+            ? { b: config.builder.address.toLowerCase(), f: config.builder.fee }
+            : await approvedBuilder(config);
+      if (existing)
+        return {
+          result: existing,
+          builderFeeRate: builderRate(config),
+          builderAddress: config.builder.address,
+          cloid,
+          idempotent: true,
+        };
+      const order = await prepareOrder(config, orderInput, clients);
+      const result = await exchangeAction(
+        'order',
+        () =>
+          clients.exchange.order({
+            orders: [order],
+            grouping: 'na',
+            ...(builder ? { builder } : {}),
+          }),
+        cloid,
+      );
+      return {
+        result,
+        builderFeeRate: builderRate(config),
+        builderAddress: config.builder.address,
+        cloid,
+        idempotent: false,
+      };
+    });
+  } catch (error) {
+    throw annotate(error, cloid);
+  }
 }
 register('order', {
   description: 'Place limit, IOC market or TP/SL order',

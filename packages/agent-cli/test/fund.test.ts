@@ -8,7 +8,13 @@ import { RelayClient } from '../src/funding/relay.js';
 import { quoteFixture } from './fixtures.js';
 test('fund persists and reuses unexpired quotes', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'bloxwap-fund-'));
-  const quote = vi.fn(async () => quoteFixture);
+  const quote = vi.fn(async (request: { amount: string }) => ({
+    ...quoteFixture,
+    details: {
+      ...quoteFixture.details,
+      currencyIn: { amount: request.amount, currency: { decimals: 6 } },
+    },
+  }));
   const config = migrate({ masterAddress: '0x' + 'a'.repeat(40) });
   try {
     const dependencies = {

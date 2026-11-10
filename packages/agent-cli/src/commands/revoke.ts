@@ -1,20 +1,14 @@
 import { z } from 'zod';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { register } from '../core/router.js';
 import { commandConfig } from './read.js';
-import { assertLiveMode } from '../core/trading.js';
+import { assertApprovedNetwork, assertLiveMode } from '../core/trading.js';
 import { cancelOrders, cancelSchema } from './cancel.js';
-import {
-  atomicWrite,
-  saveConfig,
-  stateDir,
-  type Config,
-} from '../core/config.js';
+import { saveConfig, stateDir, type Config } from '../core/config.js';
 import {
   newApproval,
-  submitApproval,
-  type Approval,
+  submitFreshApproval,
+  resolvePendingApproval,
 } from '../wallet/approval.js';
 import { activeRunner } from '../runner/lifecycle.js';
 import { AgentCliError } from '../errors/index.js';
@@ -33,6 +27,7 @@ register('revoke', {
   execute: async (input, context) => {
     const config = await commandConfig(context);
     assertLiveMode(config, 'revoke');
+    assertApprovedNetwork(config);
     if (!config.agentAddress)
       throw new AgentCliError('AGENT_NOT_APPROVED', 'No agent to revoke');
     if (input.cancelOrders && !config.revoked)
@@ -41,20 +36,21 @@ register('revoke', {
       stateDir(),
       `revoke-${config.network}-${config.agentAddress}.json`,
     );
-    let pending: Approval;
-    try {
-      pending = JSON.parse(await readFile(path, 'utf8'));
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      pending = await newApproval(config, 'approveAgent', {
+    const refresh = () =>
+      newApproval(config, 'approveAgent', {
         agentAddress: '0x' + '0'.repeat(40),
         agentName: config.agentName,
       });
-      await atomicWrite(path, JSON.stringify(pending));
-    }
+    const pending = await resolvePendingApproval(path, refresh);
     let exchangeRevoked = false;
     if (input.signature) {
-      await submitApproval(config.network, pending, input.signature as string);
+      await submitFreshApproval(
+        config.network,
+        path,
+        pending,
+        input.signature as string,
+        refresh,
+      );
       exchangeRevoked = true;
       config.authorizationKeyRef = undefined;
       config.privyWalletId = undefined;
@@ -71,7 +67,8 @@ register('revoke', {
       locallyRevoked: true,
       exchangeRevoked,
       requiresSignature: !exchangeRevoked,
-      approval: pending,
+      expiresAt: pending.expiresAt,
+      approval: pending.approval,
     };
   },
 });

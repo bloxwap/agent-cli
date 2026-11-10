@@ -42,7 +42,15 @@ export const quoteSchema = z
             currency: z.object({ decimals: z.number() }).passthrough(),
           })
           .passthrough(),
-        currencyIn: z.object({ amount: z.string() }).passthrough().optional(),
+        currencyIn: z
+          .object({
+            amount: z.string(),
+            currency: z
+              .object({ decimals: z.number().int().nonnegative() })
+              .passthrough(),
+          })
+          .passthrough()
+          .optional(),
         minAmount: z.string().optional(),
         expiresAt: z.number().optional(),
       })
