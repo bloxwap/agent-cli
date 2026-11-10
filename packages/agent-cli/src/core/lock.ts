@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { open, readFile, unlink, rename, mkdir, chmod, stat } from 'node:fs/promises';
+import { writeFile, link, readFile, unlink, rename, mkdir, chmod, stat } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { AgentCliError } from '../errors/index.js';
@@ -117,49 +117,72 @@ export async function withFileLock<T>(
   await chmod(dirname(lockPath), 0o700).catch(() => {});
   const deadline = Date.now() + staleMs;
   for (;;) {
-    let handle;
+    const token = randomUUID();
+    const record: LockRecord = {
+      pid: process.pid,
+      createdAt: Date.now(),
+      token,
+    };
+    // Publish the lock by linking a complete file into place. An exclusive
+    // create followed by a write lets another waiter observe an empty file
+    // and steal the lock before the record is stored.
+    const temporary = `${lockPath}.${token}.tmp`;
+    let acquired = false;
     try {
-      handle = await open(lockPath, 'wx', 0o600);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      const record = await readLock(lockPath);
-      const now = Date.now();
-      const state = record ? holderState(record, now, staleMs) : 'dead';
-      if (!record || state === 'dead' || state === 'reused') {
-        await takeover(lockPath);
-        continue;
+      await writeFile(temporary, JSON.stringify(record), { mode: 0o600, flag: 'wx' });
+      try {
+        await link(temporary, lockPath);
+        acquired = true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
       }
-      if (now >= deadline)
-        throw new AgentCliError(
-          'INTERNAL',
-          'Lock is held by a live process',
-          { lock: lockPath, pid: record.pid },
-          false,
-        );
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    } finally {
+      await unlink(temporary).catch(() => {});
+    }
+    if (acquired) {
+      try {
+        const next = new Set(held);
+        next.add(lockPath);
+        return await heldLocks.run(next, operation);
+      } finally {
+        try {
+          const current = await readLock(lockPath);
+          if (current?.token === token) await unlink(lockPath);
+        } catch {
+          // The lock file is already gone.
+        }
+      }
+    }
+    const current = await readLock(lockPath);
+    const now = Date.now();
+    let info: { mtimeMs: number } | null = null;
+    if (!current) {
+      try {
+        info = await stat(lockPath);
+      } catch {
+        info = null;
+      }
+    }
+    // A missing file is not a stale lock: the holder may have released it and
+    // another waiter may already have published a new one. Stealing here races
+    // with that new holder. Only an existing, unreadable, aged file is corrupt.
+    if (!current) {
+      if (info && now - info.mtimeMs > 1_000) await takeover(lockPath);
+      else if (info) await new Promise((resolve) => setTimeout(resolve, 20));
       continue;
     }
-    const token = randomUUID();
-    try {
-      await handle.writeFile(
-        JSON.stringify({
-          pid: process.pid,
-          createdAt: Date.now(),
-          token,
-        } satisfies LockRecord),
-      );
-      await handle.sync();
-      const next = new Set(held);
-      next.add(lockPath);
-      return await heldLocks.run(next, operation);
-    } finally {
-      try {
-        const current = await readLock(lockPath);
-        if (current?.token === token) await unlink(lockPath);
-      } catch {
-        // The lock file is already gone.
-      }
-      await handle.close();
+    const state = holderState(current, now, staleMs);
+    if (state === 'dead' || state === 'reused') {
+      await takeover(lockPath);
+      continue;
     }
+    if (now >= deadline)
+      throw new AgentCliError(
+        'INTERNAL',
+        'Lock is held by a live process',
+        { lock: lockPath, pid: current?.pid ?? null },
+        false,
+      );
+    await new Promise((resolve) => setTimeout(resolve, 20));
   }
 }
