@@ -1,6 +1,7 @@
 import type { Subscriptions } from './subscriptions.js';
+import { randomUUID } from 'node:crypto';
 import { open, readFile, unlink, mkdir, chmod } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { stateDir, atomicWrite, type Config } from '../core/config.js';
 import { paperDir, type Mode } from '../core/mode.js';
@@ -8,11 +9,14 @@ import { Logger } from '../core/logger.js';
 import { openSigner as configuredSigner } from '../wallet/signer.js';
 import type { Signer } from '../core/hlclient.js';
 import { AgentCliError } from '../errors/index.js';
+import { pidLiveness, readLock } from '../core/lock.js';
+export const STARTUP_TIMEOUT_MS = 30_000;
 export interface RunnerInfo {
   pid: number;
   startedAt: number;
   network: Config['network'];
   ready: boolean;
+  token: string;
 }
 export const runnerPidPath = (mode: Mode = 'live') =>
   join(mode === 'paper' ? paperDir() : stateDir(), 'runner.pid');
@@ -27,11 +31,9 @@ export function isAlive(pid: number) {
 export async function runningInfo(
   path = runnerPidPath(),
 ): Promise<RunnerInfo | null> {
+  let info: RunnerInfo;
   try {
-    const info = JSON.parse(await readFile(path, 'utf8')) as RunnerInfo;
-    return Number.isInteger(info.pid) && info.pid > 0 && isAlive(info.pid)
-      ? info
-      : null;
+    info = JSON.parse(await readFile(path, 'utf8')) as RunnerInfo;
   } catch (error) {
     if (
       (error as NodeJS.ErrnoException).code === 'ENOENT' ||
@@ -40,6 +42,62 @@ export async function runningInfo(
       return null;
     throw error;
   }
+  if (!Number.isInteger(info.pid) || info.pid <= 0 || !info.token) return null;
+  if (pidLiveness(info.pid) !== 'alive') return null;
+  if (
+    activeRunner &&
+    activeRunner.info.pid === info.pid &&
+    activeRunner.info.token === info.token
+  )
+    return { ...info, ready: activeRunner.info.ready };
+  if (!info.ready)
+    return Date.now() - info.startedAt > STARTUP_TIMEOUT_MS ? null : info;
+  try {
+    const { rpcCall, socketPath } = await import('./rpc.js');
+    const pong = (await rpcCall(
+      'runner.ping',
+      {},
+      socketPath(dirname(path)),
+      1_000,
+    )) as { token?: string };
+    return pong?.token === info.token ? info : null;
+  } catch {
+    return null;
+  }
+}
+async function acquireStartupLock(lockPath: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const guard = await open(lockPath, 'wx', 0o600);
+      const token = randomUUID();
+      await guard.writeFile(
+        JSON.stringify({ pid: process.pid, createdAt: Date.now(), token }),
+      );
+      await guard.sync();
+      return { guard, token };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      const record = await readLock(lockPath);
+      const stale =
+        !record ||
+        pidLiveness(record.pid) !== 'alive' ||
+        Date.now() - record.createdAt > STARTUP_TIMEOUT_MS;
+      if (!stale)
+        throw new AgentCliError(
+          'RUNNER_NOT_RUNNING',
+          'Runner startup in progress; retry shortly',
+          { lock: lockPath },
+          true,
+        );
+      await unlink(lockPath).catch(() => {});
+    }
+  }
+  throw new AgentCliError(
+    'RUNNER_NOT_RUNNING',
+    'Runner startup in progress; retry shortly',
+    { lock: lockPath },
+    true,
+  );
 }
 export class Runner {
   subscriptions?: Subscriptions;
@@ -58,6 +116,7 @@ export class Runner {
       startedAt: Date.now(),
       network: config.network,
       ready: false,
+      token: randomUUID(),
     };
     this.logger = new Logger({
       level: config.logLevel,
@@ -72,17 +131,7 @@ export class Runner {
     await chmod(this.directory, 0o700);
     const path = join(this.directory, 'runner.pid');
     const startupLock = path + '.startup';
-    let guard;
-    try {
-      guard = await open(startupLock, 'wx', 0o600);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'EEXIST')
-        throw new AgentCliError(
-          'RUNNER_NOT_RUNNING',
-          'Runner startup in progress; retry shortly',
-        );
-      throw error;
-    }
+    const { guard, token } = await acquireStartupLock(startupLock);
     let handle;
     try {
       const existing = await runningInfo(path);
@@ -95,7 +144,8 @@ export class Runner {
       await handle.close();
     } finally {
       await guard.close();
-      await unlink(startupLock);
+      const current = await readLock(startupLock);
+      if (current?.token === token) await unlink(startupLock).catch(() => {});
     }
     try {
       this.signer = await loadSigner();

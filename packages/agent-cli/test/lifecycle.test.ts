@@ -120,6 +120,7 @@ beforeEach(async () => {
           fees: {},
           details: {
             currencyOut: { amount: '1000000000', currency: { decimals: 8 } },
+            currencyIn: { amount: '10000000', currency: { decimals: 6 } },
             expiresAt: Date.now() + 60000,
           },
         });
@@ -200,6 +201,22 @@ beforeEach(async () => {
       if (body.type === 'frontendOpenOrders')
         return Response.json(environment.orders);
       if (body.type === 'allMids') return Response.json({ BTC: '20000' });
+      if (body.type === 'activeAssetData')
+        return Response.json({ leverage: { type: 'cross', value: 1 } });
+      if (body.type === 'orderStatus')
+        return Response.json({ status: 'unknownOid' });
+      if (body.type === 'userNonFundingLedgerUpdates')
+        return Response.json(
+          environment.balance === '10'
+            ? [
+                {
+                  time: Date.now(),
+                  hash: '0xledger',
+                  delta: { type: 'deposit', usdc: '10' },
+                },
+              ]
+            : [],
+        );
       throw new Error('Unexpected mocked request: ' + JSON.stringify(body));
     }),
   );
@@ -334,8 +351,12 @@ test('user-provided EOA agent completes onboarding, runner trading and rotation 
   const nextAgent = privateKeyToAccount(nextAgentKey);
   process.env.BLOXWAP_TEST_EOA = agentKey;
   process.env.BLOXWAP_TEST_NEXT_EOA = nextAgentKey;
+  const { readStoredConfig } = await import('../src/core/config.js');
+  const current = await readStoredConfig(path);
   await saveConfig(
     migrate({
+      ...(current ?? {}),
+      revision: current?.revision ?? 0,
       signerType: 'eoa',
       eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
       masterAddress: master.address,

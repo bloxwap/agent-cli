@@ -5,6 +5,7 @@ import { migrate } from '../src/core/config.js';
 test('cross/isolated leverage enforces both ceilings', async () => {
   const config = migrate({
     approved: true,
+    approvedNetwork: 'testnet',
     masterAddress: '0x' + '1'.repeat(40),
     agentExpiry: Date.now() + 10000,
     limits: { maxLeverage: 5 },
@@ -31,6 +32,7 @@ test('cross/isolated leverage enforces both ceilings', async () => {
 test('leverage updates respect configured daily loss', async () => {
   const config = migrate({
     approved: true,
+    approvedNetwork: 'testnet',
     masterAddress: '0x' + '1'.repeat(40),
     agentExpiry: Date.now() + 10000,
     limits: { dailyLoss: 5 },

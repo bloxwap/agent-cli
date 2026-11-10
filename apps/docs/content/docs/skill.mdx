@@ -75,9 +75,13 @@ continue with live onboarding below and real funding.
 4. Poll `status` until each active deposit is `settled`, for at most 12 polls
    or 5 minutes, whichever comes first. Start with 1-second delays, double to a
    15-second cap, and stop with an explicit pending report if the budget expires.
-   Settlement requires Relay success and Hyperliquid balance receipt. Stop on
-   failed/refunded deposits and explain their status. Do not place orders while
-   any deposit is awaiting funds or pending.
+   Settlement requires Relay success and a positive Hyperliquid ledger deposit
+   (`userNonFundingLedgerUpdates`), not an unchanged equity balance. Stop on
+   failed, refunded, expired, or abandoned deposits and explain their status.
+   Quotes that never receive funds become `expired` 15 minutes after `expiresAt`.
+   `deposit --abandon` marks an unfinished deposit `abandoned`. Do not place
+   risk-increasing orders while a deposit is awaiting funds or pending. `cancel`
+   and reduce-only orders still run.
 5. Run `run --detach`, then monitor `events --follow --since SEQ`. Persist the
    last handled sequence; replay after reconnect. An unfilled or rejected order
    remains incomplete: do not claim the requested trade succeeded. A fill updates the trading
@@ -91,10 +95,15 @@ network, current stage, deposit IDs, last event sequence and order cloid/oid;
 record public IDs only. Missing selected-signer settings, a wallet signature,
 funding route or settled balance is a blocked stage. Report the exact next action
 without requesting any secret in chat or moving to the next stage. Repeat `init`
-to resume persisted approvals rather than creating another agent. An `ok:true`
-transport envelope does not imply exchange acceptance: inspect `data.result` and
-reconcile `orders`/`events` after uncertain mutations. Never retry an order with
-a new cloid until the original intent has been reconciled.
+to resume persisted approvals rather than creating another agent. Approval and
+revoke payloads include `expiresAt` and are regenerated after 24 hours, or when
+Hyperliquid rejects the nonce; sign the regenerated payload. An `ok:true`
+transport envelope does not imply exchange acceptance. Every live or paper
+`order` carries a `cloid` (generated when omitted) on the success and on the
+error. A mutation timeout or disconnect is `NETWORK_ERROR` with `retryable:
+false` and `details.outcome: "unknown"`. Retry that same `intentId` or `cloid`;
+the CLI reuses the cloid and will not place a second order. Do not mint a new
+cloid for the same intent.
 
 For EOA rotation, the user sets a new local key and supplies only its reference
 with `rotate --eoa-key-ref env:NEW_EOA_KEY`. For either signer, verify
@@ -136,7 +145,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `logs --follow --level warn` | `{"level":"warn","requestId":"...","message":"Risk rejected","time":"..."}` (JSON lines) |
 | `paper reset --yes` | `{"ok":true,"data":{"paper":true,"mode":"paper","reset":true,"startingBalance":"10000"},"mode":"paper","paper":true}` |
 | `paper summary` | `{"ok":true,"data":{"paper":true,"mode":"paper","equity":"10000","netPnl":"0","feesPaid":"0","fundingPaid":"0","trades":0,"positions":[]}}` |
-| `order --paper --json '{"coin":"BTC","side":"buy","size":"0.001","type":"market"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"filled":{"oid":1,"totalSz":"0.001","avgPx":"20000","status":"filled"}}]}}},"builderFeeRate":"0%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":null},"mode":"paper","paper":true}` |
+| `order --paper --json '{"coin":"BTC","side":"buy","size":"0.001","type":"market"}'` | `{"ok":true,"data":{"result":{"status":"ok","response":{"data":{"statuses":[{"filled":{"oid":1,"totalSz":"0.001","avgPx":"20000","status":"filled"}}]}}},"builderFeeRate":"0%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","cloid":"0x22222222222222222222222222222222"},"mode":"paper","paper":true}` |
 | `run --paper --detach` | `{"ok":true,"data":{"pid":123,"startedAt":1700000000000,"network":"mainnet","paper":true}}` |
 | `rotate` then `rotate --signature 0x...` | `{"ok":true,"data":{"oldAgent":"0x...","newAgent":"0x...","swapped":true,"oldRevoked":false,"revokeApproval":{}}}` |
 | `rotate --revoke-signature 0x...` | `{"ok":true,"data":{"swapped":true,"oldRevoked":true}}` |
@@ -151,7 +160,13 @@ using the user-approved limit or the bounded IOC execution price. A valid schema
 alone does not establish that an order is tradable or within the budget.
 
 Use `--intent-id ID --intent "reason"` on trading actions to connect the user's
-reasoning to the audit. Keep cloid stable when retrying a known order intent.
+reasoning to the audit. The CLI binds that intent to one cloid. Risk checks use
+the account leverage Hyperliquid will apply and fail closed if it cannot be
+read. Live and paper mutations are serialized per account. `--live` and
+`--paper` select the mode explicitly; a running runner rejects a command whose
+mode does not match the runner or the saved config (`CONFIG_INVALID`) until the
+runner is restarted. Trading, rotate, and revoke reject a network other than
+`approvedNetwork`.
 For TP/SL use `type:"tp"|"sl"` and `triggerPrice` with size/price/reduceOnly;
 market orders use an explicit slippage-bounded IOC, not an unbounded market order.
 
@@ -159,9 +174,9 @@ market orders use an explicit slippage-bounded IOC, not an unbounded market orde
 
 | Code | Action |
 | --- | --- |
-| RATE_LIMIT, NETWORK_ERROR | At most 3 read retries with exponential backoff; for uncertain mutations, reconcile order state/cloid before retrying. Stop and report unresolved results |
-| NONCE_COLLISION | Retry using a newly issued nonce; inspect a stale lock if persistent |
-| DEPOSIT_PENDING | Poll status until settled; stop on terminal funding failure |
+| RATE_LIMIT, NETWORK_ERROR | At most 3 read retries with exponential backoff. A mutation with `details.outcome` `"unknown"` is not retryable: retry the same `intentId` or `cloid` only, which the CLI reconciles. Stop if that result is still unknown |
+| NONCE_COLLISION | Retry using a newly issued nonce. A stale approval nonce is not retryable; sign the regenerated payload. A lock held by a live process is `INTERNAL` and is not retryable |
+| DEPOSIT_PENDING | Poll status until settled, expired, or abandoned. `cancel` and reduce-only orders still run. `deposit --abandon` stops a quote you will not fund |
 | RUNNER_NOT_RUNNING | Start runner or use configured direct fallback |
 | INSUFFICIENT_MARGIN | Reduce exposure or request authorized funding |
 | POLICY_REJECTED | Stop and revise intent within limits; do not bypass policy |
@@ -169,15 +184,19 @@ market orders use an explicit slippage-bounded IOC, not an unbounded market orde
 | AGENT_NOT_APPROVED | Complete init/approval or explain revocation |
 | INVALID_SIZE, INVALID_PRICE | Correct input using market precision |
 | UNKNOWN_MARKET | Refresh metadata; use an allowed market |
-| ORDER_NOT_FOUND | Refresh orders before changing intent |
+| ORDER_NOT_FOUND | Refresh orders before changing intent. An unknown or expired agent is `AGENT_NOT_APPROVED` or `AGENT_EXPIRED`, not this code |
 | CONFIG_INVALID | Correct configuration/input; never insert secrets |
 | UPSTREAM_ERROR, INTERNAL | Stop, inspect redacted details/logs and report failure |
 
 ## Gotchas
 
-HyperCore perps USDC uses **8 decimals**; EVM USDC uses **6**. Preserve strings and
-bigints. Some deposits require **two distinct signatures**; resume stored steps
-rather than restarting the route. Agent expiry is at most **180 days**. Never
+HyperCore perps USDC uses **8 decimals**; EVM USDC uses **6**. The quote's origin
+decimals must match `originDecimals` or `fund` returns `CONFIG_INVALID`. Preserve
+strings and bigints. Some deposits require **two distinct signatures**; resume
+stored steps rather than restarting the route. Agent expiry is at most **180 days**.
+Fills in `events.jsonl` are delivered once per exchange `tid`, including
+fills that happen while the runner is down; dedupe by `tid` as well as `seq`.
+Never
 ask for, paste, log or import a master private key or seed. EOA agent keys are
 accepted only through user-configured local references, never command input.
 The agent is trade-only; local limits include markets, size/notional, leverage,

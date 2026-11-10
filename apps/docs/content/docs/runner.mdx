@@ -15,8 +15,12 @@ maintains a heartbeat, and records events. State is `~/.bloxwap`; Unix IPC is
 Windows uses a home-derived named pipe; deployment must enforce current-user ACLs.
 
 The CLI routes market, status, balance, positions, orders, order, cancel, modify,
-leverage, rotate, and revoke through the runner. A config/network mismatch fails.
-`runnerFallback:true` (default) permits direct mode only when no runner is running.
+leverage, rotate, and revoke through the runner. A config, network, or mode
+mismatch fails with `CONFIG_INVALID`. The caller sends the resolved `mode`; the
+runner also refuses when the saved config mode differs from the mode it started
+with, so change mode only after restarting the runner. `runnerFallback:true`
+(default) permits direct mode only when `runner.ping` does not confirm the
+`runner.pid` token. A live PID alone is not treated as a running runner.
 
 ## Wire format
 

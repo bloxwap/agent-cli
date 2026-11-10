@@ -14,23 +14,34 @@ function map(error: unknown, service: string): AgentCliError {
   )
     return mapNetworkError(error);
   let code: ErrorCode = 'UPSTREAM_ERROR';
-  const patterns: [RegExp, ErrorCode][] = [
+  let nonceRejected = false;
+  const patterns: [RegExp, ErrorCode, { nonceRejected?: boolean }?][] = [
     [/429|rate.?limit|too many requests/i, 'RATE_LIMIT'],
-    [/nonce|duplicate.*timestamp/i, 'NONCE_COLLISION'],
+    [
+      /nonce.*(too old|expired|invalid)|invalid nonce|stale nonce/i,
+      'UPSTREAM_ERROR',
+      { nonceRejected: true },
+    ],
+    [/nonce already used|duplicate.*timestamp|nonce.*used/i, 'NONCE_COLLISION'],
     [/insufficient.*margin|margin.*insufficient/i, 'INSUFFICIENT_MARGIN'],
     [
       /minimum.*(size|value)|min.*notional|invalid.*size|too small/i,
       'INVALID_SIZE',
     ],
     [/tick|invalid.*price/i, 'INVALID_PRICE'],
-    [/policy|not allowed|denied/i, 'POLICY_REJECTED'],
-    [/agent.*expired/i, 'AGENT_EXPIRED'],
+    [
+      /user or api wallet .*does not exist|api wallet .*does not exist/i,
+      'AGENT_NOT_APPROVED',
+    ],
+    [/agent.*expired|expired.*agent/i, 'AGENT_EXPIRED'],
     [/agent.*not.*approved|not.*authorized/i, 'AGENT_NOT_APPROVED'],
-    [/order.*not.*found|does not exist/i, 'ORDER_NOT_FOUND'],
+    [/policy|not allowed|denied/i, 'POLICY_REJECTED'],
+    [/order.*not.*found|never placed|already canceled|does not exist/i, 'ORDER_NOT_FOUND'],
   ];
-  for (const [pattern, candidate] of patterns)
+  for (const [pattern, candidate, flags] of patterns)
     if (pattern.test(message)) {
       code = candidate;
+      nonceRejected = flags?.nonceRejected ?? false;
       break;
     }
   return new AgentCliError(
@@ -39,7 +50,9 @@ function map(error: unknown, service: string): AgentCliError {
     redact({
       service,
       upstream: error instanceof Error ? { message: error.message } : error,
+      ...(nonceRejected ? { nonceRejected: true } : {}),
     }),
+    nonceRejected ? false : undefined,
   );
 }
 export const mapHyperliquidError = (error: unknown) =>

@@ -4,13 +4,16 @@ import { mkdir, readFile, rename, writeFile, chmod } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { AgentCliError } from '../errors/index.js';
+import { withFileLock } from './lock.js';
 export const stateDir = () => join(homedir(), '.bloxwap');
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const positive = z.number().positive().finite();
 export const configSchema = z
   .object({
     version: z.literal(1).default(1),
+    revision: z.number().int().nonnegative().default(0),
     network: z.enum(['mainnet', 'testnet']).default('testnet'),
+    approvedNetwork: z.enum(['mainnet', 'testnet']).optional(),
     mode: z.enum(['live', 'paper']).default('live'),
     paper: z
       .object({
@@ -88,18 +91,21 @@ export function migrate(raw: unknown): Config {
     );
   return result.data;
 }
+export async function readStoredConfig(
+  path = configPath(),
+): Promise<Config | null> {
+  try {
+    return migrate(JSON.parse(await readFile(path, 'utf8')));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw new AgentCliError('CONFIG_INVALID', 'Cannot read config');
+  }
+}
 export async function loadConfig(
   path = configPath(),
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<Config> {
-  let raw: unknown = {};
-  try {
-    raw = JSON.parse(await readFile(path, 'utf8'));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
-      throw new AgentCliError('CONFIG_INVALID', 'Cannot read config');
-  }
-  const config = migrate(raw);
+  const config = (await readStoredConfig(path)) ?? migrate({});
   for (const [name, key] of Object.entries({
     BLOXWAP_NETWORK: 'network',
     BLOXWAP_MODE: 'mode',
@@ -120,6 +126,55 @@ export async function loadConfig(
       : NaN;
   return migrate(config);
 }
-export async function saveConfig(config: unknown, path = configPath()) {
-  await atomicWrite(path, JSON.stringify(migrate(config), null, 2) + '\n');
+async function writeConfigUnlocked(config: Config, path: string) {
+  await atomicWrite(path, JSON.stringify(config, null, 2) + '\n');
+}
+export async function saveConfig(
+  config: unknown,
+  path = configPath(),
+): Promise<Config> {
+  return withFileLock(`${path}.lock`, async () => {
+    const incoming = migrate(config);
+    const current = await readStoredConfig(path);
+    if (current && incoming.revision !== current.revision)
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Config changed concurrently',
+        { expected: incoming.revision, actual: current.revision },
+      );
+    const next = migrate({
+      ...incoming,
+      revision: (current?.revision ?? 0) + 1,
+    });
+    await writeConfigUnlocked(next, path);
+    if (config && typeof config === 'object')
+      Object.assign(config, { revision: next.revision });
+    return next;
+  });
+}
+export function copyAgentFields(target: Config, source: Config) {
+  target.agentAddress = source.agentAddress;
+  target.privyWalletId = source.privyWalletId;
+  target.authorizationKeyRef = source.authorizationKeyRef;
+  target.eoaKeyRef = source.eoaKeyRef;
+  target.agentExpiry = source.agentExpiry;
+  target.agentName = source.agentName;
+  target.approved = true;
+  target.revoked = false;
+  if (!target.approvedNetwork) target.approvedNetwork = target.network;
+}
+export async function updateConfig(
+  path: string,
+  mutate: (config: Config) => void,
+): Promise<Config> {
+  return withFileLock(`${path}.lock`, async () => {
+    const current = await readStoredConfig(path);
+    if (!current)
+      throw new AgentCliError('CONFIG_INVALID', 'Config is missing');
+    const revision = current.revision;
+    mutate(current);
+    const next = migrate({ ...current, revision: revision + 1 });
+    await writeConfigUnlocked(next, path);
+    return next;
+  });
 }

@@ -13,6 +13,7 @@ import {
   cancelOrder,
   dailyLoss,
   initialMargin,
+  leverageOf,
   liquidationPx,
   matchOrders,
   positionOf,
@@ -168,6 +169,36 @@ export function paperTradingServices(
     dailyLoss: async () => {
       const [state, marks] = await Promise.all([store.load(), data.marks()]);
       return dailyLoss(state, marks);
+    },
+    assetLeverage: async (coin) => leverageOf(await store.load(), coin).value,
+    orderByCloid: async (cloid) => {
+      const state = await store.load();
+      const resting = state.orders.find((order) => order.cloid === cloid);
+      if (resting)
+        return {
+          status: 'ok',
+          response: {
+            data: { statuses: [{ resting: { oid: resting.oid } }] },
+          },
+        };
+      const trade = state.trades.find((item) => item.cloid === cloid);
+      if (!trade) return null;
+      return {
+        status: 'ok',
+        response: {
+          data: {
+            statuses: [
+              {
+                filled: {
+                  oid: trade.oid,
+                  totalSz: trade.sz,
+                  avgPx: trade.px,
+                },
+              },
+            ],
+          },
+        },
+      };
     },
   };
 }

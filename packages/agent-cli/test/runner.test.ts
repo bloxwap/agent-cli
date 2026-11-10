@@ -3,6 +3,7 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Runner, runningInfo } from '../src/runner/lifecycle.js';
+import { rpcServer } from '../src/runner/rpc.js';
 import { migrate } from '../src/core/config.js';
 test('single instance and graceful cleanup preserve external state', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'bloxwap-runner-'));
@@ -47,8 +48,12 @@ test('a dead PID restarts and readiness is explicit', async () => {
       signTypedData: async () => '0x1',
     }));
     expect((await runningInfo(join(dir, 'runner.pid')))?.ready).toBe(false);
+    await rpcServer(runner, { pretty: false });
     await runner.markReady();
     expect((await runningInfo(join(dir, 'runner.pid')))?.ready).toBe(true);
+    expect((await runningInfo(join(dir, 'runner.pid')))?.token).toBe(
+      runner.info.token,
+    );
   } finally {
     await runner.shutdown();
     await rm(dir, { recursive: true, force: true });

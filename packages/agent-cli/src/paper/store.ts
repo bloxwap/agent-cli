@@ -1,8 +1,9 @@
-import { open, readFile, appendFile, mkdir, chmod, unlink } from 'node:fs/promises';
+import { readFile, appendFile, mkdir, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import { atomicWrite } from '../core/config.js';
 import { paperDir } from '../core/mode.js';
 import { AgentCliError } from '../errors/index.js';
+import { withFileLock } from '../core/lock.js';
 import {
   initialPaperState,
   type PaperState,
@@ -36,24 +37,7 @@ export class PaperStore {
     const run = this.queue.then(async () => {
       await mkdir(this.directory, { recursive: true, mode: 0o700 });
       await chmod(this.directory, 0o700);
-      let handle;
-      for (let attempt = 0; attempt < 100; attempt++) {
-        try {
-          handle = await open(this.statePath + '.lock', 'wx', 0o600);
-          break;
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
-      }
-      if (!handle)
-        throw new AgentCliError('INTERNAL', 'Paper state lock busy; inspect stale lock');
-      try {
-        return await operation();
-      } finally {
-        await handle.close();
-        await unlink(this.statePath + '.lock').catch(() => {});
-      }
+      return withFileLock(this.statePath + '.lock', operation);
     });
     this.queue = run.then(
       () => {},

@@ -526,10 +526,15 @@ Resume deposit steps or submit a master-wallet signature
       },
       "signature": {
         "type": "string"
+      },
+      "abandon": {
+        "default": false,
+        "type": "boolean"
       }
     },
     "required": [
-      "depositId"
+      "depositId",
+      "abandon"
     ],
     "additionalProperties": false
   },
@@ -786,7 +791,9 @@ Read account status
                         "pending",
                         "settled",
                         "failed",
-                        "refunded"
+                        "refunded",
+                        "expired",
+                        "abandoned"
                       ]
                     }
                   },
@@ -1371,10 +1378,7 @@ Place limit, IOC market or TP/SL order
                 "type": "string"
               },
               "cloid": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": "string"
               }
             },
             "required": [
@@ -2068,7 +2072,8 @@ Replay or follow JSON-line runner events
             "deposit",
             "error",
             "agent_expiry_warning",
-            "runner_state"
+            "runner_state",
+            "journal_repaired"
           ]
         }
       }
@@ -2115,7 +2120,8 @@ Replay or follow JSON-line runner events
                     "deposit",
                     "error",
                     "agent_expiry_warning",
-                    "runner_state"
+                    "runner_state",
+                    "journal_repaired"
                   ]
                 },
                 "data": {},

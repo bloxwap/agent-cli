@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { register } from '../core/router.js';
 import { readDeposits } from '../funding/store.js';
+import { abandonDeposit } from '../funding/status.js';
 import {
   signatureSteps,
   submitDepositSignature,
@@ -12,8 +13,10 @@ register('deposit', {
     depositId: z.string(),
     stepId: z.string().optional(),
     signature: z.string().optional(),
+    abandon: z.boolean().default(false),
   }),
   execute: async (input) => {
+    if (input.abandon) return abandonDeposit(input.depositId as string);
     if (input.signature && input.stepId)
       return submitDepositSignature(
         input.depositId as string,

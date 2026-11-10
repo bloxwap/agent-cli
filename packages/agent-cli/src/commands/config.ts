@@ -30,6 +30,15 @@ register('config', {
       parsed = value;
     }
     if (
+      key === 'network' &&
+      config.approvedNetwork &&
+      parsed !== config.approvedNetwork
+    )
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Network is pinned to the agent approval; use a separate config for another network',
+      );
+    if (
       key === 'mode' &&
       parsed === 'live' &&
       !yes &&

@@ -1,19 +1,13 @@
 import { parseUsdc } from '../funding/amounts.js';
-import { AgentCliError } from '../errors/index.js';
 import { auditFill } from '../core/audit.js';
-import {
-  appendFile,
-  mkdir,
-  readFile,
-  chmod,
-  open,
-  unlink,
-} from 'node:fs/promises';
+import { mkdir, readFile, chmod, open } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { stateDir } from '../core/config.js';
 import { paperDir } from '../core/mode.js';
 import { redact } from '../core/logger.js';
+import { withFileLock } from '../core/lock.js';
+import { repairTornTail } from '../core/journal.js';
 export const eventTypes = [
   'fill',
   'order_update',
@@ -22,6 +16,7 @@ export const eventTypes = [
   'error',
   'agent_expiry_warning',
   'runner_state',
+  'journal_repaired',
 ] as const;
 export type EventType = (typeof eventTypes)[number];
 export const eventSchema = z.object({
@@ -71,40 +66,43 @@ export class EventStore {
         );
       await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
       await chmod(dirname(this.path), 0o700);
-      let guard;
-      for (let attempt = 0; attempt < 100; attempt++) {
-        try {
-          guard = await open(this.path + '.lock', 'wx', 0o600);
-          break;
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
-      }
-      if (!guard)
-        throw new AgentCliError('INTERNAL', 'Event journal lock busy');
-      try {
-        const previous = (await readEvents(this.path)).at(-1)?.seq ?? 0;
-        event = eventSchema.parse({
-          seq: previous + 1,
-          timestamp: new Date().toISOString(),
+      return withFileLock(this.path + '.lock', async () => {
+        const repaired = await repairTornTail(this.path);
+        let previous = (await readEvents(this.path)).at(-1)?.seq ?? 0;
+        const write = async (eventType: EventType, payload: unknown) => {
+          const next = eventSchema.parse({
+            seq: ++previous,
+            timestamp: new Date().toISOString(),
+            type: eventType,
+            data: redact(payload),
+            mode: this.paper ? 'paper' : 'live',
+            paper: this.paper,
+          });
+          const file = await open(this.path, 'a', 0o600);
+          await file.chmod(0o600);
+          try {
+            await file.writeFile(JSON.stringify(next) + '\n');
+            await file.sync();
+          } finally {
+            await file.close();
+          }
+          return next;
+        };
+        if (repaired.repaired)
+          await write('journal_repaired', {
+            quarantine: repaired.quarantine ?? null,
+          });
+        event = await write(
           type,
-          data: redact(type === 'fill' ? normalizeFillAmounts(data) : data),
-          mode: this.paper ? 'paper' : 'live',
-          paper: this.paper,
-        });
-        await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
-        await appendFile(this.path, JSON.stringify(event) + '\n', {
-          mode: 0o600,
-        });
-        await chmod(this.path, 0o600);
+          type === 'fill' ? normalizeFillAmounts(data) : data,
+        );
         return event;
-      } finally {
-        await guard.close();
-        await unlink(this.path + '.lock');
-      }
+      });
     });
-    this.queue = operation.then(() => {});
+    this.queue = operation.then(
+      () => {},
+      () => {},
+    );
     return operation;
   }
   async flush() {

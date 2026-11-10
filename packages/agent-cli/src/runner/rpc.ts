@@ -9,8 +9,8 @@ import { chmod, unlink, lstat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { stateDir, loadConfig } from '../core/config.js';
-import { resolveMode } from '../core/mode.js';
+import { stateDir, loadConfig, readStoredConfig } from '../core/config.js';
+import { resolveMode, type Mode } from '../core/mode.js';
 import { AgentCliError, normalizeError } from '../errors/index.js';
 import { commands, type Context } from '../core/router.js';
 import { runningInfo, type Runner } from './lifecycle.js';
@@ -87,7 +87,12 @@ export async function rpcServer(
               const request = requestSchema.parse(JSON.parse(line));
               id = request.id;
               const metadata = request.params.__context as
-                { configPath?: string; network?: string } | undefined;
+                | {
+                    configPath?: string;
+                    network?: string;
+                    mode?: Mode;
+                  }
+                | undefined;
               if (
                 metadata &&
                 ((metadata.network &&
@@ -103,6 +108,38 @@ export async function rpcServer(
                   'Runner belongs to a different config or network',
                 );
               const name = aliases[request.method] ?? request.method;
+              if (name === 'runner.ping') {
+                socket.write(
+                  JSON.stringify({
+                    jsonrpc: '2.0',
+                    id,
+                    result: {
+                      token: runner.info.token,
+                      pid: runner.info.pid,
+                    },
+                  }) + '\n',
+                );
+                return;
+              }
+              const pinned: Mode =
+                runner.config.mode === 'paper' ? 'paper' : 'live';
+              if (metadata?.mode && metadata.mode !== pinned)
+                throw new AgentCliError(
+                  'CONFIG_INVALID',
+                  'Runner mode does not match the caller',
+                  { runnerMode: pinned, requested: metadata.mode },
+                );
+              if (metadata) {
+                const disk = await readStoredConfig(
+                  metadata.configPath ?? join(stateDir(), 'config.json'),
+                );
+                if (disk && disk.mode !== pinned)
+                  throw new AgentCliError(
+                    'CONFIG_INVALID',
+                    'Runner mode does not match the saved config; restart the runner',
+                    { runnerMode: pinned, configMode: disk.mode },
+                  );
+              }
               if (name === 'shutdown') {
                 socket.write(
                   JSON.stringify({
@@ -138,7 +175,7 @@ export async function rpcServer(
                 ? await execute(name, input)
                 : await command!.execute(
                     parsed!.data as Record<string, unknown>,
-                    { ...context, runner: true },
+                    { ...context, runner: true, paper: pinned === 'paper' },
                   );
               socket.write(
                 JSON.stringify({ jsonrpc: '2.0', id, result: data }) + '\n',
@@ -211,13 +248,14 @@ export function rpcCall(
   method: string,
   params: Record<string, unknown> = {},
   path = socketPath(),
+  timeoutMs = 15_000,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const id = 1;
     const socket = createConnection(path);
     let buffer = '';
     socket.setEncoding('utf8');
-    socket.setTimeout(15_000, () =>
+    socket.setTimeout(timeoutMs, () =>
       socket.destroy(
         new AgentCliError(
           'NETWORK_ERROR',
@@ -291,10 +329,10 @@ export async function routeToRunner(
   if (context.runner || !routedCommands.has(name))
     return { routed: false as const };
   const config = await loadConfig(context.configPath);
+  const mode = await resolveMode(context, name);
   // Paper commands always execute locally against the paper store; they must
   // never be routed to a live runner (or vice versa).
-  if ((await resolveMode(context, name)) === 'paper')
-    return { routed: false as const };
+  if (mode === 'paper') return { routed: false as const };
   try {
     return {
       routed: true as const,
@@ -305,6 +343,7 @@ export async function routeToRunner(
           __context: {
             configPath: context.configPath ?? join(stateDir(), 'config.json'),
             network: context.network ?? config.network,
+            mode,
           },
         },
         socketPath(),
@@ -318,6 +357,26 @@ export async function routeToRunner(
       !(await runningInfo())
     )
       return { routed: false as const };
+    if (
+      error instanceof AgentCliError &&
+      error.code === 'NETWORK_ERROR' &&
+      ['order', 'cancel', 'modify', 'leverage'].includes(name)
+    ) {
+      const details =
+        error.details && typeof error.details === 'object'
+          ? (error.details as Record<string, unknown>)
+          : {};
+      throw new AgentCliError(
+        'NETWORK_ERROR',
+        error.message,
+        {
+          ...details,
+          outcome: 'unknown',
+          cloid: details.cloid ?? input.cloid ?? null,
+        },
+        false,
+      );
+    }
     throw error;
   }
 }

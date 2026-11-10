@@ -6,6 +6,7 @@ import { atomicWrite, type Config } from '../core/config.js';
 import { hlInfo } from '../core/http.js';
 import { normalizeError } from '../errors/index.js';
 import type { Runner } from './lifecycle.js';
+import { readEvents } from './events.js';
 interface Fill {
   tid: number;
   time: number;
@@ -53,6 +54,9 @@ export class Subscriptions {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
+    for (const tid of await this.journalTids()) this.seen.add(tid);
+    for (const fill of await this.backend.gap(this.lastFill ?? undefined))
+      await this.fill(fill);
     this.backend.onState((state) => {
       const reconnect = this.state !== 'connecting' && state === 'connected';
       this.state = state;
@@ -102,13 +106,17 @@ export class Subscriptions {
       await this.emit('error', normalizeError(error).toJSON());
     });
   }
-  async fill(fill: Fill) {
-    if (this.seen.has(fill.tid)) return;
-    this.seen.add(fill.tid);
-    this.lastFill = Math.max(this.lastFill ?? 0, fill.time);
-    if (this.seen.size > 10000)
-      this.seen.delete(this.seen.values().next().value!);
-    await this.emit('fill', fill);
+  private async journalTids() {
+    try {
+      return (await readEvents(join(this.runner.directory, 'events.jsonl')))
+        .filter((event) => event.type === 'fill')
+        .map((event) => (event.data as { tid?: unknown }).tid)
+        .filter((tid): tid is number => typeof tid === 'number');
+    } catch {
+      return [];
+    }
+  }
+  private async persist() {
     await atomicWrite(
       join(this.runner.directory, 'subscriptions.json'),
       JSON.stringify({
@@ -116,6 +124,21 @@ export class Subscriptions {
         lastFill: this.lastFill,
       }),
     );
+  }
+  async fill(fill: Fill) {
+    if (this.seen.has(fill.tid)) return;
+    if ((await this.journalTids()).includes(fill.tid)) {
+      this.seen.add(fill.tid);
+      this.lastFill = Math.max(this.lastFill ?? 0, fill.time);
+      await this.persist();
+      return;
+    }
+    this.seen.add(fill.tid);
+    this.lastFill = Math.max(this.lastFill ?? 0, fill.time);
+    if (this.seen.size > 10000)
+      this.seen.delete(this.seen.values().next().value!);
+    await this.emit('fill', fill);
+    await this.persist();
   }
   async flush() {
     await this.queue;

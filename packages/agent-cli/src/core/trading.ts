@@ -1,8 +1,9 @@
+import { join } from 'node:path';
 import { parseUsdc, formatUsdc } from '../funding/amounts.js';
 import { decisionAudit } from './audit.js';
 import { assertAgentValid } from '../wallet/expiry.js';
 import { activeRunner } from '../runner/lifecycle.js';
-import { type Config } from './config.js';
+import { stateDir, type Config } from './config.js';
 import {
   createClients,
   type ExchangeAdapter,
@@ -20,6 +21,8 @@ import { evaluateRisk, type RiskIntent } from './risk.js';
 import { Logger } from './logger.js';
 import { PaperStore } from '../paper/store.js';
 import { paperTradingServices } from '../paper/services.js';
+import { paperDir } from './mode.js';
+import { withFileLock } from './lock.js';
 export interface TradingServices {
   exchange: ExchangeAdapter;
   market: (coin: string) => Promise<Market>;
@@ -27,6 +30,8 @@ export interface TradingServices {
   orders: () => Promise<OpenOrder[]>;
   mids: () => Promise<Record<string, string>>;
   dailyLoss?: () => Promise<string>;
+  assetLeverage: (coin: string) => Promise<number>;
+  orderByCloid: (cloid: string) => Promise<unknown | null>;
 }
 export async function tradingServices(
   config: Config,
@@ -53,14 +58,44 @@ export async function tradingServices(
           user: config.masterAddress,
         }),
       ),
+    assetLeverage: (coin) => accountLeverage(config, coin),
+    orderByCloid: (cloid) => lookupOrderByCloid(config, cloid),
   };
 }
-export async function assertCanTrade(config: Config) {
+export function assertApprovedNetwork(config: Config) {
+  if (config.mode === 'paper') return;
+  if (!config.approvedNetwork)
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Agent approval is not bound to a network; run init again on the intended network',
+    );
+  if (config.network !== config.approvedNetwork)
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Network does not match the approved network',
+      { network: config.network, approvedNetwork: config.approvedNetwork },
+    );
+}
+export async function assertCanTrade(
+  config: Config,
+  options: { reduceOnly?: boolean; cancel?: boolean } = {},
+) {
   if (config.mode === 'paper') return; // simulation: no approval, deposit or session gate
   if (config.revoked || !config.approved || !config.masterAddress)
     throw new AgentCliError('AGENT_NOT_APPROVED', 'Agent approval required');
   assertAgentValid(config);
-  await assertDepositsSettled(config.network, config.masterAddress);
+  assertApprovedNetwork(config);
+  if (!options.reduceOnly && !options.cancel)
+    await assertDepositsSettled(config.network, config.masterAddress);
+}
+export function tradeLockPath(config: Config) {
+  const account = (config.masterAddress ?? 'default').toLowerCase();
+  return config.mode === 'paper'
+    ? join(paperDir(), 'locks', `trade-${account}.lock`)
+    : join(stateDir(), 'locks', `trade-${config.network}-${account}.lock`);
+}
+export function withTradeLock<T>(config: Config, operation: () => Promise<T>) {
+  return withFileLock(tradeLockPath(config), operation);
 }
 export function assertLiveMode(config: Config, command: string) {
   if (config.mode === 'paper')
@@ -82,11 +117,13 @@ export async function checkRisk(
   services: TradingServices,
   ignoreOid?: number,
 ) {
-  const [market, state, orders] = await Promise.all([
+  const [market, state, orders, leverage] = await Promise.all([
     services.market(intent.coin),
     services.state(),
     services.orders(),
+    accountLeverageFrom(services, intent.coin),
   ]);
+  intent = { ...intent, leverage };
   const position = state.assetPositions.find(
     (p) => p.position.coin === intent.coin,
   )?.position;
@@ -120,9 +157,30 @@ export async function checkRisk(
     throw error;
   }
 }
+function detailRecord(details: unknown): Record<string, unknown> {
+  return details && typeof details === 'object' && !Array.isArray(details)
+    ? { ...(details as Record<string, unknown>) }
+    : {};
+}
+export function asUnknownMutation(error: unknown, cloid?: string) {
+  const mapped = mapHyperliquidError(error);
+  const details = {
+    ...detailRecord(mapped.details),
+    ...(cloid ? { cloid } : {}),
+  };
+  if (mapped.code !== 'NETWORK_ERROR')
+    return new AgentCliError(mapped.code, mapped.message, details, mapped.retryable);
+  return new AgentCliError(
+    'NETWORK_ERROR',
+    mapped.message,
+    { ...details, outcome: 'unknown' },
+    false,
+  );
+}
 export async function exchangeAction(
   action: string,
   operation: () => Promise<unknown>,
+  cloid?: string,
 ) {
   assertTradeAction(action);
   await decisionAudit({ allowed: true, action });
@@ -138,7 +196,60 @@ export async function exchangeAction(
         throw mapHyperliquidError((status as { error: string }).error);
     return response;
   } catch (error) {
-    throw mapHyperliquidError(error);
+    throw asUnknownMutation(error, cloid);
+  }
+}
+async function accountLeverage(config: Config, coin: string) {
+  if (!config.masterAddress)
+    throw new AgentCliError(
+      'POLICY_REJECTED',
+      'Account leverage unavailable',
+      { limit: 'maxLeverage', coin },
+    );
+  const data = await hlInfo<{ leverage?: { value?: unknown } }>(
+    config.network,
+    'activeAssetData',
+    { user: config.masterAddress, coin },
+  );
+  return requireLeverage(data?.leverage?.value, coin);
+}
+async function lookupOrderByCloid(config: Config, cloid: string) {
+  if (!config.masterAddress)
+    throw new AgentCliError('AGENT_NOT_APPROVED', 'Master address required');
+  const status = await hlInfo<{ status?: string; order?: unknown }>(
+    config.network,
+    'orderStatus',
+    { user: config.masterAddress, oid: cloid },
+  );
+  if (!status || status.status === 'unknownOid') return null;
+  return {
+    status: 'ok',
+    response: { type: 'order', data: { statuses: [status.order ?? status] } },
+  };
+}
+function requireLeverage(value: unknown, coin: string) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1)
+    throw new AgentCliError('POLICY_REJECTED', 'Account leverage unavailable', {
+      limit: 'maxLeverage',
+      coin,
+      actual: value ?? null,
+    });
+  return value;
+}
+async function accountLeverageFrom(services: TradingServices, coin: string) {
+  if (!services.assetLeverage)
+    throw new AgentCliError('POLICY_REJECTED', 'Account leverage unavailable', {
+      limit: 'maxLeverage',
+      coin,
+    });
+  try {
+    return requireLeverage(await services.assetLeverage(coin), coin);
+  } catch (error) {
+    if (error instanceof AgentCliError) throw error;
+    throw new AgentCliError('POLICY_REJECTED', 'Account leverage unavailable', {
+      limit: 'maxLeverage',
+      coin,
+    });
   }
 }
 

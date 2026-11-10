@@ -192,3 +192,26 @@ check use the slash subpaths. Approved Bold/Black face hashes are unchanged. The
 token catalog inside the package remains `tokens.version` `0.1.1`. `bun.lock` and
 `package-lock.json` resolve the registry tarball. The drift checker follows
 `f4c23cc98d7e034062e82deba222bcb2dadbe2a1`.
+
+## Invariant enforcement — 2026-11-10
+
+| Issue | State | Notes |
+| --- | --- | --- |
+| #81 | done | Every order sends a cloid. Uncertain mutation outcomes are `NETWORK_ERROR` with `retryable: false` and `details.outcome: "unknown"`. The same `intentId` or cloid is reconciled before another submit. |
+| #82 | done | `order` and `modify` risk checks use `activeAssetData` leverage (paper: stored leverage) and fail closed when it cannot be read. |
+| #83 | done | Live and paper check-plus-submit run under a per-account file lock. |
+| #84 | done | `--live`/`--paper` win over the saved mode. The runner rejects a caller or saved-config mode that differs from the mode it started in. |
+| #85 | done | `approvedNetwork` is pinned at init. Trading, rotate, revoke, and signing reject a different network, including env and `--network`. |
+| #86 | done | Rotation copies only agent fields onto the current config. `saveConfig` compare-and-swaps on `revision` under `config.json.lock`. |
+| #87 | done | Pending approvals older than 24 hours, and nonce rejections, are regenerated. Outputs include `expiresAt`. |
+| #88 | done | Funding rejects a quote whose origin decimals or base amount differ from the request. |
+| #89 | done | Unstarted deposits expire 15 minutes after `expiresAt`. `deposit --abandon` is terminal. Settlement requires Relay success plus a ledger deposit. Cancel and reduce-only are not blocked. |
+| #90 | done | `deposits.json` updates re-read under a file lock. |
+| #91 | done | Unknown or expired agent strings map to agent codes. Stale nonce text is not retryable. Mapper fixtures cover the catalog. |
+| #92 | done | Startup backfills fills and dedupes by `tid` against the journal, so a crash cannot emit the same fill twice. |
+| #93 | done | Event and audit appends repair a torn tail, quarantine the partial bytes, fsync, and record `journal_repaired`. |
+| #94 | done | Nonce, audit, event, paper, and deposit locks share a helper that takes over dead or reused PIDs. A confirmed live holder returns non-retryable `INTERNAL`. |
+| #95 | done | A ready runner counts only when `runner.ping` returns its token. Dead or expired startup locks are recovered. |
+| #96 | done | Fill audit links compare `resting.oid` and `filled.oid` exactly. |
+
+Fail-closed choices: approval payloads older than 24 hours are regenerated instead of submitted; unfunded quotes expire 15 minutes after `expiresAt`; a lock whose holder is confirmed alive is never stolen; a ready `runner.pid` without a matching socket token is not a running runner.
