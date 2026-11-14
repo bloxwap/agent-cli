@@ -1,5 +1,19 @@
 # @bloxwap/agent-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- Enforce trading, funding, and durability invariants: fail closed on retried orders, effective
+  leverage, serialized risk checks, mode and network pins, rotation merges, fresh approvals, quote
+  decimals, deposit terminals, locked deposits, agent error codes, exactly-once fills, journal
+  repair, stale locks, runner liveness, and exact fill linkage.
+
+### Patch Changes
+
+- Publish file locks atomically so concurrent nonce updates stay unique. Missing locks are retried
+  instead of stolen, and the lock file is linked into place only after its record is complete.
+
 ## 0.3.0
 
 ### Minor Changes
