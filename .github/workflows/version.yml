@@ -7,8 +7,7 @@ on:
         default: false
         description: Open a Changesets PR (requires organization permission)
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 concurrency:
   group: agent-cli-version-main
   cancel-in-progress: false
@@ -16,6 +15,9 @@ jobs:
   version:
     if: github.ref == 'refs/heads/main'
     runs-on: [self-hosted, macOS, ARM64]
+    permissions:
+      contents: write # push the Changesets version commit
+      pull-requests: write # open the Changesets PR
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
