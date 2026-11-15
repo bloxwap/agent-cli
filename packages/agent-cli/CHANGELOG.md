@@ -1,5 +1,13 @@
 # @bloxwap/agent-cli
 
+## 0.4.1
+
+### Patch Changes
+
+- Release-process only: publish from GitHub Actions through npm trusted publishing (OIDC) with provenance,
+  validating the `@bloxwap/agent-cli` trusted publisher for `release.yml` in the `npm-release` environment.
+  No CLI behavior changes.
+
 ## 0.4.0
 
 ### Minor Changes
