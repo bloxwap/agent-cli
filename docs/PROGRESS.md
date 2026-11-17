@@ -1,5 +1,15 @@
 # Implementation progress
 
+## Minimal hosted npm publishing — 2026-11-17
+
+| Issue | State | Notes |
+| --- | --- | --- |
+| #41 follow-up | done | The hosted publish job now only checks out the manifest/publication helpers, sets up Node/npm, downloads the tested npm artifact and publishes with provenance. Ancestry validation runs on the self-hosted build runner; checksums, registry integrity, public npm/Bun smoke tests and GitHub release creation run in a dependent self-hosted job. Publish retains safe identical-artifact retries and the existing token fallback; only the final release job has contents write permission. |
+
+Validation: actionlint, build, lint, typecheck and all 386 tests pass. An offline
+smoke with mocked npm verified that the sparse checkout's three files suffice to
+invoke publication with provenance. No package was published or workflow dispatched.
+
 | Issue | State | Notes |
 | --- | --- | --- |
 | #1 | done | Strict TypeScript ESM scaffold, bundled CLI, Vitest smoke test and CI checks. |

@@ -1,14 +1,15 @@
 # CI runners
 
-Every GitHub Actions job in this repository runs on the self-hosted Apple
-silicon Mac mini fleet. Jobs select that fleet with:
+All GitHub Actions jobs except the minimal npm publish job run on the
+self-hosted Apple silicon Mac mini fleet. Jobs select that fleet with:
 
 ```yaml
 runs-on: [self-hosted, macOS, ARM64]
 ```
 
 The labels are case-sensitive. Register each runner with exactly `self-hosted`,
-`macOS`, and `ARM64`. Do not use GitHub-hosted `ubuntu-*` or `macos-*` images.
+`macOS`, and `ARM64`. Do not use GitHub-hosted `ubuntu-*` or `macos-*` images
+except for the npm publish job described below.
 
 Jobs may stay queued when the fleet is busy. That is expected: the Mac minis are
 the only runners. They run as macOS user `admin` in the enterprise runner group
@@ -21,7 +22,21 @@ group `JWS` is empty, and jobs aimed at it queue forever.
 so only the release `publish` job runs on `ubuntu-24.04`, in the `npm-release`
 environment with `id-token: write`. It publishes the tarball that was tested on
 the minis with `--provenance`, using OIDC trusted publishing (npm 11.6.1) with
-no dependency caches. Bind the npm Trusted Publisher for `@bloxwap/agent-cli` to
+no dependency caches. The hosted job checks out only the package manifest and
+publication scripts, sets up Node/npm, downloads the npm artifact, and publishes
+it. It retains the registry integrity check that makes retrying an already
+published identical tarball safe. It does not install project dependencies or
+Bun, download native binaries, run smoke tests, or create the GitHub release.
+
+Candidate validation and the final ancestry check run in the self-hosted `build`
+job. After npm publishing succeeds, the self-hosted `release` job downloads the
+artifacts, generates checksums, verifies registry integrity and public npm/Bun
+installs, and creates the GitHub release. A failed or skipped publish prevents
+that job from running; a failed verification prevents the GitHub release.
+Only the hosted job has npm credentials/OIDC, and only the final self-hosted job
+has permission to write the GitHub release.
+
+Bind the npm Trusted Publisher for `@bloxwap/agent-cli` to
 `bloxwap/agent-cli`, workflow `release.yml`, environment `npm-release`.
 
 The organization `NPM_TOKEN` stays as a transitional fallback (same as chart,
