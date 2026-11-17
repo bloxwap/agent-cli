@@ -1,6 +1,6 @@
 ---
 name: agent-cli
-description: Operate the agent-cli Hyperliquid trading CLI, including managed-agent onboarding, paper trading against real market data, funding, orders, event monitoring, rotation, and normalized error recovery.
+description: Operate the agent-cli Hyperliquid trading CLI, including bring-your-own-wallet agent onboarding, paper trading against real market data, funding, orders, event monitoring, rotation, and normalized error recovery.
 metadata:
   version: "0.4.1"
 ---
@@ -19,7 +19,7 @@ Use `--network testnet` during testing; never silently change to mainnet.
 Start every strategy in paper mode: `agent-cli --paper ...`, `config set mode
 paper`, or `run --paper`. Paper mode runs against real mainnet Hyperliquid
 public market data (info + WS l2Book/trades/bbo, meta, funding) and never signs
-or submits anything — no Privy session, `approveAgent`, or deposit is needed.
+or submits anything — no agent key, `approveAgent`, or deposit is needed.
 `order`/`cancel`/`modify`/`leverage` keep the same validation, risk limits,
 builder fee and audit trail; a local simulator fills them (book-walking market
 orders, resting limits, reduce-only, TP/SL, fees, funding, margin/liquidation
@@ -31,11 +31,9 @@ continue with live onboarding below and real funding.
 
 ## Onboarding sequence
 
-1. The user owns all settings and chooses their own Privy app or dedicated EOA
-   agent; no wallet or credentials are bundled. For Privy, set `signerType` to
-   `privy` and configure the app ID and `privyAppSecretRef`. For EOA, set
-   `signerType` to `eoa` and configure `eoaKeyRef`, e.g. `env:BLOXWAP_EOA_KEY`
-   or a mode-0600 `file:` path.
+1. The user owns all settings and brings their own dedicated EOA agent key;
+   no wallet or credentials are bundled. Configure `eoaKeyRef`, e.g.
+   `env:BLOXWAP_EOA_KEY` or a mode-0600 `file:` path.
    The user creates the key and sets the secret outside the conversation on their
    own machine or runner. Never accept raw keys in CLI input or use the master EOA
    as the agent. Master-wallet approval always remains in the user's external wallet.
@@ -115,7 +113,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `fund --amount 10 --no-qr` | `{"ok":true,"data":{"depositId":"...","depositAddress":"0x...","expectedReceived":"100000000","builderFeeRate":"0%","builderAddress":"0x71b09A08257078A4d642F7Dd7315e656c837329a","state":"awaiting_funds","qrAscii":null}}` |
 | `deposit --deposit-id ID` | `{"ok":true,"data":{"depositId":"ID","steps":[{"id":"step:0","requiresSignature":true,"payload":{}}]}}` |
 | `deposit --deposit-id ID --step-id step:0 --signature 0x...` | `{"ok":true,"data":{"depositId":"ID","steps":[]}}` |
-| `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"policy":{"id":"...","version":"2"},"runner":{"pid":"123"}}}` |
+| `status` | `{"ok":true,"data":{"balance":{"accountValue":"100"},"agent":{"approved":true,"daysRemaining":"179"},"deposits":[],"runner":{"pid":"123"}}}` |
 | `balance` | `{"ok":true,"data":{"accountValue":"100","accountValueUnits":"10000000000","withdrawable":"96","marginUsed":"4"}}` |
 | `market --coin BTC` | `{"ok":true,"data":{"coin":"BTC","asset":"0","szDecimals":"5","maxLeverage":"40","mid":"20000"}}` |
 | `positions` | `{"ok":true,"data":[{"coin":"BTC","size":"0.001","entryPrice":"20000","leverage":"5","marginMode":"cross"}]}` |
@@ -187,9 +185,8 @@ ask for, paste, log or import a master private key or seed. EOA agent keys are
 accepted only through user-configured local references, never command input.
 The agent is trade-only; local limits include markets, size/notional, leverage,
 daily loss and open orders — in paper mode these limits are enforced exactly the
-same way. Privy sees an L1 action hash, so it cannot independently inspect
-notional/action contents; EOA agents have no remote Privy policy. Hyperliquid
-agent permissions and local checks enforce those boundaries for both signers. State is always `~/.bloxwap`, env prefix `BLOXWAP_`; paper
+same way. There is no remote signing policy: Hyperliquid agent permissions and
+local checks enforce those boundaries. State is always `~/.bloxwap`, env prefix `BLOXWAP_`; paper
 state is `~/.bloxwap/paper/` and is never read by live commands (or vice
 versa). Envelopes and events always state `mode`/`paper`.
 
@@ -200,8 +197,8 @@ Offline skill tests validate the documented command examples against CLI schemas
 Mocked lifecycle tests exercise resumable approvals, pending funding, events
 and failure handling. These checks do **not** prove a live agent or
 exchange run. The nightly testnet lifecycle uses only a company-owned disposable
-CI master account and separate test Privy app, live Privy and Hyperliquid
-approvals/revocation, and explicitly mocked Relay plus mocked Hyperliquid orders
+CI master account with disposable EOA agent keys generated per run, live
+Hyperliquid approvals/revocation, and explicitly mocked Relay plus mocked Hyperliquid orders
 that never reach the exchange. The dedicated master account still needs a positive
 test USDC balance because live approvals require prior test collateral.
 The same harness supports a caller-controlled external wallet approval adapter

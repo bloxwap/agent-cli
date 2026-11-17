@@ -171,7 +171,7 @@ function fixture(overrides = {}) {
     stop,
     rememberAgent: vi.fn(),
     masterAddress: '0xtest',
-    appId: 'test-app',
+    agentKeyRefs: ['env:BLOXWAP_TEST_AGENT_KEY', 'env:BLOXWAP_TEST_NEXT_AGENT_KEY'],
     sign: vi.fn(async (approval) => `${approval.kind}-signature`),
     info: vi.fn(async (type) => {
       if (type === 'clearinghouseState')
@@ -200,6 +200,12 @@ test('offline lifecycle driver verifies agent approval, referral, settlement, re
   expect(
     f.command.mock.calls.find(([name]) => name === 'order')[1],
   ).toMatchObject({ tif: 'Alo' });
+  expect(
+    f.command.mock.calls.find(([name]) => name === 'init')[1],
+  ).toMatchObject({ eoaKeyRef: 'env:BLOXWAP_TEST_AGENT_KEY' });
+  expect(
+    f.command.mock.calls.find(([name]) => name === 'rotate')[1],
+  ).toMatchObject({ eoaKeyRef: 'env:BLOXWAP_TEST_NEXT_AGENT_KEY' });
   expect(f.wait).toHaveBeenCalledWith(1000);
   expect(
     f.checkpoint.mock.calls.filter(([stage]) => stage.status === 'passed'),
@@ -492,8 +498,6 @@ test('credential absence fails the actual entrypoint with a failure artifact and
       'BLOXWAP_TEST_MASTER_KEY',
       'BLOXWAP_TEST_MASTER_ADDRESS',
       'BLOXWAP_TEST_SIGNER',
-      'BLOXWAP_PRIVY_APP_ID',
-      'BLOXWAP_PRIVY_APP_SECRET',
     ])
       delete env[name];
     const result = spawnSync(
@@ -516,15 +520,11 @@ test('credential absence fails the actual entrypoint with a failure artifact and
       error: {
         stage: 'testnet-preflight',
         message:
-          'Missing testnet configuration: BLOXWAP_TEST_MASTER_KEY, BLOXWAP_PRIVY_APP_ID, BLOXWAP_PRIVY_APP_SECRET',
+          'Missing testnet configuration: BLOXWAP_TEST_MASTER_KEY',
       },
       stages: [],
     });
-    expect(report.missingSecrets).toEqual([
-      'BLOXWAP_TEST_MASTER_KEY',
-      'BLOXWAP_PRIVY_APP_ID',
-      'BLOXWAP_PRIVY_APP_SECRET',
-    ]);
+    expect(report.missingSecrets).toEqual(['BLOXWAP_TEST_MASTER_KEY']);
     expect(await readdir(join(cwd, 'artifacts'))).toEqual([
       'lifecycle-report.json',
     ]);

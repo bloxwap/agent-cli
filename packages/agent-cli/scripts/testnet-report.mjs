@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 export const lifecycleStages = Object.freeze([
   'test-account-preflight',
   'configure',
-  'init-agent-and-builder-approvals',
+  'init-agent-approval-and-referral',
   'mock-relay-funding-and-settlement',
   'runner-readiness',
   'events-follow-start',
@@ -32,13 +32,13 @@ const cleanupStatuses = new Set(['not-started', 'failed', 'verified']);
 const services = Object.freeze([
   ['hyperliquid', 'Hyperliquid testnet approvals and account reads'],
   ['orders', 'Hyperliquid orders (mocked)'],
-  ['privy', 'Privy dedicated test app'],
+  ['agent', 'User-provided EOA agent keys'],
   ['relay', 'Relay zero-value mock'],
 ]);
 const serviceEvidence = {
   hyperliquid: 'test-account-preflight',
   orders: 'place-and-reconcile-resting-order',
-  privy: 'init-agent-and-builder-approvals',
+  agent: 'init-agent-approval-and-referral',
   relay: 'mock-relay-funding-and-settlement',
 };
 const resources = ['orders', 'agents', 'positions'];
@@ -49,8 +49,8 @@ export function verifyTestnetReport(report) {
   assert.ok(object(report), 'Lifecycle report must be an object');
   assert.equal(
     report.schemaVersion,
-    2,
-    'Lifecycle report schemaVersion must be 2',
+    3,
+    'Lifecycle report schemaVersion must be 3',
   );
   assert.equal(
     report.network,
@@ -159,7 +159,7 @@ function unprovenSummary() {
   return [
     'Deterministic testnet lifecycle: **unproven**.',
     '',
-    'No valid schemaVersion 2 lifecycle report was available.',
+    'No valid schemaVersion 3 lifecycle report was available.',
     '',
     ...services.map(([, label]) => `- ${label}: **unverified**.`),
     '- Cleanup: **unverified**.',

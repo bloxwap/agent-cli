@@ -13,7 +13,7 @@ export async function testnetLifecycle({
   info,
   sign,
   masterAddress,
-  appId,
+  agentKeyRefs,
   startFollow,
   rememberAgent = () => {},
   checkpoint = () => {},
@@ -187,8 +187,6 @@ export async function testnetLifecycle({
   });
   await stage('configure', async () => {
     for (const [key, value] of [
-      ['privyAppId', appId],
-      ['privyAppSecretRef', 'env:BLOXWAP_PRIVY_APP_SECRET'],
       ['allowedMarkets', '["BTC"]'],
       ['limits.maxNotional', '50'],
       ['limits.maxPositionNotional', '50'],
@@ -197,7 +195,11 @@ export async function testnetLifecycle({
       await command('config', { args: ['set', key, value] });
   });
   await stage('init-agent-approval-and-referral', async () => {
-    const pending = await command('init', { masterAddress, qr: false });
+    const pending = await command('init', {
+      masterAddress,
+      eoaKeyRef: agentKeyRefs[0],
+      qr: false,
+    });
     await remember(pending.agentAddress, pending.approvals.agent);
     assert.equal(pending.approved, false);
     assert.ok(pending.approvals.agent.typedData);
@@ -325,7 +327,10 @@ export async function testnetLifecycle({
     const rotatedAddress = await stage(
       'rotate-and-revoke-old-agent',
       async () => {
-        const pending = await command('rotate', { intentId: intent });
+        const pending = await command('rotate', {
+          eoaKeyRef: agentKeyRefs[1],
+          intentId: intent,
+        });
         await remember(pending.newAgent, pending.approval);
         const swapped = await command('rotate', {
           signature: await sign(pending.approval),

@@ -1,18 +1,18 @@
 # agent-cli
 
 An agent-native Hyperliquid trading CLI with JSON input/output, a persistent
-signing runner, user-owned Privy or EOA agents, Relay funding, a packaged agent skill,
+signing runner, bring-your-own agent wallets, Relay funding, a packaged agent skill,
 and a paper trading mode that runs against real mainnet market data.
 
 Install: `npm i -g @bloxwap/agent-cli` or `bunx @bloxwap/agent-cli --help`.
 The requested Hyperliquid SDK declares Node **22.12+**; use that supported runtime
-or current Bun. No postinstall script. Publishing is release-gated.
+or current Bun. No postinstall script.
 
 ## Paper trading
 
 Paper mode simulates every trade against **real mainnet Hyperliquid public
 market data** (info `l2Book`, WS `l2Book`/`trades`/`bbo`, `meta`, funding) and
-never signs or submits anything. No Privy session, `approveAgent`, or deposit is
+never signs or submits anything. No agent key, `approveAgent`, or deposit is
 needed. Enable it per command with the global `--paper` flag, persistently with
 `config set mode paper`, or for the runner with `run --paper`:
 
@@ -36,24 +36,17 @@ proven. See [docs/paper.md](docs/paper.md).
 
 ## Testnet quickstart
 
-Choose your own signer. Bloxwap ships no wallet, credentials, or shared Privy app.
-For **Privy**, create your own [account and app](https://dashboard.privy.io/) and
-configure its ID and local secret reference. For an **EOA**, create a dedicated
-agent EOA yourself and set its key in your local environment or a mode-0600 file.
-Never use the master EOA as the agent or put any private key in CLI input.
+Bring your own wallet. Bloxwap ships no wallet, credentials, or hosted signer.
+Create a dedicated agent EOA yourself and set its key in your local environment
+or a mode-0600 file. Never use the master EOA as the agent or put any private
+key in CLI input.
 
 ```sh
 npm ci
 npm run build
 node packages/agent-cli/dist/cli.js --help
 
-# Privy option (set BLOXWAP_PRIVY_APP_SECRET locally, outside the conversation):
-node packages/agent-cli/dist/cli.js config set signerType privy
-node packages/agent-cli/dist/cli.js config set privyAppId YOUR_APP_ID
-node packages/agent-cli/dist/cli.js config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
-
-# EOA option instead (set BLOXWAP_EOA_KEY locally, outside the conversation):
-node packages/agent-cli/dist/cli.js config set signerType eoa
+# Set BLOXWAP_EOA_KEY to your agent key locally, outside the conversation:
 node packages/agent-cli/dist/cli.js config set eoaKeyRef env:BLOXWAP_EOA_KEY
 
 node packages/agent-cli/dist/cli.js init --network testnet --master-address 0xYOUR_MASTER_ADDRESS
@@ -67,29 +60,29 @@ node packages/agent-cli/dist/cli.js market --coin BTC
 node packages/agent-cli/dist/cli.js events --follow
 ```
 
-Testnet onboarding requires your selected signer, an externally signed testnet
+Testnet onboarding requires your own agent key, an externally signed testnet
 master approval and testnet collateral. Relay HyperCore testnet routes may be
 unavailable; the e2e suite mocks Relay. Replace every placeholder with your own
-values. Never paste a private key, seed, or app secret into CLI input or a conversation.
+values. Never paste a private key or seed into CLI input or a conversation.
 
 ## Architecture and custody
 
 ```mermaid
 flowchart LR
   Agent[Agent / CLI] -->|private JSON-RPC| Runner[Persistent runner]
-  Runner --> Signer[User-owned Privy or EOA agent]
+  Runner --> Signer[Your EOA agent key]
   Signer -->|EIP-712 signature| HL[Hyperliquid exchange]
   Agent --> Relay[Relay funding quote]
   Master[External master wallet] -->|one-time approvals| HL
   Runner --> Journal[Events / audit / logs]
 ```
 
-You own all settings and signer credentials. Privy manages the agent key in your
-app, or the CLI reads your dedicated EOA agent key through a local secret reference.
+You own all settings and signer credentials. The CLI reads your dedicated EOA
+agent key through a local secret reference and never persists it.
 Your master key always stays in your external wallet. Bloxwap never receives or
 stores these credentials on its infrastructure. Hyperliquid agent permissions
 prevent withdrawals from the master account. Local checks restrict typed data and
-enforce configured risk limits; Privy adds its remote policy for Privy signers.
+enforce configured risk limits.
 Read [custody limits](docs/custody.md) before using a funded account.
 
 State: `~/.bloxwap`; config: `~/.bloxwap/config.json`; IPC:
@@ -103,9 +96,8 @@ require master approval.
 ## Development and docs
 
 `npm run build`, `npm run lint`, `npm run typecheck`, `npm test` must pass before
-committing. Unit tests mock services. `npm run test:sandbox` requires an explicit
-opt-in and credentials for your own test app; missing prerequisites fail before
-any request. `npm run test:e2e` is separately credential-gated. The master-key
+committing. Unit tests mock services. `npm run test:e2e` is credential-gated;
+missing prerequisites fail before any request. The master-key
 testnet harness is CI-only; unit tests never access the network.
 
 The npm workspace keeps the publishable CLI in `packages/agent-cli` and the

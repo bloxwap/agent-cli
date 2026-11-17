@@ -13,7 +13,7 @@ export default function Home() {
         <div className="hero-copy">
           <p className="eyebrow"><span className="status-dot" /> HYPERLIQUID · AGENT CLI</p>
           <h1>Trading tools.<br /><span>For your agent.</span></h1>
-          <p className="hero-description">JSON commands, a persistent signing runner, Privy managed agents, and Relay funding. Keep master custody in your wallet and give your agent the tools to trade.</p>
+          <p className="hero-description">JSON commands, a persistent signing runner, bring-your-own agent wallets, and Relay funding. Keep master custody in your wallet and give your agent the tools to trade.</p>
           <div className="hero-actions"><Link href="/docs/quickstart" className="hig-button" data-intent="primary">Get started <ArrowRight aria-hidden="true" /></Link><Link href="/docs/commands" className="hig-button" data-intent="secondary">Command reference <ArrowRight aria-hidden="true" /></Link></div>
           <InstallCommand />
         </div>
@@ -21,7 +21,7 @@ export default function Home() {
       </section>
       <section className="principles" aria-label="CLI features">
         <div><span className="feature-number">01</span><h2>JSON in. JSON out.</h2><p>Discover input and output schemas for every command. Handle stable error codes and exact decimal strings.</p></div>
-        <div><span className="feature-number">02</span><h2>External master custody.</h2><p>A separate managed agent signs trades. Master approvals and funding signatures stay in the user's wallet.</p></div>
+        <div><span className="feature-number">02</span><h2>External master custody.</h2><p>A separate agent key you own signs trades. Master approvals and funding signatures stay in the user's wallet.</p></div>
         <div><span className="feature-number">03</span><h2>Track every intent.</h2><p>Replay events and inspect a hash-chained audit connecting intent, decisions, signature digests, and fills.</p></div>
       </section>
       <section className="start-grid">

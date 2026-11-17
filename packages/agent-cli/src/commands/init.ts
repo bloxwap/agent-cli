@@ -10,9 +10,7 @@ import {
   stateDir,
   readStoredConfig,
 } from '../core/config.js';
-import { privyClient, createAgent } from '../wallet/privy.js';
 import { prepareEoaAgent } from '../wallet/eoa.js';
-import { applyPolicy } from '../wallet/policy.js';
 import {
   newApproval,
   submitApproval,
@@ -26,13 +24,12 @@ import { hlInfo } from '../core/http.js';
 import { ensureReferral } from '../core/referral.js';
 import { assertLiveMode } from '../core/trading.js';
 register('init', {
-  description: 'Create agent and emit resumable master-wallet approvals',
+  description: 'Register your own agent key and emit resumable master-wallet approvals',
   schema: z.object({
     masterAddress: z
       .string()
       .regex(/^0x[0-9a-fA-F]{40}$/)
       .optional(),
-    signerType: z.enum(['privy', 'eoa']).optional(),
     eoaKeyRef: z
       .string()
       .regex(/^env:[A-Z_][A-Z0-9_]*$|^file:.+/)
@@ -47,14 +44,6 @@ register('init', {
     const config = await loadConfig(context.configPath);
     if (context.paper !== undefined) config.mode = context.paper ? 'paper' : 'live';
     assertLiveMode(config, 'init');
-    const signerType =
-      (input.signerType as 'privy' | 'eoa' | undefined) ?? config.signerType;
-    if (config.agentAddress && signerType !== config.signerType)
-      throw new AgentCliError(
-        'CONFIG_INVALID',
-        'Initialized signer type differs; use a separate config for another agent',
-      );
-    config.signerType = signerType;
     const stored = await readStoredConfig(context.configPath);
     const requested = context.network ?? config.network;
     if (stored?.approvedNetwork && requested !== stored.approvedNetwork)
@@ -105,22 +94,14 @@ register('init', {
         'Expiry must be within 180 days',
       );
     config.agentExpiry = expiry;
-    let policyId: string | undefined;
-    if (signerType === 'eoa') {
-      await prepareEoaAgent(
-        config,
-        context.configPath,
-        input.eoaKeyRef as string | undefined,
-      );
-    } else {
-      const client = await privyClient(config);
-      policyId = await applyPolicy(config, client, context.configPath);
-      await createAgent(config, client, context.configPath, policyId);
-    }
+    await prepareEoaAgent(
+      config,
+      context.configPath,
+      input.eoaKeyRef as string | undefined,
+    );
     if (config.approved && !config.revoked)
       return {
         ...config,
-        policyId: config.policyId ?? null,
         expiry: config.agentExpiry,
         ...(await ensureReferral(config)),
       };
@@ -236,9 +217,7 @@ register('init', {
     return {
       masterAddress: config.masterAddress,
       agentAddress: config.agentAddress,
-      signerType,
       expiry,
-      policyId: policyId ?? null,
       approved: config.approved,
       ...(config.approved
         ? await ensureReferral(config)

@@ -68,9 +68,7 @@ export const outputSchemas: Record<string, unknown> = {
     {
       masterAddress: string,
       agentAddress: string,
-      signerType: { enum: ['privy', 'eoa'] },
       expiry: { type: 'number' },
-      policyId: { type: ['string', 'null'] },
       approved: boolean,
       referralCode: string,
       referralApplied: boolean,
@@ -82,9 +80,7 @@ export const outputSchemas: Record<string, unknown> = {
     [
       'masterAddress',
       'agentAddress',
-      'signerType',
       'expiry',
-      'policyId',
       'approved',
     ],
   ),
@@ -149,7 +145,6 @@ export const outputSchemas: Record<string, unknown> = {
         daysRemaining: { type: ['string', 'null'] },
         warnings: array(string),
       }),
-      policy: object({ id: { type: ['string', 'null'] }, version: string }),
       deposits: array(
         object({
           id: string,
@@ -173,7 +168,6 @@ export const outputSchemas: Record<string, unknown> = {
       'balance',
       'positions',
       'agent',
-      'policy',
       'deposits',
       'approvedMaxBuilderFee',
       'runner',

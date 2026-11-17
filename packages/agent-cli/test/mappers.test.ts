@@ -1,15 +1,14 @@
 import { expect, test } from 'vitest';
 import {
   mapHyperliquidError,
-  mapPrivyError,
   mapRelayError,
   mapNetworkError,
 } from '../src/errors/mappers.js';
 import { AgentCliError, errorDefaults, type ErrorCode } from '../src/errors/index.js';
 
-const upstream: [string, ErrorCode, boolean, 'hyperliquid' | 'privy' | 'relay'][] = [
+const upstream: [string, ErrorCode, boolean, 'hyperliquid' | 'relay'][] = [
   ['Insufficient margin to place order.', 'INSUFFICIENT_MARGIN', false, 'hyperliquid'],
-  ['Policy denied this request', 'POLICY_REJECTED', false, 'privy'],
+  ['Policy denied this request', 'POLICY_REJECTED', false, 'hyperliquid'],
   ['Agent expired', 'AGENT_EXPIRED', false, 'hyperliquid'],
   [
     'User or API Wallet 0xabc does not exist.',
@@ -28,11 +27,9 @@ const upstream: [string, ErrorCode, boolean, 'hyperliquid' | 'privy' | 'relay'][
 
 test.each(upstream)('maps %s to %s', (message, code, retryable, service) => {
   const mapped =
-    service === 'privy'
-      ? mapPrivyError(message)
-      : service === 'relay'
-        ? mapRelayError(message)
-        : mapHyperliquidError(message);
+    service === 'relay'
+      ? mapRelayError(message)
+      : mapHyperliquidError(message);
   expect(mapped.toJSON()).toMatchObject({ code, retryable });
 });
 
@@ -58,7 +55,7 @@ test('every catalog code has a fixture', () => {
 });
 
 test('policy, relay unknown and network flags redact details', () => {
-  expect(mapPrivyError('Policy denied').code).toBe('POLICY_REJECTED');
+  expect(mapHyperliquidError('Policy denied').code).toBe('POLICY_REJECTED');
   expect(
     mapRelayError({ message: 'unexpected', token: 'secret' }).toJSON(),
   ).toMatchObject({

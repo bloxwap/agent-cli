@@ -74,7 +74,7 @@ test('test preload blocks mainnet, mocks Relay and Hyperliquid orders, and passe
     })).json()).toMatchObject([{ oid: 1, coin: 'BTC', limitPx: '7174.9' }]);
 
     await fetch('https://api.hyperliquid-testnet.xyz/info');
-    await fetch(new Request('https://api.privy.io/v1/wallets'));
+    await fetch(new Request('https://example.invalid/v1/other'));
     await fetch('https://api.hyperliquid-testnet.xyz/exchange', {
       method: 'POST',
       body: JSON.stringify({
@@ -86,7 +86,7 @@ test('test preload blocks mainnet, mocks Relay and Hyperliquid orders, and passe
     expect(upstream).toHaveBeenCalledTimes(3);
     expect(upstream.mock.calls.map(([url]) => String(url instanceof Request ? url.url : url))).toEqual([
       'https://api.hyperliquid-testnet.xyz/info',
-      'https://api.privy.io/v1/wallets',
+      'https://example.invalid/v1/other',
       'https://api.hyperliquid-testnet.xyz/exchange',
     ]);
   } finally {

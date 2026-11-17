@@ -10,6 +10,7 @@ import {
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { generatePrivateKey } from 'viem/accounts';
 import { testnetLifecycle } from './testnet-lifecycle.mjs';
 import {
   requireTestnetEnvironment,
@@ -17,6 +18,7 @@ import {
   missingTestnetConfiguration,
   createTestnetSigner,
   createTestnetRevocation,
+  testnetAgentKeyNames,
 } from './testnet-signers.mjs';
 import { verifyTestnetReport } from './testnet-report.mjs';
 import { startEventFollower } from './testnet-follower.mjs';
@@ -46,7 +48,7 @@ const artifactName = (name) =>
 for (const name of readdirSync(artifacts).filter(artifactName))
   unlinkSync(join(artifacts, name));
 const report = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   status: 'failed',
   network: 'testnet',
   accountOwnership:
@@ -60,7 +62,10 @@ const report = {
       mode: 'mocked placement, modification, cancellation and order websocket; exchange order endpoints blocked',
       verified: false,
     },
-    privy: { mode: 'live dedicated test app', verified: false },
+    agent: {
+      mode: 'disposable EOA agent keys generated for this run',
+      verified: false,
+    },
     relay: {
       mode: 'mocked zero-value route; no token transfer',
       verified: false,
@@ -84,6 +89,11 @@ let follower;
 let runnerPid;
 let nonce = 0;
 const agents = new Map();
+// Bring-your-own agent keys: the harness plays the user and supplies two
+// disposable EOA keys (initial and rotated) by environment reference only.
+const agentKeys = Object.fromEntries(
+  testnetAgentKeyNames.map((name) => [name, generatePrivateKey()]),
+);
 function command(name, input = {}) {
   const result = spawnSync(
     process.execPath,
@@ -150,11 +160,12 @@ async function revoke({ name }) {
 function safeArtifact(name, content) {
   // Only explicit journals/report are exported, never configs, approvals, keys,
   // or raw SDK errors. Reject the entire artifact if a known secret appears.
-  for (const secretName of requiredTestnetSecrets) {
-    const secret = process.env[secretName];
+  for (const secret of [
+    ...requiredTestnetSecrets.map((name) => process.env[name]),
+    ...Object.values(agentKeys),
+  ])
     if (secret && content.includes(secret))
       throw new Error('Secret detected in test artifact');
-  }
   if (/-----BEGIN [^-]*PRIVATE KEY-----/.test(content))
     throw new Error('Private key detected in test artifact');
   writeFileSync(join(artifacts, name), content, { mode: 0o600 });
@@ -179,6 +190,7 @@ try {
   ownedState = true;
   childEnv = {
     ...process.env,
+    ...agentKeys,
     BLOXWAP_MASTER_ADDRESS: signer.address,
     BLOXWAP_NETWORK: 'testnet',
     [mockOrdersEnv]: '1',
@@ -194,7 +206,7 @@ try {
       return signer.sign(approval);
     },
     masterAddress: signer.address,
-    appId: process.env.BLOXWAP_PRIVY_APP_ID,
+    agentKeyRefs: testnetAgentKeyNames.map((name) => `env:${name}`),
     rememberAgent: (agent) => {
       agents.set(agent.address.toLowerCase(), agent);
     },
@@ -205,8 +217,8 @@ try {
           report.coverage.hyperliquid.verified = true;
         if (stage.name === 'place-and-reconcile-resting-order')
           report.coverage.orders.verified = true;
-        if (stage.name === 'init-agent-and-builder-approvals')
-          report.coverage.privy.verified = true;
+        if (stage.name === 'init-agent-approval-and-referral')
+          report.coverage.agent.verified = true;
         if (stage.name === 'mock-relay-funding-and-settlement')
           report.coverage.relay.verified = true;
       }

@@ -22,7 +22,6 @@ export const configSchema = z
       .default({ startingBalance: 10_000 }),
     agentName: z.string().max(16).default('bloxwap'),
     referralCode: z.string().min(1).max(20).default('BLOXWAP'),
-    signerType: z.enum(['privy', 'eoa']).default('privy'),
     eoaKeyRef: z
       .string()
       .regex(/^env:[A-Z_][A-Z0-9_]*$|^file:.+/)
@@ -30,18 +29,6 @@ export const configSchema = z
     masterAddress: address.optional(),
     agentAddress: address.optional(),
     agentExpiry: z.number().int().positive().optional(),
-    privyAppId: z.string().optional(),
-    privyWalletId: z.string().optional(),
-    policyId: z.string().optional(),
-    policyVersion: z.number().int().optional(),
-    authorizationKeyRef: z
-      .string()
-      .regex(/^env:[A-Z_][A-Z0-9_]*$|^file:.+/)
-      .optional(),
-    privyAppSecretRef: z
-      .string()
-      .regex(/^env:[A-Z_][A-Z0-9_]*$/)
-      .optional(),
     revoked: z.boolean().default(false),
     approved: z.boolean().default(false),
     limits: z
@@ -79,9 +66,24 @@ export async function atomicWrite(path: string, data: string) {
   await rename(temporary, path);
   await chmod(path, 0o600);
 }
+// Managed Privy signing was removed: agents are user-provided EOA keys. Configs
+// written by earlier releases still load; an agent they approved keeps its
+// address so it can be rotated to an EOA key or revoked.
+const removedKeys = [
+  'signerType',
+  'privyAppId',
+  'privyWalletId',
+  'privyAppSecretRef',
+  'authorizationKeyRef',
+  'policyId',
+  'policyVersion',
+];
 export function migrate(raw: unknown): Config {
-  if (raw && typeof raw === 'object' && !('version' in raw))
-    raw = { ...raw, version: 1 };
+  if (raw && typeof raw === 'object') {
+    const next: Record<string, unknown> = { version: 1, ...raw };
+    for (const key of removedKeys) delete next[key];
+    raw = next;
+  }
   const result = configSchema.safeParse(raw);
   if (!result.success)
     throw new AgentCliError(
@@ -110,9 +112,7 @@ export async function loadConfig(
     BLOXWAP_NETWORK: 'network',
     BLOXWAP_MODE: 'mode',
     BLOXWAP_LOG_LEVEL: 'logLevel',
-    BLOXWAP_PRIVY_APP_ID: 'privyAppId',
     BLOXWAP_MASTER_ADDRESS: 'masterAddress',
-    BLOXWAP_SIGNER_TYPE: 'signerType',
   })) {
     if (env[name]) Object.assign(config, { [key]: env[name] });
   }
@@ -154,8 +154,6 @@ export async function saveConfig(
 }
 export function copyAgentFields(target: Config, source: Config) {
   target.agentAddress = source.agentAddress;
-  target.privyWalletId = source.privyWalletId;
-  target.authorizationKeyRef = source.authorizationKeyRef;
   target.eoaKeyRef = source.eoaKeyRef;
   target.agentExpiry = source.agentExpiry;
   target.agentName = source.agentName;

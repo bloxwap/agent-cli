@@ -15,7 +15,6 @@
     "test:e2e": "bun run --cwd packages/agent-cli test:e2e",
     "test:package": "bun run --cwd packages/agent-cli test:package",
     "build:binaries": "bun run --cwd packages/agent-cli build:binaries",
-    "test:sandbox": "bun run --cwd packages/agent-cli test:sandbox",
     "changeset": "changeset",
     "version:packages": "changeset version && bun run --cwd packages/agent-cli skill:sync-version && bun run --cwd packages/agent-cli skill:generate && node packages/agent-cli/scripts/sync-lock-version.mjs && bun install --lockfile-only",
     "version:candidate": "bun run version:packages && bun run docs:generate && bun run lint && bun run typecheck && bun run test && bun run docs:check",

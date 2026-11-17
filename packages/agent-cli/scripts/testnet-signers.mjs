@@ -13,11 +13,13 @@ import {
   buildApproveBuilderFee,
 } from '@bloxwap/hyperliquid/api/exchange/approveBuilderFee';
 
-// Retain this ordering for legacy preflight reports and known-secret scanning.
-export const requiredTestnetSecrets = [
-  'BLOXWAP_TEST_MASTER_KEY',
-  'BLOXWAP_PRIVY_APP_ID',
-  'BLOXWAP_PRIVY_APP_SECRET',
+// The only stored credential. Agent keys are generated per run by the harness.
+export const requiredTestnetSecrets = ['BLOXWAP_TEST_MASTER_KEY'];
+// Disposable EOA agent keys the harness generates for the initial and rotated
+// agent. The CLI reads them through env: references; they are never persisted.
+export const testnetAgentKeyNames = [
+  'BLOXWAP_TEST_AGENT_KEY',
+  'BLOXWAP_TEST_NEXT_AGENT_KEY',
 ];
 const externalNames = ['BLOXWAP_TEST_MASTER_ADDRESS', 'BLOXWAP_TEST_SIGNER'];
 const zeroAddress = '0x' + '0'.repeat(40);
@@ -36,7 +38,7 @@ function externalMode(env) {
 }
 export function requiredTestnetEnvironmentNames(env = process.env) {
   return externalMode(env)
-    ? [...externalNames, 'BLOXWAP_PRIVY_APP_ID', 'BLOXWAP_PRIVY_APP_SECRET']
+    ? [...externalNames]
     : [...requiredTestnetSecrets];
 }
 export function missingTestnetConfiguration(env = process.env) {
@@ -199,10 +201,11 @@ export function createTestnetRevocation(name, nonce) {
 }
 
 function externalSignature(executable, request, env, options) {
-  // The external wallet needs the public approval, not the QA Privy credentials
-  // or the separate CI master-key mode. No shell or command-line payload is used.
+  // The external wallet needs the public approval, not the CI master key or the
+  // run's disposable agent keys. No shell or command-line payload is used.
   const signerEnv = { ...env };
-  for (const name of requiredTestnetSecrets) delete signerEnv[name];
+  for (const name of [...requiredTestnetSecrets, ...testnetAgentKeyNames])
+    delete signerEnv[name];
   return new Promise((resolve, reject) => {
     const child = execFile(
       executable,

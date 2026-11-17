@@ -20,7 +20,6 @@ async function fixture() {
   const key = generatePrivateKey();
   vi.stubEnv('BLOXWAP_TEST_EOA', key);
   const config = migrate({
-    signerType: 'eoa',
     eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
     masterAddress: master.address,
   });
@@ -31,12 +30,9 @@ test('EOA onboarding derives only the public agent and persists a secret referen
   const { config, key, path } = await fixture();
   const account = await prepareEoaAgent(config, path);
   expect(config).toMatchObject({
-    signerType: 'eoa',
     agentAddress: account.address,
     eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
   });
-  expect(config.policyId).toBeUndefined();
-  expect(config.privyWalletId).toBeUndefined();
   expect(await readFile(path, 'utf8')).not.toContain(key);
 });
 
@@ -78,8 +74,7 @@ test('EOA signer rejects master keys and silently replaced agent keys', async ()
   await expect(
     prepareEoaAgent(
       migrate({
-        signerType: 'eoa',
-        eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
+            eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
         masterAddress: privateKeyToAccount(
           process.env.BLOXWAP_TEST_EOA as `0x${string}`,
         ).address,

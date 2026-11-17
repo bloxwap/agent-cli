@@ -8,26 +8,28 @@ required configuration is absent. Offline
 fixtures, skipped tests and runs that stop before the lifecycle do not establish
 live coverage.
 
-Every production user brings their own external master wallet and Privy app.
-Bloxwap receives neither their keys nor their app credentials. The test harness
+Every production user brings their own external master wallet and EOA agent key.
+Bloxwap receives neither. The test harness
 supports an external wallet on a caller-controlled QA runner and a separate
 CI-only signer for a disposable company test account. Neither mode imports a
 production wallet into the CLI.
 
 ## External wallet on your QA runner
 
-Create a dedicated test Privy app and choose a disposable testnet wallet that you
-control. Set these variables locally through your secret manager or environment;
+Choose a disposable testnet wallet that you control. Set these variables locally through your secret manager or environment;
 never put secrets in a conversation, issue, source file or command argument:
 
 | Variable | Purpose |
 | --- | --- |
 | `BLOXWAP_TEST_MASTER_ADDRESS` | Public address of your test wallet |
 | `BLOXWAP_TEST_SIGNER` | Absolute path to your executable wallet approval adapter, without arguments |
-| `BLOXWAP_PRIVY_APP_ID` | Your dedicated test Privy app ID |
-| `BLOXWAP_PRIVY_APP_SECRET` | Your dedicated test Privy app secret |
 | `BLOXWAP_E2E` | Explicitly set to `1` |
 | `BLOXWAP_TEST_ACCOUNT_ONLY` | Explicitly set to `1` to acknowledge a disposable test account |
+
+The harness plays the user's side of bring-your-own-wallet: it generates two
+disposable EOA agent keys per run (initial and rotated) and hands them to the
+CLI only as `env:BLOXWAP_TEST_AGENT_KEY` / `env:BLOXWAP_TEST_NEXT_AGENT_KEY`
+references. They are never written to disk or artifacts.
 
 Do not set `BLOXWAP_TEST_MASTER_KEY` in this mode. The external wallet retains its
 private key; the harness receives only signatures. From the repository root:
@@ -54,7 +56,7 @@ on stdin (EOF ends the request):
 It must return exactly `{"signature":"0x...65-byte signature..."}` on stdout.
 Connect it to your wallet's signing/approval mechanism; this protocol is not a
 wallet implementation. It has a 60-second timeout and a 16 KiB output limit.
-Privy credentials and the CI master-key variable are removed from its environment.
+The agent keys and the CI master-key variable are removed from its environment.
 
 Before invoking the adapter, the harness verifies the exact Hyperliquid approval
 domain/types, testnet network and correspondence between action and typed data.
@@ -65,20 +67,18 @@ name/expiry and builder fee before approving.
 
 ## Nightly CI configuration
 
-Set these secret names in the repository's `testnet` environment, using a separate
-disposable company test wallet and company QA Privy app:
+Set this secret in the repository's `testnet` environment, using a separate
+disposable company test wallet:
 
 | Secret | Purpose |
 | --- | --- |
 | `AGENT_CLI_TEST_MASTER_KEY` | CI-only signer for the disposable testnet account |
-| `AGENT_CLI_PRIVY_APP_ID` | Dedicated test Privy app ID |
-| `AGENT_CLI_PRIVY_APP_SECRET` | Dedicated test Privy app secret |
 
-The workflow maps those GitHub secrets onto `BLOXWAP_TEST_MASTER_KEY`,
-`BLOXWAP_PRIVY_APP_ID` and `BLOXWAP_PRIVY_APP_SECRET` for the harness. This mode
+The workflow maps that GitHub secret onto `BLOXWAP_TEST_MASTER_KEY` for the
+harness. This mode
 requires `CI=true` or `CI=1`, both explicit test flags, and no external
 signer variables. Its key is removed from CLI child process environments. It is
-not a production CLI key-import feature. Missing secrets fail the nightly job.
+not a production CLI key-import feature. A missing secret fails the nightly job.
 
 ## Account preparation and coverage
 
@@ -90,7 +90,7 @@ positive balance satisfies the preflight; no real funds are needed. Use a clean
 OS account or container: the harness refuses existing `~/.bloxwap` state, and
 never changes the CLI's state location. Do not use a mainnet account.
 
-Privy and Hyperliquid agent approvals/revocation stay live, as do account info
+Hyperliquid agent approvals/revocation stay live, as do account info
 reads (balances, positions, open orders, extra agents) and non-order WebSocket
 subscriptions. Order placement, modification and cancellation — including the
 order-book info and order-update WebSocket responses those stages reconcile
@@ -101,7 +101,7 @@ quote has zero expected output and no token transfer or bridge execution is
 claimed. The preload blocks mainnet Hyperliquid and Relay HTTP endpoints and
 fails loudly if a Hyperliquid order request escapes to the live exchange.
 
-Fifteen stages verify both init approvals, funding QR/settlement, runner signing
+Fifteen stages verify the init agent approval and referral, funding QR/settlement, runner signing
 and readiness, mocked resting post-only orders, exact prices after modification,
 cancellation, correlated open/canceled WebSocket events, cursor replay, signer
 rotation and old-agent revocation, a mocked order/cancel with the new signer,
@@ -121,7 +121,7 @@ shutdown timeout fails the report.
 
 ## Evidence
 
-Schema 2 `lifecycle-report.json` records the commit/run, stage outcomes, observed
+Schema 3 `lifecycle-report.json` records the commit/run, stage outcomes, observed
 service coverage and cleanup counts. Reports are saved at stage checkpoints.
 A pass requires all fifteen stages and verified cleanup. CI summaries validate
 the report and never infer live coverage from missing or failed prerequisites.

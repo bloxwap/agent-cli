@@ -3,8 +3,8 @@
 Paper mode lets an agent run its full strategy against **real mainnet
 Hyperliquid public market data** — info `l2Book`, WS `l2Book`/`trades`/`bbo`,
 `meta` and funding — and shows exactly which trades it would make, with no
-funding and no real money. It never signs or submits anything: no Privy
-session, no `approveAgent`, no deposit. Going live afterwards is a separate,
+funding and no real money. It never signs or submits anything: no agent
+key, no `approveAgent`, no deposit. Going live afterwards is a separate,
 explicit action.
 
 ## Enabling and labeling

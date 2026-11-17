@@ -11,7 +11,7 @@ import {
 } from '../scripts/testnet-report.mjs';
 
 const complete = () => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
   status: 'passed',
   network: 'testnet',
   coverage: {
@@ -23,7 +23,10 @@ const complete = () => ({
       mode: 'mocked placement, modification, cancellation and order websocket; exchange order endpoints blocked',
       verified: true,
     },
-    privy: { mode: 'live dedicated test app', verified: true },
+    agent: {
+      mode: 'disposable EOA agent keys generated for this run',
+      verified: true,
+    },
     relay: {
       mode: 'mocked zero-value route; no token transfer',
       verified: true,
@@ -44,7 +47,7 @@ const failed = () => ({
   coverage: {
     hyperliquid: { verified: false },
     orders: { verified: false },
-    privy: { verified: false },
+    agent: { verified: false },
     relay: { verified: false },
   },
   cleanup: { status: 'not-started' },
@@ -94,7 +97,7 @@ test('a passed report cannot leave a stage running', () => {
   expect(() => verifyTestnetReport(report)).toThrow('incomplete stage');
 });
 
-test.each(['hyperliquid', 'orders', 'privy', 'relay'])(
+test.each(['hyperliquid', 'orders', 'agent', 'relay'])(
   'a passed report requires verified %s coverage',
   (name) => {
     for (const value of [false, undefined, 'true', 1]) {
@@ -134,7 +137,7 @@ test('a failed preflight remains a valid failed report with explicitly unverifie
     'Hyperliquid testnet approvals and account reads: **unverified**',
   );
   expect(summary).toContain('Hyperliquid orders (mocked): **unverified**');
-  expect(summary).toContain('Privy dedicated test app: **unverified**');
+  expect(summary).toContain('User-provided EOA agent keys: **unverified**');
   expect(summary).toContain('Relay zero-value mock: **unverified**');
   expect(summary).toContain('Cleanup: **not-started (unverified)**');
   expect(summary).not.toMatch(/\| .* \| passed \|/);
@@ -153,7 +156,7 @@ test('a failed report preserves partial verified coverage and failed stage outco
     'Hyperliquid testnet approvals and account reads: **verified**',
   );
   expect(summary).toContain('Hyperliquid orders (mocked): **unverified**');
-  expect(summary).toContain('Privy dedicated test app: **unverified**');
+  expect(summary).toContain('User-provided EOA agent keys: **unverified**');
   expect(summary).toContain(`| ${lifecycleStages[0]} | passed |`);
   expect(summary).toContain(`| ${lifecycleStages[1]} | failed |`);
 });
@@ -172,7 +175,7 @@ test('failed cleanup can record unreadable resource counts as null without claim
   );
 });
 
-test.each(['hyperliquid', 'orders', 'privy', 'relay'])(
+test.each(['hyperliquid', 'orders', 'agent', 'relay'])(
   'failed reports cannot claim verified %s without evidence',
   (service) => {
     const report = failed();
@@ -188,7 +191,7 @@ test('invalid metadata never produces a passed summary', () => {
     null,
     [],
     {},
-    { ...complete(), schemaVersion: 1 },
+    { ...complete(), schemaVersion: 2 },
     { ...complete(), network: 'mainnet' },
     { ...complete(), status: 'secret-raw-error' },
     { ...complete(), stages: {} },
