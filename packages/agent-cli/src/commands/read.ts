@@ -1,10 +1,8 @@
 import { collateralBalance } from '../core/account.js';
 import { runnerHealth } from '../runner/health.js';
-import { events } from '../runner/events.js';
-import { activeRunner } from '../runner/lifecycle.js';
 import { z } from 'zod';
 import { register, type Context } from '../core/router.js';
-import { loadConfig, type Config } from '../core/config.js';
+import { loadConfig, setConfigOverrides, type Config } from '../core/config.js';
 import { hlInfo } from '../core/http.js';
 import { pollDeposits } from '../funding/status.js';
 import { parseUsdc } from '../funding/amounts.js';
@@ -52,9 +50,9 @@ export interface OpenOrder {
 export function accountBalance(state: AccountState) {
   return {
     accountValue: state.marginSummary.accountValue,
-    accountValueUnits: parseUsdc(
-      state.marginSummary.accountValue,
-      8,
+    accountValueUnits: (
+      parseUsdc(state.marginSummary.accountValue, 18) /
+      10n ** 10n
     ).toString(),
     withdrawable: state.withdrawable,
     marginUsed: state.marginSummary.totalMarginUsed,
@@ -87,8 +85,8 @@ export function expiryStatus(config: Config, now = Date.now()) {
             .map((threshold) => `Agent expires within ${threshold} days`),
   };
 }
-export async function paperRead(name: string) {
-  const store = new PaperStore();
+export async function paperRead(name: string, startingBalance = 10_000) {
+  const store = new PaperStore(undefined, startingBalance);
   const data = paperData();
   const [state, marks] = await Promise.all([store.load(), data.marks()]);
   const resolved = new Map<string, number>();
@@ -117,7 +115,8 @@ export async function paperRead(name: string) {
   };
 }
 export async function readCommand(name: string, config: Config) {
-  if (config.mode === 'paper') return paperRead(name);
+  if (config.mode === 'paper')
+    return paperRead(name, config.paper.startingBalance);
   if (!config.masterAddress)
     throw new AgentCliError('AGENT_NOT_APPROVED', 'Initialize master address');
   try {
@@ -151,16 +150,6 @@ export async function readCommand(name: string, config: Config) {
         config.network,
         config.masterAddress,
         collateralBalance(state),
-        {
-          emit: activeRunner
-            ? async (deposit) => {
-                await events.append('deposit', {
-                  id: deposit.id,
-                  state: deposit.state,
-                });
-              }
-            : undefined,
-        },
       ),
       config.builder.fee > 0 && config.builder.address
         ? hlInfo<number>(config.network, 'maxBuilderFee', {
@@ -191,13 +180,28 @@ export async function readCommand(name: string, config: Config) {
 export async function commandConfig(context: Context) {
   const config = await loadConfig(context.configPath);
   if (context.network) config.network = context.network;
-  if (context.paper !== undefined) config.mode = context.paper ? 'paper' : 'live';
+  if (context.paper !== undefined)
+    config.mode = context.paper ? 'paper' : 'live';
+  setConfigOverrides(config, {
+    network: context.network,
+    mode: context.paper === undefined ? undefined : config.mode,
+  });
   return config;
 }
 for (const name of ['status', 'balance', 'positions', 'orders'])
   register(name, {
     description: `Read account ${name}`,
-    schema: z.object({}),
-    execute: async (_input, context) =>
-      readCommand(name, await commandConfig(context)),
+    schema: z.object({
+      offset: z.number().int().nonnegative().default(0),
+      limit: z.number().int().min(1).max(1000).default(200),
+    }),
+    execute: async (input, context) => {
+      const result = await readCommand(name, await commandConfig(context));
+      return Array.isArray(result)
+        ? result.slice(
+            input.offset as number,
+            (input.offset as number) + (input.limit as number),
+          )
+        : result;
+    },
   });

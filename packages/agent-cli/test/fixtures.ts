@@ -1,3 +1,4 @@
+import type { RelayQuote } from '../src/funding/relay.js';
 import { vi } from 'vitest';
 import type { TradingServices } from '../src/core/trading.js';
 import type { AccountState } from '../src/commands/read.js';
@@ -44,7 +45,7 @@ export function mockTrading(): TradingServices {
     },
   };
 }
-export const quoteFixture = {
+export const quoteFixture: RelayQuote = {
   steps: [
     {
       id: 'deposit',
@@ -60,10 +61,19 @@ export const quoteFixture = {
     relayerService: { amount: '30' },
   },
   details: {
-    currencyOut: { amount: '100000000', currency: { decimals: 8 } },
+    recipient: '0x' + 'a'.repeat(40),
+    currencyOut: {
+      amount: '100000000',
+      currency: { decimals: 8, chainId: 1337, address: '0x' + '0'.repeat(32) },
+    },
     currencyIn: {
       amount: '10000000',
-      currency: { decimals: 6, symbol: 'USDC' },
+      currency: {
+        decimals: 6,
+        symbol: 'USDC',
+        chainId: 42161,
+        address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      },
     },
     minAmount: '1000000',
     expiresAt: 2000000000000,

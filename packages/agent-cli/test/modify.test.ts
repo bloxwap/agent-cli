@@ -5,6 +5,7 @@ import { migrate } from '../src/core/config.js';
 test('modify rounds replacements and sends batch only after validation', async () => {
   const config = migrate({
     approved: true,
+    agentAddress: '0x' + 'b'.repeat(40),
     approvedNetwork: 'testnet',
     masterAddress: '0x' + '1'.repeat(40),
     agentExpiry: Date.now() + 10000,
@@ -42,6 +43,7 @@ test('modify rounds replacements and sends batch only after validation', async (
 test('modify preserves reduce-only and tif', async () => {
   const config = migrate({
     approved: true,
+    agentAddress: '0x' + 'b'.repeat(40),
     approvedNetwork: 'testnet',
     masterAddress: '0x' + '1'.repeat(40),
     agentExpiry: Date.now() + 10000,
@@ -79,6 +81,7 @@ test('modify preserves reduce-only and tif', async () => {
 test('trigger modifications retain TP/SL semantics', async () => {
   const config = migrate({
     approved: true,
+    agentAddress: '0x' + 'b'.repeat(40),
     approvedNetwork: 'testnet',
     masterAddress: '0x' + '1'.repeat(40),
     agentExpiry: Date.now() + 10000,

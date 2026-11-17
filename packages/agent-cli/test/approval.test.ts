@@ -1,3 +1,4 @@
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { expect, test, vi } from 'vitest';
 import {
   approval,
@@ -39,10 +40,14 @@ test('approval rejection preserves the action and upstream reason', async () => 
     { agentAddress: '0x' + 'a'.repeat(40), agentName: 'agent' },
     123,
   );
+  const master = privateKeyToAccount(generatePrivateKey());
+  pending.masterAddress = master.address;
   const error = await submitApproval(
     'testnet',
     pending,
-    '0x' + 'ab'.repeat(64) + '1b',
+    await master.signTypedData(
+      pending.typedData as Parameters<typeof master.signTypedData>[0],
+    ),
   ).catch((error: unknown) => error);
 
   expect(error).toBeInstanceOf(AgentCliError);

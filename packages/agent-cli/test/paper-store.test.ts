@@ -1,12 +1,18 @@
 import { expect, test } from 'vitest';
 import { PaperStore } from '../src/paper/store.js';
-import { applyFill, initialPaperState, restOrder } from '../src/paper/simulator.js';
+import {
+  applyFill,
+  initialPaperState,
+  restOrder,
+} from '../src/paper/simulator.js';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 let counter = 0;
 const store = () =>
-  new PaperStore(join(homedir(), '.bloxwap', `paper-test-${process.pid}-${counter++}`));
+  new PaperStore(
+    join(homedir(), '.bloxwap', `paper-test-${process.pid}-${counter++}`),
+  );
 test('store round-trips state and archives trades', async () => {
   const paper = store();
   await paper.reset(5000);
@@ -39,10 +45,7 @@ test('store round-trips state and archives trades', async () => {
   const archived = await paper.readTrades();
   expect(archived).toHaveLength(1);
   expect(archived[0]).toMatchObject({ px: '100', sz: '1' });
-  const journal = await readFile(
-    join(paper.directory, 'trades.jsonl'),
-    'utf8',
-  );
+  const journal = await readFile(join(paper.directory, 'trades.jsonl'), 'utf8');
   expect(journal.trim().split('\n')).toHaveLength(1);
 });
 test('missing state starts at 10000 and reset restores a clean account', async () => {
@@ -77,16 +80,18 @@ test('updates serialize through the lock and compose', async () => {
   await paper.reset(1000);
   const first = paper.update(async (state) => {
     await new Promise((resolve) => setTimeout(resolve, 5));
-    state.balance = '900';
+    state.balance = String(Number(state.balance) - 100);
+    state.realizedPnl = String(Number(state.realizedPnl) - 100);
     return 'first';
   });
   const second = paper.update((state) => {
-    state.balance = '800';
+    state.balance = String(Number(state.balance) - 200);
+    state.realizedPnl = String(Number(state.realizedPnl) - 200);
     return 'second';
   });
   expect(await first).toBe('first');
   expect(await second).toBe('second');
-  expect((await paper.load()).balance).toBe('800');
+  expect((await paper.load()).balance).toBe('700');
 });
 test('initialPaperState validates the starting balance', () => {
   expect(() => initialPaperState(0)).toThrow(

@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { advanceDeposit } from '../src/funding/status.js';
 import type { Deposit } from '../src/funding/store.js';
 import { quoteFixture } from './fixtures.js';
-test('settlement requires Relay success plus expected balance increase', () => {
+test('settlement requires Relay success plus attributed ledger evidence', () => {
   const deposit = {
     quote: quoteFixture,
     state: 'awaiting_funds',
@@ -19,7 +19,7 @@ test('settlement requires Relay success plus expected balance increase', () => {
   expect(advanceDeposit(deposit, 'success', '2.9', { ledgerCredit: '1' })).toBe(
     'settled',
   );
-  expect(advanceDeposit(deposit, 'failed', '3')).toBe('failed');
+  expect(advanceDeposit(deposit, 'failed', '3')).toBe('pending');
   expect(advanceDeposit({ ...deposit, state: 'settled' }, 'failed', '0')).toBe(
     'settled',
   );

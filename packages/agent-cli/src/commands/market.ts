@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { register } from '../core/router.js';
 import { createClients } from '../core/hlclient.js';
 import { hlInfo } from '../core/http.js';
+import { paperDataNetwork } from '../core/mode.js';
 import { commandConfig } from './read.js';
 import { AgentCliError } from '../errors/index.js';
 import { mapHyperliquidError } from '../errors/mappers.js';
@@ -11,6 +12,7 @@ register('market', {
   schema: z.object({ coin: z.string() }),
   execute: async (input, context) => {
     const config = await commandConfig(context);
+    if (config.mode === 'paper') config.network = paperDataNetwork;
     try {
       const [market, mids] = await Promise.all([
         createClients(config.network).meta.lookup(input.coin as string),

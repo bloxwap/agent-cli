@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { withFileLock } from '../core/lock.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { atomicWrite, type Config, stateDir } from '../core/config.js';
@@ -15,36 +17,44 @@ export async function expiryWarnings(
     emit?: (data: unknown) => Promise<void>;
   } = {},
 ) {
-  if (!config.agentExpiry) return [];
+  const expiry = config.agentExpiry;
+  if (!expiry) return [];
   const now = options.now ?? Date.now();
   const path = options.path ?? join(stateDir(), 'expiry-warnings.json');
-  let emitted: string[] = [];
-  try {
-    emitted = JSON.parse(await readFile(path, 'utf8'));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-  const days = (config.agentExpiry - now) / 86400000;
-  const warnings = [];
-  for (const threshold of config.expiryWarningDays) {
-    const key = `${config.agentAddress}:${config.agentExpiry}:${threshold}`;
-    if (days <= threshold && !emitted.includes(key)) {
-      const warning = {
-        agentAddress: config.agentAddress,
-        expiry: config.agentExpiry,
-        daysRemaining: String(Math.max(0, days)),
-        threshold: String(threshold),
-      };
-      await (
-        options.emit ??
-        (async (data) => {
-          await events.append('agent_expiry_warning', data);
-        })
-      )(warning);
-      emitted.push(key);
-      warnings.push(warning);
+  const scope = `${config.network}:${config.masterAddress?.toLowerCase() ?? 'uninitialized'}`;
+  return withFileLock(path + '.lock', async () => {
+    let emitted: string[] = [];
+    try {
+      emitted = z
+        .array(z.string())
+        .parse(JSON.parse(await readFile(path, 'utf8')));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
-  }
-  if (warnings.length) await atomicWrite(path, JSON.stringify(emitted));
-  return warnings;
+    const days = (expiry - now) / 86400000;
+    const warnings = [];
+    for (const threshold of config.expiryWarningDays) {
+      const key = `${scope}:${config.agentAddress?.toLowerCase()}:${expiry}:${threshold}`;
+      if (days <= threshold && !emitted.includes(key)) {
+        const warning = {
+          scope,
+          eventId: `expiry:${key}`,
+          agentAddress: config.agentAddress,
+          expiry: expiry,
+          daysRemaining: String(Math.max(0, days)),
+          threshold: String(threshold),
+        };
+        await (
+          options.emit ??
+          (async (data) => {
+            await events.append('agent_expiry_warning', data);
+          })
+        )(warning);
+        emitted.push(key);
+        warnings.push(warning);
+      }
+    }
+    if (warnings.length) await atomicWrite(path, JSON.stringify(emitted));
+    return warnings;
+  });
 }

@@ -14,6 +14,13 @@ import {
   type TradingServices,
 } from '../core/trading.js';
 import { AgentCliError } from '../errors/index.js';
+import {
+  bindOrderIdentity,
+  updateOrderRecord,
+  reconcilePendingOrders,
+  unknownOrder,
+  rejectedOrder,
+} from '../core/operations.js';
 import { newCloid } from '../core/idempotency.js';
 export const orderSchema = z.object({
   coin: z.string(),
@@ -94,10 +101,17 @@ export async function prepareOrder(
 function annotate(error: unknown, cloid: string): AgentCliError {
   if (error instanceof AgentCliError) {
     const details =
-      error.details && typeof error.details === 'object' && !Array.isArray(error.details)
+      error.details &&
+      typeof error.details === 'object' &&
+      !Array.isArray(error.details)
         ? { ...(error.details as Record<string, unknown>), cloid }
         : { cloid };
-    return new AgentCliError(error.code, error.message, details, error.retryable);
+    return new AgentCliError(
+      error.code,
+      error.message,
+      details,
+      error.retryable,
+    );
   }
   return new AgentCliError(
     'INTERNAL',
@@ -110,20 +124,43 @@ export async function placeOrder(
   input: OrderInput,
   services?: TradingServices,
 ) {
-  const cloid = input.cloid ?? newCloid();
+  const cloid = input.cloid?.toLowerCase() ?? newCloid();
   const orderInput = { ...input, cloid };
   try {
     return await withTradeLock(config, async () => {
       await assertCanTrade(config, { reduceOnly: orderInput.reduceOnly });
       const clients = services ?? (await servicesForMode(config));
+      const record = await bindOrderIdentity(config, orderInput);
+      if (record.state === 'rejected') throw rejectedOrder(record);
+      if (record.state === 'complete')
+        return {
+          result: record.result,
+          builderFeeRate: builderRate(config),
+          builderAddress: config.builder.address,
+          cloid,
+          idempotent: true,
+        };
       const existing = await clients.orderByCloid(cloid);
+      if (record.state === 'submitting' && !existing)
+        throw unknownOrder(record);
       const builder =
         config.builder.fee === 0
           ? undefined
           : config.mode === 'paper'
             ? { b: config.builder.address.toLowerCase(), f: config.builder.fee }
             : await approvedBuilder(config);
-      if (existing)
+      if (existing) {
+        // A known local binding is required; an unrelated exchange order must
+        // not be silently adopted as the outcome of this request.
+        if (record.state === 'prepared')
+          throw new AgentCliError(
+            'CONFIG_INVALID',
+            'Cloid already exists on the exchange without a submitted local request',
+            { cloid },
+          );
+        record.state = 'complete';
+        record.result = existing;
+        await updateOrderRecord(record);
         return {
           result: existing,
           builderFeeRate: builderRate(config),
@@ -131,17 +168,57 @@ export async function placeOrder(
           cloid,
           idempotent: true,
         };
+      }
+      if (!orderInput.reduceOnly)
+        await reconcilePendingOrders(config, clients.orderByCloid);
       const order = await prepareOrder(config, orderInput, clients);
-      const result = await exchangeAction(
-        'order',
-        () =>
-          clients.exchange.order({
-            orders: [order],
-            grouping: 'na',
-            ...(builder ? { builder } : {}),
-          }),
-        cloid,
-      );
+      record.state = 'submitting';
+      await updateOrderRecord(record);
+      let result: unknown;
+      try {
+        result = await exchangeAction(
+          'order',
+          () =>
+            clients.exchange.order({
+              orders: [order],
+              grouping: 'na',
+              ...(builder ? { builder } : {}),
+            }),
+          cloid,
+        );
+      } catch (error) {
+        if (
+          error instanceof AgentCliError &&
+          error.code !== 'NETWORK_ERROR' &&
+          !['accepted', 'unknown', 'partial'].includes(
+            String(
+              (error.details as { outcome?: unknown } | undefined)?.outcome,
+            ),
+          )
+        ) {
+          record.state = 'rejected';
+          record.error = {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            retryable: error.retryable,
+          };
+          await updateOrderRecord(record);
+        }
+        throw error;
+      }
+      record.state = 'complete';
+      record.result = result;
+      try {
+        await updateOrderRecord(record);
+      } catch {
+        throw new AgentCliError(
+          'INTERNAL',
+          'Order accepted but local outcome persistence failed',
+          { outcome: 'accepted', cloid, result },
+          false,
+        );
+      }
       return {
         result,
         builderFeeRate: builderRate(config),

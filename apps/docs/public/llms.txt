@@ -1,6 +1,6 @@
 # Bloxwap Agent CLI
 
-Hyperliquid trading with user-owned Privy apps and Relay funding. Master keys stay external.
+Hyperliquid trading with bring-your-own agent wallets and Relay funding. Master keys stay external.
 
 - [Overview and installation](https://bloxwap.github.io/agent-cli/docs/)
 - [quickstart](https://bloxwap.github.io/agent-cli/docs/quickstart/)

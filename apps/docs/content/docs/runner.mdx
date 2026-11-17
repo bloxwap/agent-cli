@@ -17,16 +17,19 @@ Windows uses a home-derived named pipe; deployment must enforce current-user ACL
 The CLI routes market, status, balance, positions, orders, order, cancel, modify,
 leverage, rotate, and revoke through the runner. A config, network, or mode
 mismatch fails with `CONFIG_INVALID`. The caller sends the resolved `mode`; the
-runner also refuses when the saved config mode differs from the mode it started
-with, so change mode only after restarting the runner. `runnerFallback:true`
-(default) permits direct mode only when `runner.ping` does not confirm the
-`runner.pid` token. A live PID alone is not treated as a running runner.
+runner also refuses when the saved config mode changes after startup. Restart
+with the intended mode after changing it. The runner holds a lifetime ownership
+lease. `runnerFallback:true` (default) permits direct mode only when no live or
+unverified runner owner remains. A busy or unresponsive live PID blocks both
+replacement and fallback; ping runs independently from queued commands.
 
 ## Wire format
 
 Each UTF-8 line is a JSON-RPC 2.0 request or response. Requests require `id` and
 `method`; `params` defaults to an object. Frames are bounded to 1 MiB and queued
-serially. Send a newline after the object:
+serially. Admission is bounded to 128 connections, 64 queued requests and 4 MiB
+of queued input. Request string IDs are limited to 128 characters. Excess work
+is disconnected before admission. Send a newline after the object:
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"status.get","params":{}}
@@ -56,7 +59,12 @@ operation is read-only. Unknown methods and unsafe inputs fail before signing.
 {"jsonrpc":"2.0","id":2,"method":"runner.shutdown","params":{}}
 ```
 
-Shutdown returns `result:{stopping:true}`, flushes queued events, and releases
-runner state. Client timeout or disconnect leaves mutation results uncertain:
+Large successful mutations return `{outcome:"accepted",resultPath,cloid}`;
+`resultPath` points to a private local receipt containing the full response.
+Orders and positions use `offset`/`limit`; request a smaller page when a read
+response exceeds the frame limit.
+
+Shutdown returns `result:{stopping:true}`, stops admission, drains accepted
+commands and events, closes subscriptions/transports, and releases ownership. Client timeout or disconnect leaves mutation results uncertain:
 reconcile exchange state before retrying. [Events](/docs/events) are read through
 the CLI journal, not a socket streaming method.

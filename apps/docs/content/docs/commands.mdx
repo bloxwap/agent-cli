@@ -487,135 +487,6 @@ Quote funding with address, QR and transparent fees
 }
 ```
 
-## deposit
-
-Resume deposit steps or submit a master-wallet signature
-
-```json
-{
-  "input": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "properties": {
-      "depositId": {
-        "type": "string"
-      },
-      "stepId": {
-        "type": "string"
-      },
-      "signature": {
-        "type": "string"
-      },
-      "abandon": {
-        "default": false,
-        "type": "boolean"
-      }
-    },
-    "required": [
-      "depositId",
-      "abandon"
-    ],
-    "additionalProperties": false
-  },
-  "output": {
-    "oneOf": [
-      {
-        "type": "object",
-        "required": [
-          "ok",
-          "data",
-          "mode",
-          "paper"
-        ],
-        "properties": {
-          "ok": {
-            "const": true
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "depositId": {
-                "type": "string"
-              },
-              "steps": {
-                "type": "array",
-                "items": {}
-              },
-              "complete": {
-                "type": "boolean"
-              }
-            },
-            "required": []
-          },
-          "mode": {
-            "enum": [
-              "live",
-              "paper"
-            ]
-          },
-          "paper": {
-            "type": "boolean"
-          }
-        }
-      },
-      {
-        "type": "object",
-        "required": [
-          "ok",
-          "code",
-          "message",
-          "retryable",
-          "details",
-          "mode",
-          "paper"
-        ],
-        "properties": {
-          "ok": {
-            "const": false
-          },
-          "code": {
-            "enum": [
-              "INSUFFICIENT_MARGIN",
-              "POLICY_REJECTED",
-              "AGENT_EXPIRED",
-              "AGENT_NOT_APPROVED",
-              "DEPOSIT_PENDING",
-              "NONCE_COLLISION",
-              "RATE_LIMIT",
-              "INVALID_SIZE",
-              "INVALID_PRICE",
-              "UNKNOWN_MARKET",
-              "ORDER_NOT_FOUND",
-              "RUNNER_NOT_RUNNING",
-              "CONFIG_INVALID",
-              "NETWORK_ERROR",
-              "UPSTREAM_ERROR",
-              "INTERNAL"
-            ]
-          },
-          "message": {
-            "type": "string"
-          },
-          "retryable": {
-            "type": "boolean"
-          },
-          "details": {},
-          "mode": {
-            "enum": [
-              "live",
-              "paper"
-            ]
-          },
-          "paper": {
-            "type": "boolean"
-          }
-        }
-      }
-    ]
-  }
-}
-```
-
 ## status
 
 Read account status
@@ -625,7 +496,24 @@ Read account status
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {},
+    "properties": {
+      "offset": {
+        "default": 0,
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "limit": {
+        "default": 200,
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      }
+    },
+    "required": [
+      "offset",
+      "limit"
+    ],
     "additionalProperties": false
   },
   "output": {
@@ -861,7 +749,24 @@ Read account balance
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {},
+    "properties": {
+      "offset": {
+        "default": 0,
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "limit": {
+        "default": 200,
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      }
+    },
+    "required": [
+      "offset",
+      "limit"
+    ],
     "additionalProperties": false
   },
   "output": {
@@ -979,7 +884,24 @@ Read account positions
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {},
+    "properties": {
+      "offset": {
+        "default": 0,
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "limit": {
+        "default": 200,
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      }
+    },
+    "required": [
+      "offset",
+      "limit"
+    ],
     "additionalProperties": false
   },
   "output": {
@@ -1114,7 +1036,24 @@ Read account orders
   "input": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "properties": {},
+    "properties": {
+      "offset": {
+        "default": 0,
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "limit": {
+        "default": 200,
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      }
+    },
+    "required": [
+      "offset",
+      "limit"
+    ],
     "additionalProperties": false
   },
   "output": {
@@ -1166,6 +1105,135 @@ Read account orders
                 "side"
               ]
             }
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "code",
+          "message",
+          "retryable",
+          "details",
+          "mode",
+          "paper"
+        ],
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "code": {
+            "enum": [
+              "INSUFFICIENT_MARGIN",
+              "POLICY_REJECTED",
+              "AGENT_EXPIRED",
+              "AGENT_NOT_APPROVED",
+              "DEPOSIT_PENDING",
+              "NONCE_COLLISION",
+              "RATE_LIMIT",
+              "INVALID_SIZE",
+              "INVALID_PRICE",
+              "UNKNOWN_MARKET",
+              "ORDER_NOT_FOUND",
+              "RUNNER_NOT_RUNNING",
+              "CONFIG_INVALID",
+              "NETWORK_ERROR",
+              "UPSTREAM_ERROR",
+              "INTERNAL"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {},
+          "mode": {
+            "enum": [
+              "live",
+              "paper"
+            ]
+          },
+          "paper": {
+            "type": "boolean"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+## deposit
+
+Resume deposit steps or submit a master-wallet signature
+
+```json
+{
+  "input": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "depositId": {
+        "type": "string"
+      },
+      "stepId": {
+        "type": "string"
+      },
+      "signature": {
+        "type": "string"
+      },
+      "abandon": {
+        "default": false,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "depositId",
+      "abandon"
+    ],
+    "additionalProperties": false
+  },
+  "output": {
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "ok",
+          "data",
+          "mode",
+          "paper"
+        ],
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "depositId": {
+                "type": "string"
+              },
+              "steps": {
+                "type": "array",
+                "items": {}
+              },
+              "complete": {
+                "type": "boolean"
+              }
+            },
+            "required": []
           },
           "mode": {
             "enum": [
@@ -1596,6 +1664,8 @@ Modify price/size of single or batch resting orders
         "type": "string"
       },
       "modifications": {
+        "minItems": 1,
+        "maxItems": 100,
         "type": "array",
         "items": {
           "type": "object",
@@ -2013,6 +2083,16 @@ Replay or follow JSON-line runner events
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
+      "limit": {
+        "default": 200,
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "allScopes": {
+        "default": false,
+        "type": "boolean"
+      },
       "follow": {
         "default": false,
         "type": "boolean"
@@ -2042,6 +2122,8 @@ Replay or follow JSON-line runner events
       }
     },
     "required": [
+      "limit",
+      "allScopes",
       "follow",
       "since",
       "types"
@@ -2588,6 +2670,22 @@ Verify and query the hash-chained trading audit
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
+      "since": {
+        "default": 0,
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "limit": {
+        "default": 200,
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "allScopes": {
+        "default": false,
+        "type": "boolean"
+      },
       "intent": {
         "type": "string"
       },
@@ -2598,6 +2696,11 @@ Verify and query the hash-chained trading audit
         "type": "string"
       }
     },
+    "required": [
+      "since",
+      "limit",
+      "allScopes"
+    ],
     "additionalProperties": false
   },
   "output": {

@@ -9,6 +9,8 @@ import { paperDataNetwork } from '../core/mode.js';
 import { PaperStore } from './store.js';
 import {
   accountEquity,
+  accrueFunding,
+  rolloverDay,
   assertInitialMargin,
   cancelOrder,
   dailyLoss,
@@ -23,7 +25,6 @@ import {
   type PaperBook,
   type PaperOrder,
   type PaperState,
-  type PaperTrade,
 } from './simulator.js';
 export interface PaperData {
   book: (coin: string) => Promise<PaperBook>;
@@ -38,17 +39,24 @@ interface AssetCtx {
   funding?: string;
   midPx?: string;
 }
-let ctxCache: { at: number; marks: Record<string, string>; funding: Record<string, string> } | null =
-  null;
+let ctxCache: {
+  at: number;
+  marks: Record<string, string>;
+  funding: Record<string, string>;
+} | null = null;
 async function assetCtxs() {
-  if (ctxCache && Date.now() - ctxCache.at < 60_000) return ctxCache;
-  const [, assetCtxs] = await hlInfo<
-    [unknown, AssetCtx[]]
+  if (ctxCache && Date.now() - ctxCache.at < 5_000) return ctxCache;
+  const [meta, assetCtxs] = await hlInfo<
+    [{ universe: { name: string }[] }, AssetCtx[]]
   >(paperDataNetwork, 'metaAndAssetCtxs');
-  const meta = await hlInfo<{ universe: { name: string }[] }>(
-    paperDataNetwork,
-    'meta',
-  );
+  if (
+    !Array.isArray(meta?.universe) ||
+    meta.universe.length !== assetCtxs.length
+  )
+    throw new AgentCliError(
+      'UPSTREAM_ERROR',
+      'Market context metadata mismatch',
+    );
   const marks: Record<string, string> = {},
     funding: Record<string, string> = {};
   meta.universe.forEach(({ name }, index) => {
@@ -62,14 +70,20 @@ async function assetCtxs() {
 export function paperData(): PaperData {
   return {
     book: async (coin) => {
-      const book = await hlInfo<{ levels: { px: string; sz: string }[][] }>(
-        paperDataNetwork,
-        'l2Book',
-        { coin },
-      );
-      if (!Array.isArray(book.levels) || book.levels.length < 2)
+      const book = await hlInfo<{
+        time: number;
+        levels: { px: string; sz: string }[][];
+      }>(paperDataNetwork, 'l2Book', { coin });
+      if (
+        !Number.isSafeInteger(book.time) ||
+        Math.abs(Date.now() - book.time) > 5_000 ||
+        !Array.isArray(book.levels) ||
+        book.levels.length !== 2
+      )
         throw new AgentCliError('UPSTREAM_ERROR', 'Invalid l2Book snapshot');
-      return { bids: book.levels[0] ?? [], asks: book.levels[1] ?? [] };
+      const result = { bids: book.levels[0] ?? [], asks: book.levels[1] ?? [] };
+      validateBook(result);
+      return result;
     },
     marks: async () => (await assetCtxs()).marks,
     fundingRates: async () => (await assetCtxs()).funding,
@@ -80,7 +94,8 @@ export function paperData(): PaperData {
         'meta',
       );
       const coin = universe[asset]?.name;
-      if (!coin) throw new AgentCliError('UNKNOWN_MARKET', `Unknown asset ${asset}`);
+      if (!coin)
+        throw new AgentCliError('UNKNOWN_MARKET', `Unknown asset ${asset}`);
       return coin;
     },
     maxLeverageOf: async (coin) =>
@@ -93,7 +108,11 @@ export function paperAccountState(
   maxLeverageOf: (coin: string) => number,
 ): AccountState {
   const positions = state.positions.map((position) => {
-    const mark = marks[position.coin] ?? position.entryPx;
+    const mark = marks[position.coin];
+    if (!mark)
+      throw new AgentCliError('POLICY_REJECTED', 'Paper mark unavailable', {
+        coin: position.coin,
+      });
     return {
       position: {
         coin: position.coin,
@@ -101,7 +120,10 @@ export function paperAccountState(
         entryPx: position.entryPx,
         unrealizedPnl: formatUsdc(unrealizedPnl(position, mark), 18),
         liquidationPx: liquidationPx(position, maxLeverageOf(position.coin)),
-        leverage: { type: position.leverage.type, value: position.leverage.value },
+        leverage: {
+          type: position.leverage.type,
+          value: position.leverage.value,
+        },
       },
     };
   });
@@ -113,8 +135,7 @@ export function paperAccountState(
     (sum, p) =>
       sum +
       (marks[p.coin]
-        ? (absBig(parseUsdc(p.size, 18)) * parseUsdc(marks[p.coin], 18)) /
-          SCALE
+        ? (absBig(parseUsdc(p.size, 18)) * parseUsdc(marks[p.coin], 18)) / SCALE
         : 0n),
     0n,
   );
@@ -124,7 +145,12 @@ export function paperAccountState(
       totalMarginUsed: formatUsdc(marginUsed, 18),
       totalNtlPos: formatUsdc(notional, 18),
     },
-    withdrawable: state.balance,
+    withdrawable: formatUsdc(
+      accountEquity(state, marks) > marginUsed
+        ? accountEquity(state, marks) - marginUsed
+        : 0n,
+      18,
+    ),
     assetPositions: positions,
   };
 }
@@ -135,7 +161,7 @@ export function paperOpenOrders(state: PaperState): OpenOrder[] {
     coin: order.coin,
     oid: order.oid,
     ...(order.cloid ? { cloid: order.cloid } : {}),
-    sz: order.sz,
+    sz: formatUsdc(parseUsdc(order.sz, 18) - parseUsdc(order.filledSz, 18), 18),
     limitPx: order.limitPx,
     side: order.side,
     reduceOnly: order.reduceOnly,
@@ -143,7 +169,7 @@ export function paperOpenOrders(state: PaperState): OpenOrder[] {
       ? {
           isTrigger: true,
           triggerPx: order.triggerPx,
-          orderType: order.tpsl === 'tp' ? 'Take Profit' : 'Stop Loss',
+          orderType: `${order.tpsl === 'tp' ? 'Take Profit' : 'Stop Loss'} ${order.triggerIsMarket ? 'Market' : 'Limit'}`,
         }
       : {}),
     tif: order.tif,
@@ -167,8 +193,11 @@ export function paperTradingServices(
     orders: async () => paperOpenOrders(await store.load()),
     mids: () => data.mids(),
     dailyLoss: async () => {
-      const [state, marks] = await Promise.all([store.load(), data.marks()]);
-      return dailyLoss(state, marks);
+      const marks = await data.marks();
+      return store.update((state) => {
+        rolloverDay(state, marks, Date.now());
+        return dailyLoss(state, marks);
+      });
     },
     assetLeverage: async (coin) => leverageOf(await store.load(), coin).value,
     orderByCloid: async (cloid) => {
@@ -181,24 +210,10 @@ export function paperTradingServices(
             data: { statuses: [{ resting: { oid: resting.oid } }] },
           },
         };
-      const trade = state.trades.find((item) => item.cloid === cloid);
-      if (!trade) return null;
-      return {
-        status: 'ok',
-        response: {
-          data: {
-            statuses: [
-              {
-                filled: {
-                  oid: trade.oid,
-                  totalSz: trade.sz,
-                  avgPx: trade.px,
-                },
-              },
-            ],
-          },
-        },
-      };
+      const status = await store.orderResult(cloid);
+      return status
+        ? { status: 'ok', response: { data: { statuses: [status] } } }
+        : null;
     },
   };
 }
@@ -223,211 +238,208 @@ export function paperExchange(
   emit?: PaperEmit,
 ): ExchangeAdapter {
   const builderFee = config.builder.fee;
-  const emitFills = async (trades: PaperTrade[], orders: PaperOrder[]) => {
-    if (!emit) return;
-    for (const trade of trades)
-      await emit('fill', {
-        tid: trade.tid,
-        time: trade.time,
-        coin: trade.coin,
-        side: trade.side,
-        px: trade.px,
-        sz: trade.sz,
-        oid: trade.oid,
-        cloid: trade.cloid,
-        fee: trade.fee,
-        paper: true,
-      });
-    for (const order of orders)
-      await emit('order_update', { oid: order.oid, status: 'filled', paper: true });
+  if (emit) store.setEmitter(emit);
+  const prepare = async (state: PaperState) => {
+    const [marks, rates] = await Promise.all([
+      data.marks(),
+      data.fundingRates(),
+    ]);
+    const now = Date.now();
+    rolloverDay(state, marks, now);
+    accrueFunding(state, rates, marks, now);
+    state.marks = marks;
+    state.fundingRates = rates;
+    state.marketAt = now;
+    return now;
+  };
+  const execute = async (
+    state: PaperState,
+    wire: WireOrder,
+    coin: string,
+    existing?: PaperOrder,
+  ) => {
+    const now = await prepare(state);
+    const book = await data.book(coin);
+    validateBook(book);
+    const side = wire.b ? ('B' as const) : ('A' as const);
+    const best = wire.b ? book.asks[0]?.px : book.bids[0]?.px;
+    const crosses =
+      best !== undefined &&
+      (wire.b
+        ? parseUsdc(best, 18) <= parseUsdc(wire.p, 18)
+        : parseUsdc(best, 18) >= parseUsdc(wire.p, 18));
+    const tif = 'limit' in wire.t ? wire.t.limit.tif : 'Gtc';
+    if (tif === 'Alo' && crosses)
+      throw new AgentCliError(
+        'POLICY_REJECTED',
+        'Post-only order would cross the book',
+      );
+    if (!wire.r)
+      assertInitialMargin(
+        state,
+        coin,
+        wire.b ? wire.s : `-${wire.s}`,
+        wire.p,
+        state.marks,
+      );
+    if (existing) cancelOrder(state, existing.oid);
+    const order = restOrder(state, {
+      coin,
+      side,
+      sz: wire.s,
+      limitPx: wire.p,
+      reduceOnly: wire.r,
+      tif,
+      cloid: wire.c,
+      ...('trigger' in wire.t
+        ? {
+            isTrigger: true,
+            triggerPx: wire.t.trigger.triggerPx,
+            tpsl: wire.t.trigger.tpsl,
+            triggerIsMarket: wire.t.trigger.isMarket,
+          }
+        : {}),
+      now,
+    });
+    if (existing) order.oid = existing.oid;
+    if ('trigger' in wire.t) {
+      const matched = matchOrders(
+        state,
+        coin,
+        {
+          markPx: state.marks[coin],
+          bestBid: book.bids[0]?.px,
+          bestAsk: book.asks[0]?.px,
+          time: now,
+        },
+        book,
+        builderFee,
+        now,
+        order.oid,
+      );
+      const fills = matched.fills.filter((t) => t.oid === order.oid);
+      if (state.orders.some((o) => o.oid === order.oid))
+        return { resting: { oid: order.oid } };
+      const size = fills.reduce((sum, t) => sum + parseUsdc(t.sz, 18), 0n);
+      const value = fills.reduce(
+        (sum, t) => sum + parseUsdc(t.sz, 18) * parseUsdc(t.px, 18),
+        0n,
+      );
+      return {
+        filled: {
+          oid: order.oid,
+          totalSz: formatUsdc(size, 18),
+          avgPx: size ? formatUsdc(value / size, 18) : '0',
+          status: size ? 'filled' : 'canceled',
+        },
+      };
+    }
+    if (crosses || tif === 'Ioc') {
+      const walk = walkBook(
+        state,
+        {
+          coin,
+          side,
+          sz: wire.s,
+          limitPx: wire.p,
+          oid: order.oid,
+          cloid: wire.c,
+          reduceOnly: wire.r,
+        },
+        book,
+        builderFee,
+        now,
+      );
+      order.filledSz = walk.filledSz;
+      const position = positionOf(state, coin);
+      const exhausted =
+        wire.r && (!position || parseUsdc(position.size, 18) > 0n === wire.b);
+      if (
+        tif === 'Ioc' ||
+        exhausted ||
+        parseUsdc(walk.filledSz, 18) >= parseUsdc(wire.s, 18)
+      ) {
+        cancelOrder(state, order.oid);
+        if (!walk.trades.length && !wire.r)
+          return {
+            error:
+              'Order could not immediately match against any resting orders',
+          };
+        return {
+          filled: {
+            oid: order.oid,
+            totalSz: walk.filledSz,
+            avgPx: walk.avgPx ?? '0',
+            status:
+              parseUsdc(walk.filledSz, 18) === parseUsdc(wire.s, 18)
+                ? 'filled'
+                : 'canceled',
+          },
+        };
+      }
+    }
+    return { resting: { oid: order.oid } };
   };
   const place = async (wire: WireOrder) => {
     const coin = await data.coinOfAsset(wire.a);
-    const now = Date.now();
-    const result = await store.update(async (state) => {
-      const isIoc = 'limit' in wire.t && wire.t.limit.tif === 'Ioc';
-      if (wire.r && isIoc && (!positionOf(state, coin) || Number(positionOf(state, coin)!.size) === 0)) {
-        // A reduce-only IOC against a flat book matches nothing and is done.
-        const oid = state.nextOid++;
-        return {
-          status: { filled: { oid, totalSz: '0', avgPx: '0', status: 'canceled' } },
-          filled: [] as PaperTrade[],
-          completed: [] as PaperOrder[],
-        };
-      }
-      if ('trigger' in wire.t) {
-        const { isMarket, triggerPx, tpsl } = wire.t.trigger;
-        const marks = await data.marks();
-        const mark = marks[coin];
-        const book = isMarket ? await data.book(coin) : null;
-        const order = restOrder(state, {
-          coin,
-          side: wire.b ? 'B' : 'A',
-          sz: wire.s,
-          limitPx: wire.p,
-          reduceOnly: wire.r,
-          tif: 'Gtc',
-          cloid: wire.c,
-          isTrigger: true,
-          triggerPx,
-          tpsl,
-          triggerIsMarket: isMarket,
-          now,
-        });
-        const matched = matchOrders(
-          state,
-          coin,
-          { markPx: mark },
-          book,
-          builderFee,
-          now,
-        );
-        if (matched.triggeredOids.length || matched.filledOids.length) {
-          const filledSz = matched.fills.reduce(
-            (sum, trade) => sum + parseUsdc(trade.sz, 18),
-            0n,
-          );
-          const notional = matched.fills.reduce(
-            (sum, trade) =>
-              sum +
-              (parseUsdc(trade.sz, 18) * parseUsdc(trade.px, 18)) / SCALE,
-            0n,
-          );
-          return {
-            status: {
-              filled: {
-                oid: order.oid,
-                totalSz: formatUsdc(filledSz, 18),
-                avgPx:
-                  filledSz > 0n
-                    ? formatUsdc((notional * SCALE) / filledSz, 18)
-                    : (mark ?? wire.p),
-                status: 'filled',
-              },
-            },
-            filled: matched.fills,
-            completed: [order],
-          };
-        }
-        return { status: { resting: { oid: order.oid } }, filled: [], completed: [] };
-      }
-      const { tif } = wire.t.limit;
-      if (tif === 'Ioc') {
-        const book = await data.book(coin);
-        assertInitialMargin(state, coin, wire.b ? wire.s : `-${wire.s}`, wire.p, await data.marks());
-        const walk = walkBook(
-          state,
-          {
-            coin,
-            side: wire.b ? 'B' : 'A',
-            sz: wire.s,
-            limitPx: wire.p,
-            cloid: wire.c,
-            reduceOnly: wire.r,
-          },
-          book,
-          builderFee,
-          now,
-        );
-        if (walk.trades.length === 0)
-          return {
-            status: { error: 'Order could not immediately match against any resting orders' },
-            filled: [],
-            completed: [],
-          };
-        const oid = state.nextOid++;
-        for (const trade of walk.trades) trade.oid = oid;
-        return {
-          status: {
-            filled: {
-              oid,
-              totalSz: walk.filledSz,
-              avgPx: walk.avgPx ?? '0',
-              status: walk.filledSz === wire.s ? 'filled' : 'canceled',
-            },
-          },
-          filled: walk.trades,
-          completed: [],
-        };
-      }
-      const book = await data.book(coin);
-      const best = wire.b ? book.asks[0]?.px : book.bids[0]?.px;
-      const crosses = best !== undefined &&
-        (wire.b ? Number(best) <= Number(wire.p) : Number(best) >= Number(wire.p));
-      if (crosses) {
-        assertInitialMargin(state, coin, wire.b ? wire.s : `-${wire.s}`, wire.p, await data.marks());
-        const walk = walkBook(
-          state,
-          {
-            coin,
-            side: wire.b ? 'B' : 'A',
-            sz: wire.s,
-            limitPx: wire.p,
-            cloid: wire.c,
-            reduceOnly: wire.r,
-          },
-          book,
-          builderFee,
-          now,
-        );
-        if (walk.trades.length) {
-          const oid = state.nextOid++;
-          for (const trade of walk.trades) trade.oid = oid;
-          return {
-            status: {
-              filled: { oid, totalSz: walk.filledSz, avgPx: walk.avgPx ?? '0', status: 'filled' },
-            },
-            filled: walk.trades,
-            completed: [],
-          };
-        }
-      }
-      assertInitialMargin(state, coin, wire.b ? wire.s : `-${wire.s}`, wire.p, await data.marks());
-      const order = restOrder(state, {
-        coin,
-        side: wire.b ? 'B' : 'A',
-        sz: wire.s,
-        limitPx: wire.p,
-        reduceOnly: wire.r,
-        tif,
-        cloid: wire.c,
-        now,
-      });
-      return { status: { resting: { oid: order.oid } }, filled: [], completed: [] };
-    });
-    await emitFills(result.filled, result.completed);
-    return result.status;
+    return store.orderOperation(wire, (state) => execute(state, wire, coin));
   };
+  const envelope = (statuses: unknown[]) => ({
+    status: 'ok',
+    response: { data: { statuses } },
+  });
   return {
-    order: async ({ orders }: { orders: WireOrder[] }) => ({
-      status: 'ok',
-      response: { data: { statuses: await Promise.all(orders.map(place)) } },
-    }),
-    cancel: async ({ cancels }: { cancels: { a: number; o: number }[] }) => {
-      const statuses = await Promise.all(
-        cancels.map(async ({ o }) => {
-          const removed = await store.update((state) => cancelOrder(state, o));
-          if (!removed)
-            return { error: `Order ${o} not found` };
-          await emit?.('order_update', { oid: o, status: 'canceled', paper: true });
-          return { success: true };
-        }),
-      );
-      return { status: 'ok', response: { data: { statuses } } };
-    },
-    cancelByCloid: async ({ cloids }: { cloids: { a: number; c: string }[] }) => {
-      const statuses = await Promise.all(
-        cloids.map(async ({ c }) => {
-          const removed = await store.update((state) => {
-            const order = state.orders.find((order) => order.cloid === c);
-            return order ? cancelOrder(state, order.oid) : null;
+    order: async ({ orders }: { orders: WireOrder[] }) => {
+      const statuses = [];
+      for (const wire of orders) {
+        try {
+          statuses.push(await place(wire));
+        } catch (error) {
+          if (orders.length === 1) throw error;
+          statuses.push({
+            error: error instanceof Error ? error.message : String(error),
           });
-          if (!removed) return { error: `Order with cloid ${c} not found` };
-          await emit?.('order_update', { oid: removed.oid, status: 'canceled', paper: true });
-          return { success: true };
-        }),
-      );
-      return { status: 'ok', response: { data: { statuses } } };
+        }
+      }
+      return envelope(statuses);
+    },
+    cancel: async ({ cancels }: { cancels: { a: number; o: number }[] }) => {
+      const statuses = [];
+      for (const { a, o } of cancels) {
+        const coin = await data.coinOfAsset(a);
+        const removed = await store.update((state) =>
+          state.orders.find((order) => order.oid === o && order.coin === coin)
+            ? cancelOrder(state, o)
+            : null,
+        );
+        statuses.push(
+          removed ? { success: true } : { error: `Order ${o} not found` },
+        );
+      }
+      return envelope(statuses);
+    },
+    cancelByCloid: async ({
+      cloids,
+    }: {
+      cloids: { a: number; c: string }[];
+    }) => {
+      const statuses = [];
+      for (const { a, c } of cloids) {
+        const coin = await data.coinOfAsset(a);
+        const removed = await store.update((state) => {
+          const order = state.orders.find(
+            (o) =>
+              o.coin === coin && o.cloid?.toLowerCase() === c.toLowerCase(),
+          );
+          return order ? cancelOrder(state, order.oid) : null;
+        });
+        statuses.push(
+          removed
+            ? { success: true }
+            : { error: `Order with cloid ${c} not found` },
+        );
+      }
+      return envelope(statuses);
     },
     batchModify: async ({
       modifies,
@@ -437,50 +449,33 @@ export function paperExchange(
       const statuses = [];
       for (const { oid, order: wire } of modifies) {
         const coin = await data.coinOfAsset(wire.a);
-        const updated = await store.update(async (state) => {
-          const existing = state.orders.find(
-            (o) => o.oid === oid || (typeof oid === 'string' && o.cloid === oid),
-          );
-          if (!existing) return null;
-          existing.sz = wire.s;
-          existing.limitPx = wire.p;
-          existing.reduceOnly = wire.r;
-          existing.cloid = wire.c ?? existing.cloid;
-          const book = await data.book(coin);
-          const best = wire.b ? book.asks[0]?.px : book.bids[0]?.px;
-          const crosses = best !== undefined &&
-            (wire.b ? Number(best) <= Number(wire.p) : Number(best) >= Number(wire.p));
-          if (crosses) {
-            const walk = walkBook(
-              state,
-              {
-                coin,
-                side: wire.b ? 'B' : 'A',
-                sz: wire.s,
-                limitPx: wire.p,
-                reduceOnly: wire.r,
-                oid: existing.oid,
-                cloid: wire.c,
-              },
-              book,
-              builderFee,
-              Date.now(),
+        try {
+          const modified = await store.update(async (state) => {
+            const existing = state.orders.find(
+              (o) =>
+                o.oid === oid || (typeof oid === 'string' && o.cloid === oid),
             );
-            if (walk.trades.length) {
-              state.orders = state.orders.filter((o) => o.oid !== existing.oid);
-              return { trades: walk.trades };
-            }
-          }
-          return { trades: [] as PaperTrade[] };
-        });
-        if (!updated) {
-          statuses.push({ error: `Order ${oid} not found` });
-          continue;
+            if (!existing || existing.coin !== coin) return false;
+            await execute(
+              state,
+              { ...wire, c: existing.cloid },
+              coin,
+              existing,
+            );
+            return true;
+          });
+          statuses.push(
+            modified
+              ? { status: 'modified' }
+              : { error: `Order ${oid} not found` },
+          );
+        } catch (error) {
+          statuses.push({
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
-        await emitFills(updated.trades, []);
-        statuses.push({ status: 'modified' });
       }
-      return { status: 'ok', response: { data: { statuses } } };
+      return envelope(statuses);
     },
     updateLeverage: async ({
       asset,
@@ -493,18 +488,58 @@ export function paperExchange(
     }) => {
       const coin = await data.coinOfAsset(asset);
       const maxLeverage = await data.maxLeverageOf(coin);
-      if (leverage < 1 || leverage > maxLeverage)
-        throw new AgentCliError('POLICY_REJECTED', 'Leverage exceeds market ceiling', {
-          maximum: maxLeverage,
-          actual: leverage,
-        });
-      await store.update((state) => {
-        const setting = { type: isCross ? ('cross' as const) : ('isolated' as const), value: leverage };
+      if (
+        !Number.isSafeInteger(leverage) ||
+        leverage < 1 ||
+        leverage > maxLeverage
+      )
+        throw new AgentCliError(
+          'POLICY_REJECTED',
+          'Leverage exceeds market ceiling',
+        );
+      await store.update(async (state) => {
+        await prepare(state);
+        const setting = {
+          type: isCross ? ('cross' as const) : ('isolated' as const),
+          value: leverage,
+        };
         state.leverage[coin] = setting;
         const position = positionOf(state, coin);
         if (position) position.leverage = setting;
+        const used = state.positions.reduce(
+          (sum, p) => sum + initialMargin(p, state.marks[p.coin]),
+          0n,
+        );
+        if (used > accountEquity(state, state.marks))
+          throw new AgentCliError(
+            'INSUFFICIENT_MARGIN',
+            'Leverage change exceeds available paper margin',
+          );
       });
       return { status: 'ok' };
     },
   };
+}
+export function validateBook(book: PaperBook) {
+  for (const [side, levels] of [
+    ['bids', book.bids],
+    ['asks', book.asks],
+  ] as const) {
+    let previous: bigint | undefined;
+    for (const level of levels) {
+      const px = parseUsdc(level.px, 18),
+        size = parseUsdc(level.sz, 18);
+      if (
+        px <= 0n ||
+        size < 0n ||
+        (previous !== undefined &&
+          (side === 'bids' ? px > previous : px < previous))
+      )
+        throw new AgentCliError(
+          'UPSTREAM_ERROR',
+          'Invalid or unordered paper book',
+        );
+      previous = px;
+    }
+  }
 }

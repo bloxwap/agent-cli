@@ -12,7 +12,10 @@ test('fund persists and reuses unexpired quotes', async () => {
     ...quoteFixture,
     details: {
       ...quoteFixture.details,
-      currencyIn: { amount: request.amount, currency: { decimals: 6 } },
+      currencyIn: {
+        amount: request.amount,
+        currency: { ...quoteFixture.details.currencyIn!.currency, decimals: 6 },
+      },
     },
   }));
   const config = migrate({ masterAddress: '0x' + 'a'.repeat(40) });

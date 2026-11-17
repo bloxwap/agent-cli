@@ -1,5 +1,9 @@
 import { SubscriptionClient, WebSocketTransport } from '@bloxwap/hyperliquid';
 import WebSocket from 'ws';
+import { createHash } from 'node:crypto';
+import { z } from 'zod';
+import { withFileLock } from '../core/lock.js';
+import { AgentCliError } from '../errors/index.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { atomicWrite, type Config } from '../core/config.js';
@@ -39,6 +43,17 @@ export class Subscriptions {
   lastFill: number | null = null;
   private seen = new Set<number>();
   private queue = Promise.resolve();
+  private stopped = false;
+  private stopping?: Promise<void>;
+  private get scope() {
+    return `${this.runner.config.network}:${this.runner.config.masterAddress?.toLowerCase() ?? 'uninitialized'}`;
+  }
+  private get cursorPath() {
+    return join(
+      this.runner.directory,
+      `subscriptions-${createHash('sha256').update(this.scope).digest('hex')}.json`,
+    );
+  }
   private subscriptions: { unsubscribe: () => Promise<void> }[] = [];
   constructor(
     private runner: Runner,
@@ -46,60 +61,79 @@ export class Subscriptions {
     private emit: (type: string, data: unknown) => Promise<void>,
   ) {}
   async start() {
-    const path = join(this.runner.directory, 'subscriptions.json');
+    this.runner.onShutdown(() => this.stop());
     try {
-      const saved = JSON.parse(await readFile(path, 'utf8'));
-      this.seen = new Set(saved.seen);
-      this.lastFill = saved.lastFill;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
-    for (const tid of await this.journalTids()) this.seen.add(tid);
-    for (const fill of await this.backend.gap(this.lastFill ?? undefined))
-      await this.fill(fill);
-    this.backend.onState((state) => {
-      const reconnect = this.state !== 'connecting' && state === 'connected';
-      this.state = state;
-      this.lastMessage = Date.now();
-      if (reconnect)
-        this.enqueue(async () => {
-          for (const fill of await this.backend.gap(
-            this.lastFill ?? Date.now() - 60_000,
-          ))
-            await this.fill(fill);
-          await this.emit('runner_state', { wsState: state });
-        });
-    });
-    for (const name of subscriptionSet(this.runner.config)) {
-      const [type, coin] = name.split(':');
-      const params = coin
-        ? { coin }
-        : type === 'allMids'
-          ? {}
-          : { user: this.runner.config.masterAddress };
-      this.subscriptions.push(
-        await this.backend.subscribe(type, params, (data) => {
-          this.lastMessage = Date.now();
+      const path = this.cursorPath;
+      try {
+        const saved = z
+          .object({
+            scope: z.literal(this.scope),
+            seen: z.array(z.number().int().nonnegative()).max(10000),
+            lastFill: z.number().int().nonnegative().nullable(),
+          })
+          .parse(JSON.parse(await readFile(path, 'utf8')));
+        this.seen = new Set(saved.seen);
+        this.lastFill = saved.lastFill;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+      for (const tid of await this.journalTids()) this.seen.add(tid);
+      for (const fill of await this.backend.gap(this.lastFill ?? undefined))
+        await this.fill(fill);
+      this.backend.onState((state) => {
+        if (this.stopped) return;
+        const reconnect = this.state !== 'connecting' && state === 'connected';
+        this.state = state;
+        this.lastMessage = Date.now();
+        if (reconnect)
           this.enqueue(async () => {
-            if (type === 'userFills') {
-              for (const fill of (data as { fills: Fill[] }).fills)
-                await this.fill(fill);
-            } else if (type === 'userEvents' && 'fills' in (data as object)) {
-              for (const fill of (data as { fills: Fill[] }).fills)
-                await this.fill(fill);
-            } else if (type === 'orderUpdates')
-              await this.emit('order_update', data);
-            else if (type === 'clearinghouseState')
-              await this.emit('position_change', data);
+            for (const fill of await this.backend.gap(
+              this.lastFill ?? Date.now() - 60_000,
+            ))
+              await this.fill(fill);
+            await this.emit('runner_state', { wsState: state });
           });
-        }),
-      );
+      });
+      for (const name of subscriptionSet(this.runner.config)) {
+        const [type, coin] = name.split(':');
+        const params = coin
+          ? { coin }
+          : type === 'allMids'
+            ? {}
+            : { user: this.runner.config.masterAddress };
+        this.subscriptions.push(
+          await this.backend.subscribe(type, params, (data) => {
+            if (this.stopped) return;
+            this.lastMessage = Date.now();
+            this.enqueue(async () => {
+              if (type === 'userFills') {
+                for (const fill of (data as { fills: Fill[] }).fills)
+                  await this.fill(fill);
+              } else if (type === 'userEvents' && 'fills' in (data as object)) {
+                for (const fill of (data as { fills: Fill[] }).fills)
+                  await this.fill(fill);
+              } else if (type === 'orderUpdates')
+                await this.emit('order_update', data);
+              else if (type === 'clearinghouseState')
+                await this.emit('position_change', data);
+            });
+          }),
+        );
+      }
+    } catch (error) {
+      await this.stop();
+      throw error;
     }
-    this.runner.onShutdown(async () => {
-      await this.queue;
-      await Promise.all(this.subscriptions.map((s) => s.unsubscribe()));
+  }
+  private stop() {
+    if (this.stopping) return this.stopping;
+    this.stopped = true;
+    return (this.stopping = (async () => {
+      await this.queue.catch(() => {});
+      await Promise.allSettled(this.subscriptions.map((s) => s.unsubscribe()));
+      this.subscriptions = [];
       await this.backend.close();
-    });
+    })());
   }
   private enqueue(operation: () => Promise<void>) {
     this.queue = this.queue.then(operation).catch(async (error) => {
@@ -109,36 +143,48 @@ export class Subscriptions {
   private async journalTids() {
     try {
       return (await readEvents(join(this.runner.directory, 'events.jsonl')))
-        .filter((event) => event.type === 'fill')
+        .filter((event) => event.type === 'fill' && event.scope === this.scope)
         .map((event) => (event.data as { tid?: unknown }).tid)
         .filter((tid): tid is number => typeof tid === 'number');
-    } catch {
-      return [];
+    } catch (error) {
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Cannot recover subscription journal',
+        { cause: String(error) },
+      );
     }
   }
   private async persist() {
     await atomicWrite(
-      join(this.runner.directory, 'subscriptions.json'),
+      this.cursorPath,
       JSON.stringify({
+        scope: this.scope,
         seen: [...this.seen].slice(-10000),
         lastFill: this.lastFill,
       }),
     );
   }
   async fill(fill: Fill) {
-    if (this.seen.has(fill.tid)) return;
-    if ((await this.journalTids()).includes(fill.tid)) {
+    if (
+      !Number.isSafeInteger(fill.tid) ||
+      fill.tid < 0 ||
+      !Number.isSafeInteger(fill.time) ||
+      fill.time < 0
+    )
+      throw new AgentCliError('UPSTREAM_ERROR', 'Invalid fill identity');
+    return withFileLock(this.cursorPath + '.lock', async () => {
+      if (this.seen.has(fill.tid)) return;
+      await this.emit('fill', {
+        ...fill,
+        scope: this.scope,
+        eventId: `${this.scope}:fill:${fill.tid}`,
+      });
       this.seen.add(fill.tid);
       this.lastFill = Math.max(this.lastFill ?? 0, fill.time);
+      if (this.seen.size > 10000)
+        this.seen.delete(this.seen.values().next().value!);
       await this.persist();
-      return;
-    }
-    this.seen.add(fill.tid);
-    this.lastFill = Math.max(this.lastFill ?? 0, fill.time);
-    if (this.seen.size > 10000)
-      this.seen.delete(this.seen.values().next().value!);
-    await this.emit('fill', fill);
-    await this.persist();
+    });
   }
   async flush() {
     await this.queue;

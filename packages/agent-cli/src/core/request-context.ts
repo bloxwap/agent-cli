@@ -5,5 +5,7 @@ export const requestContext = new AsyncLocalStorage<{
   cloid?: string;
   requestId?: string;
   mode?: Mode;
+  scope?: string;
+  eventId?: string;
 }>();
 export const currentRequestContext = () => requestContext.getStore();

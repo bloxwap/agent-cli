@@ -211,10 +211,10 @@ token catalog inside the package remains `tokens.version` `0.1.1`. `bun.lock` an
 | #92 | done | Startup backfills fills and dedupes by `tid` against the journal, so a crash cannot emit the same fill twice. |
 | #93 | done | Event and audit appends repair a torn tail, quarantine the partial bytes, fsync, and record `journal_repaired`. |
 | #94 | done | Nonce, audit, event, paper, and deposit locks share a helper that takes over dead or reused PIDs. A confirmed live holder returns non-retryable `INTERNAL`. |
-| #95 | done | A ready runner counts only when `runner.ping` returns its token. Dead or expired startup locks are recovered. |
+| #95 | done | Runner ownership is held for its lifetime. Ping verifies readiness; an unresponsive live PID still blocks replacement. Only proven-dead ownership is recovered. |
 | #96 | done | Fill audit links compare `resting.oid` and `filled.oid` exactly. |
 
-Fail-closed choices: approval payloads older than 24 hours are regenerated instead of submitted; unfunded quotes expire 15 minutes after `expiresAt`; a lock whose holder is confirmed alive is never stolen; a ready `runner.pid` without a matching socket token is not a running runner.
+Fail-closed choices: approval payloads older than 24 hours are regenerated instead of submitted; unfunded quotes expire 15 minutes after `expiresAt`; a lock whose holder is confirmed alive is never stolen; a live `runner.pid` without a matching socket token is unresponsive and continues to block replacement.
 
 ## Bring-your-own wallet
 
@@ -225,3 +225,29 @@ account: that exposed raw signing methods the SDK used in preference to the
 guarded `signTypedData`, skipping the Agent-envelope check and signature audit.
 #11 is closed as superseded, #40 and #41 are done on the evidence of the public
 0.4.1 release, and #39 keeps only its live-evidence boundary.
+
+## Runtime invariant audit follow-up — 2026-11-17
+
+All 44 findings from the follow-up audit of `ae8f543` are implemented in
+[INVARIANTS.md](INVARIANTS.md), with enforcement locations and regression evidence.
+This extends #81–#96 and the original runner, custody, funding, risk, persistence
+and paper-mode specifications; the audit numbers are not new GitHub issues.
+
+Changes cover race-safe lifetime locks, account-bound approval and signer state,
+current policy checks, durable order identities and uncertain-outcome reservations,
+resumable approval/rotation, attributable deposit settlement, ordered signature
+claims, fsynced state replacement, runtime schemas, scoped journals and durable
+publication outboxes. Paper fills now enforce direction, margin, time-in-force,
+trigger and funding rules at shared mutation boundaries. RPC has bounded admission,
+receipt-based oversized mutation results and early startup/shutdown cleanup.
+
+Verification: build, lint, CLI tsrs/tsc checks, 386 offline tests in 64 files,
+and packed global npm plus installed Bun/Node smoke pass. Generated command/skill
+documentation is synchronized; docs checks and production export pass (18 HTML
+pages, 705 local links/assets, 15 social cards with `/agent-cli` base path). All new regressions are offline; no live wallet,
+exchange, Relay transfer or deployment is part of this work. The remaining live-evidence boundary for #39 is unchanged.
+
+The docs build emitted an existing Next.js 16.4.2 dependency security warning and
+completed on retry. Dependency upgrades are outside the 44-finding implementation;
+that warning remains open. See the operational notes in INVARIANTS.md for Windows
+directory-durability limits and fail-closed reconciliation behavior.

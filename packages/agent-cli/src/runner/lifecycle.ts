@@ -1,15 +1,25 @@
-import type { Subscriptions } from './subscriptions.js';
+import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import { open, readFile, unlink, mkdir, chmod } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile, unlink, mkdir, chmod } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
-import { stateDir, atomicWrite, type Config } from '../core/config.js';
+import {
+  stateDir,
+  atomicWrite,
+  configSource,
+  type Config,
+} from '../core/config.js';
 import { paperDir, type Mode } from '../core/mode.js';
 import { Logger } from '../core/logger.js';
 import { openSigner as configuredSigner } from '../wallet/signer.js';
 import type { Signer } from '../core/hlclient.js';
 import { AgentCliError } from '../errors/index.js';
-import { pidLiveness, readLock } from '../core/lock.js';
+import {
+  holderState,
+  acquireFileLock,
+  withFileLock,
+  type FileLease,
+} from '../core/lock.js';
 export const STARTUP_TIMEOUT_MS = 30_000;
 export interface RunnerInfo {
   pid: number;
@@ -17,6 +27,10 @@ export interface RunnerInfo {
   network: Config['network'];
   ready: boolean;
   token: string;
+  status?: 'starting' | 'ready' | 'unresponsive';
+  account?: string;
+  mode?: Mode;
+  configPath?: string;
 }
 export const runnerPidPath = (mode: Mode = 'live') =>
   join(mode === 'paper' ? paperDir() : stateDir(), 'runner.pid');
@@ -33,17 +47,47 @@ export async function runningInfo(
 ): Promise<RunnerInfo | null> {
   let info: RunnerInfo;
   try {
-    info = JSON.parse(await readFile(path, 'utf8')) as RunnerInfo;
-  } catch (error) {
+    const raw = JSON.parse(await readFile(path, 'utf8'));
     if (
-      (error as NodeJS.ErrnoException).code === 'ENOENT' ||
-      error instanceof SyntaxError
+      Number.isSafeInteger(raw?.pid) &&
+      raw.pid > 0 &&
+      holderState({
+        pid: raw.pid,
+        createdAt: raw.startedAt ?? 0,
+        token: raw.token ?? '',
+      }) === 'dead'
     )
       return null;
-    throw error;
+    info = z
+      .object({
+        pid: z.number().int().positive(),
+        startedAt: z.number().int().nonnegative(),
+        network: z.enum(['mainnet', 'testnet']),
+        ready: z.boolean(),
+        token: z.string().min(1),
+        status: z.enum(['starting', 'ready', 'unresponsive']).optional(),
+        account: z.string().optional(),
+        mode: z.enum(['live', 'paper']).optional(),
+        configPath: z.string().optional(),
+      })
+      .parse(raw);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Invalid runner ownership record; inspect before restarting',
+      { path },
+    );
   }
   if (!Number.isInteger(info.pid) || info.pid <= 0 || !info.token) return null;
-  if (pidLiveness(info.pid) !== 'alive') return null;
+  const holder = holderState({
+    pid: info.pid,
+    createdAt: info.startedAt,
+    token: info.token,
+  });
+  if (holder === 'dead' || holder === 'reused') return null;
+  if (holder === 'unknown')
+    return { ...info, ready: false, status: 'unresponsive' };
   if (
     activeRunner &&
     activeRunner.info.pid === info.pid &&
@@ -51,7 +95,13 @@ export async function runningInfo(
   )
     return { ...info, ready: activeRunner.info.ready };
   if (!info.ready)
-    return Date.now() - info.startedAt > STARTUP_TIMEOUT_MS ? null : info;
+    return {
+      ...info,
+      status:
+        Date.now() - info.startedAt > STARTUP_TIMEOUT_MS
+          ? 'unresponsive'
+          : 'starting',
+    };
   try {
     const { rpcCall, socketPath } = await import('./rpc.js');
     const pong = (await rpcCall(
@@ -60,53 +110,27 @@ export async function runningInfo(
       socketPath(dirname(path)),
       1_000,
     )) as { token?: string };
-    return pong?.token === info.token ? info : null;
+    return pong?.token === info.token
+      ? info
+      : { ...info, ready: false, status: 'unresponsive' };
   } catch {
-    return null;
+    return { ...info, ready: false, status: 'unresponsive' };
   }
-}
-async function acquireStartupLock(lockPath: string) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const guard = await open(lockPath, 'wx', 0o600);
-      const token = randomUUID();
-      await guard.writeFile(
-        JSON.stringify({ pid: process.pid, createdAt: Date.now(), token }),
-      );
-      await guard.sync();
-      return { guard, token };
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      const record = await readLock(lockPath);
-      const stale =
-        !record ||
-        pidLiveness(record.pid) !== 'alive' ||
-        Date.now() - record.createdAt > STARTUP_TIMEOUT_MS;
-      if (!stale)
-        throw new AgentCliError(
-          'RUNNER_NOT_RUNNING',
-          'Runner startup in progress; retry shortly',
-          { lock: lockPath },
-          true,
-        );
-      await unlink(lockPath).catch(() => {});
-    }
-  }
-  throw new AgentCliError(
-    'RUNNER_NOT_RUNNING',
-    'Runner startup in progress; retry shortly',
-    { lock: lockPath },
-    true,
-  );
 }
 export class Runner {
-  subscriptions?: Subscriptions;
+  subscriptions?: {
+    state: string;
+    lastMessage: number;
+    lastFill: number | null;
+  };
   readonly info: RunnerInfo;
   readonly logger: Logger;
   signer?: Signer;
   private timer?: NodeJS.Timeout;
   private cleanup: (() => Promise<void>)[] = [];
   private closing = false;
+  private lease?: FileLease;
+  private admission: (() => Promise<void>)[] = [];
   constructor(
     readonly config: Config,
     readonly directory = stateDir(),
@@ -117,6 +141,11 @@ export class Runner {
       network: config.network,
       ready: false,
       token: randomUUID(),
+      account: config.masterAddress?.toLowerCase(),
+      mode: config.mode,
+      configPath: resolve(
+        configSource(config)?.path ?? join(stateDir(), 'config.json'),
+      ),
     };
     this.logger = new Logger({
       level: config.logLevel,
@@ -130,23 +159,37 @@ export class Runner {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     await chmod(this.directory, 0o700);
     const path = join(this.directory, 'runner.pid');
-    const startupLock = path + '.startup';
-    const { guard, token } = await acquireStartupLock(startupLock);
-    let handle;
-    try {
-      const existing = await runningInfo(path);
-      if (existing) return { existing: true, ...existing };
-      await unlink(path).catch((error) => {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      });
-      handle = await open(path, 'wx', 0o600);
-      await handle.writeFile(JSON.stringify(this.info));
-      await handle.close();
-    } finally {
-      await guard.close();
-      const current = await readLock(startupLock);
-      if (current?.token === token) await unlink(startupLock).catch(() => {});
-    }
+    const existing = await withFileLock(
+      path + '.startup',
+      async () => {
+        const current = await runningInfo(path);
+        if (current) {
+          if (
+            current.network !== this.config.network ||
+            (current.mode && current.mode !== this.config.mode) ||
+            (current.account &&
+              current.account !== this.config.masterAddress?.toLowerCase()) ||
+            (current.configPath && current.configPath !== this.info.configPath)
+          )
+            throw new AgentCliError(
+              'CONFIG_INVALID',
+              'Runner belongs to a different config, account, network or mode',
+            );
+          return current;
+        }
+        this.lease = await acquireFileLock(path + '.owner', { staleMs: 1000 });
+        try {
+          await atomicWrite(path, JSON.stringify(this.info));
+        } catch (error) {
+          await this.lease.release();
+          this.lease = undefined;
+          throw error;
+        }
+        return null;
+      },
+      { staleMs: 1000 },
+    );
+    if (existing) return { existing: true, ...existing };
     try {
       this.signer = await loadSigner();
       this.timer = setInterval(() => {}, 30_000);
@@ -154,17 +197,38 @@ export class Runner {
       await this.logger.flush();
       return { existing: false, ...this.info };
     } catch (error) {
-      await handle?.close().catch(() => {});
-      await unlink(path).catch(() => {});
+      if (this.timer) clearInterval(this.timer);
+      this.signer = undefined;
+      await this.releaseOwnership();
       throw error;
     }
   }
   async markReady() {
     this.info.ready = true;
+    this.info.status = 'ready';
     await atomicWrite(
       join(this.directory, 'runner.pid'),
       JSON.stringify(this.info),
     );
+  }
+  onStopAdmission(cleanup: () => Promise<void>) {
+    this.admission.push(cleanup);
+  }
+  private async releaseOwnership() {
+    const path = join(this.directory, 'runner.pid');
+    try {
+      const current = JSON.parse(await readFile(path, 'utf8'));
+      if (current.token === this.info.token) await unlink(path);
+    } catch (error) {
+      if (
+        (error as NodeJS.ErrnoException).code !== 'ENOENT' &&
+        !(error instanceof SyntaxError)
+      )
+        throw error;
+    } finally {
+      await this.lease?.release();
+      this.lease = undefined;
+    }
   }
   onShutdown(cleanup: () => Promise<void>) {
     this.cleanup.push(cleanup);
@@ -174,7 +238,7 @@ export class Runner {
     this.closing = true;
     if (this.timer) clearInterval(this.timer);
     const errors: unknown[] = [];
-    for (const cleanup of this.cleanup.reverse())
+    for (const cleanup of [...this.admission, ...this.cleanup.reverse()])
       try {
         await cleanup();
       } catch (error) {
@@ -182,10 +246,12 @@ export class Runner {
       }
     this.signer = undefined;
     this.logger.log('info', 'Runner stopped');
-    await this.logger.flush();
-    await unlink(join(this.directory, 'runner.pid')).catch((error) => {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    });
+    try {
+      await this.logger.flush();
+    } catch (error) {
+      errors.push(error);
+    }
+    await this.releaseOwnership();
     if (activeRunner === this) activeRunner = undefined;
     if (errors.length)
       throw new AggregateError(errors, 'Runner cleanup failed');
@@ -207,7 +273,7 @@ export class Runner {
 }
 export async function detachRunner(args: string[], path = runnerPidPath()) {
   const existing = await runningInfo(path);
-  if (existing?.ready) return existing;
+  if (existing) return existing;
   const compiled =
     Boolean(process.versions.bun) && import.meta.url.includes('/$bunfs/');
   const child = spawn(

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { register } from '../core/router.js';
-import { loadConfig, atomicWrite, type Config } from '../core/config.js';
+import { loadConfig, type Config } from '../core/config.js';
 import { paperDataNetwork } from '../core/mode.js';
 import { PaperStore } from '../paper/store.js';
 import {
@@ -15,19 +15,25 @@ import {
 } from '../paper/simulator.js';
 import { formatUsdc, parseUsdc } from '../funding/amounts.js';
 import { AgentCliError } from '../errors/index.js';
-import { paperEvents } from '../runner/events.js';
 export async function paperSummary(
   store: PaperStore,
   data: PaperData = paperData(),
 ) {
-  const [state, marks] = await Promise.all([store.load(), data.marks()]);
-  rolloverDay(state, marks, Date.now());
+  const marks = await data.marks();
+  const state = await store.update((state) => {
+    rolloverDay(state, marks, Date.now());
+    return structuredClone(state);
+  });
   const maxLeverageOf = async (coin: string) => data.maxLeverageOf(coin);
   const resolved = new Map<string, number>();
   for (const coin of new Set(state.positions.map((p) => p.coin)))
     resolved.set(coin, await maxLeverageOf(coin));
   const equity = accountEquity(state, marks);
-  const account = paperAccountState(state, marks, (coin) => resolved.get(coin) ?? 1);
+  const account = paperAccountState(
+    state,
+    marks,
+    (coin) => resolved.get(coin) ?? 1,
+  );
   const unrealized = account.assetPositions.reduce(
     (sum, p) => sum + parseUsdc(p.position.unrealizedPnl, 18),
     0n,
@@ -44,7 +50,7 @@ export async function paperSummary(
     unrealizedPnl: formatUsdc(unrealized, 18),
     feesPaid: state.feesPaid,
     fundingPaid: state.fundingPaid,
-    trades: state.trades.length,
+    trades: state.nextTid - 1,
     liquidations: state.liquidations,
     openOrders: state.orders.length,
     positions: account.assetPositions.map(({ position: p }) => ({
@@ -74,16 +80,16 @@ register('paper', {
     const config: Config = await loadConfig(context.configPath);
     if (context.paper !== undefined)
       config.mode = context.paper ? 'paper' : 'live';
-    const store = new PaperStore();
+    const store = new PaperStore(undefined, config.paper.startingBalance);
     if (action === 'reset') {
       if (!input.yes)
         throw new AgentCliError(
           'CONFIG_INVALID',
           'paper reset clears all paper state; re-run with --yes to confirm',
         );
-      const starting = (input.balance as number | undefined) ?? config.paper.startingBalance;
+      const starting =
+        (input.balance as number | undefined) ?? config.paper.startingBalance;
       await store.reset(starting);
-      await atomicWrite(paperEvents.path, '');
       return {
         paper: true,
         mode: 'paper' as const,

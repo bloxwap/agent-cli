@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { register } from '../core/router.js';
 import { loadConfig, type Config } from '../core/config.js';
 import { hlInfo } from '../core/http.js';
-import { RelayClient, PERPS_USDC, parseQuote } from '../funding/relay.js';
+import {
+  RelayClient,
+  PERPS_USDC,
+  validateQuote,
+  type QuoteRequest,
+} from '../funding/relay.js';
 import { parseUsdc, formatUsdc } from '../funding/amounts.js';
 import { renderQr } from '../funding/qr.js';
 import { assertLiveMode } from '../core/trading.js';
@@ -31,6 +36,7 @@ export async function fund(
     qr?: typeof renderQr;
   } = {},
 ) {
+  assertLiveMode(config, 'fund');
   if (!config.masterAddress)
     throw new AgentCliError('AGENT_NOT_APPROVED', 'Initialize master address');
   const amount = parseUsdc(input.amount, input.originDecimals);
@@ -38,11 +44,23 @@ export async function fund(
     throw new AgentCliError('INVALID_SIZE', 'Positive funding amount required');
   const route = JSON.stringify([
     config.network,
-    config.masterAddress,
+    config.masterAddress.toLowerCase(),
     input.originChain,
-    input.originCurrency,
+    input.originCurrency.toLowerCase(),
+    input.originDecimals,
     amount.toString(),
   ]);
+  const request: QuoteRequest = {
+    user: config.masterAddress,
+    recipient: config.masterAddress,
+    originChainId: input.originChain,
+    originCurrency: input.originCurrency,
+    amount: amount.toString(),
+    destinationChainId: 1337,
+    destinationCurrency: PERPS_USDC,
+    useDepositAddress: true,
+    tradeType: 'EXACT_INPUT',
+  };
   const deposits = await readDeposits(dependencies.path);
   let deposit = deposits.find(
     (d) =>
@@ -58,37 +76,8 @@ export async function fund(
           ? 'https://api.testnets.relay.link'
           : 'https://api.relay.link',
       )
-    ).quote({
-      user: config.masterAddress,
-      recipient: config.masterAddress,
-      originChainId: input.originChain,
-      originCurrency: input.originCurrency,
-      amount: amount.toString(),
-      destinationChainId: 1337,
-      destinationCurrency: PERPS_USDC,
-      useDepositAddress: true,
-      tradeType: 'EXACT_INPUT',
-    });
-    const parsed = parseQuote(quote);
-    const quotedDecimals = quote.details.currencyIn?.currency?.decimals;
-    const quotedAmount = quote.details.currencyIn?.amount;
-    if (typeof quotedDecimals !== 'number')
-      throw new AgentCliError(
-        'CONFIG_INVALID',
-        'Quote did not include origin token decimals',
-      );
-    if (quotedDecimals !== input.originDecimals)
-      throw new AgentCliError(
-        'CONFIG_INVALID',
-        'Origin decimals do not match the quoted token',
-        { originDecimals: input.originDecimals, quoteDecimals: quotedDecimals },
-      );
-    if (quotedAmount !== amount.toString())
-      throw new AgentCliError(
-        'CONFIG_INVALID',
-        'Quote amount does not match the requested amount',
-        { requested: amount.toString(), quoted: quotedAmount ?? null },
-      );
+    ).quote(request);
+    const parsed = validateQuote(quote, request, input.originDecimals);
     if (amount < BigInt(parsed.minAmount))
       throw new AgentCliError('INVALID_SIZE', 'Below minimum deposit', {
         minimum: parsed.minAmount,
@@ -123,7 +112,7 @@ export async function fund(
       else fresh.push(deposit!);
     });
   }
-  const parsed = parseQuote(deposit.quote);
+  const parsed = validateQuote(deposit.quote, request, input.originDecimals);
   const received = formatUsdc(
     BigInt(parsed.expectedReceived),
     parsed.receivedDecimals,
@@ -150,7 +139,8 @@ register('fund', {
   schema: fundSchema,
   execute: async (input, context) => {
     const config = await loadConfig(context.configPath);
-    if (context.paper !== undefined) config.mode = context.paper ? 'paper' : 'live';
+    if (context.paper !== undefined)
+      config.mode = context.paper ? 'paper' : 'live';
     assertLiveMode(config, 'fund');
     if (context.network) config.network = context.network;
     return fund(config, input as z.infer<typeof fundSchema>);

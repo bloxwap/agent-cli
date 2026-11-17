@@ -40,3 +40,24 @@ export function fromHyperCore(core: bigint) {
     );
   return core / 100n;
 }
+
+// Expand finite JS numbers without scientific notation before exact parsing.
+export function decimalNumber(value: number): string {
+  if (!Number.isFinite(value))
+    throw new AgentCliError('CONFIG_INVALID', 'Expected finite decimal');
+  const text = String(value);
+  if (!/[eE]/.test(text)) return text;
+  const [coefficient, exponent] = text.toLowerCase().split('e');
+  const negative = coefficient.startsWith('-');
+  const [whole, fraction = ''] = coefficient.replace('-', '').split('.');
+  const digits = whole + fraction;
+  const point = whole.length + Number(exponent);
+  return (
+    (negative ? '-' : '') +
+    (point <= 0
+      ? '0.' + '0'.repeat(-point) + digits
+      : point >= digits.length
+        ? digits + '0'.repeat(point - digits.length)
+        : digits.slice(0, point) + '.' + digits.slice(point))
+  );
+}

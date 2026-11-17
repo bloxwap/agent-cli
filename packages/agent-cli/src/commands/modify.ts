@@ -1,3 +1,4 @@
+import { reconcilePendingOrders } from '../core/operations.js';
 import { z } from 'zod';
 import { register } from '../core/router.js';
 import { commandConfig } from './read.js';
@@ -22,7 +23,7 @@ const modification = z.object({
   price: z.string().optional(),
 });
 export const modifySchema = modification.extend({
-  modifications: z.array(modification).optional(),
+  modifications: z.array(modification).min(1).max(100).optional(),
   intent: z.string().optional(),
 });
 export async function modifyOrders(
@@ -53,8 +54,11 @@ async function modifyLocked(
     return original;
   });
   await assertCanTrade(config, {
-    reduceOnly: originals.length > 0 && originals.every((order) => order.reduceOnly),
+    reduceOnly:
+      originals.length > 0 && originals.every((order) => order.reduceOnly),
   });
+  if (originals.some((order) => !order.reduceOnly))
+    await reconcilePendingOrders(config, clients.orderByCloid);
   const modifies: Record<string, unknown>[] = [];
   for (const [requestIndex, request] of requests.entries()) {
     const original = originals[requestIndex];

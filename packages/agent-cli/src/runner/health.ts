@@ -1,6 +1,12 @@
+import { executionScope } from '../core/operations.js';
 import { collateralBalance } from '../core/account.js';
 import { expiryWarnings } from '../wallet/expiry.js';
-import { activeRunner, runningInfo, runnerPidPath, type Runner } from './lifecycle.js';
+import {
+  activeRunner,
+  runningInfo,
+  runnerPidPath,
+  type Runner,
+} from './lifecycle.js';
 import type { Subscriptions } from './subscriptions.js';
 import { events } from './events.js';
 import { hlInfo } from '../core/http.js';
@@ -23,7 +29,8 @@ export function health(runner: Runner, now = Date.now()) {
   };
 }
 export async function runnerHealth(mode: Mode = 'live') {
-  if (activeRunner && activeRunner.config.mode === mode) return health(activeRunner);
+  if (activeRunner && activeRunner.config.mode === mode)
+    return health(activeRunner);
   const info = await runningInfo(runnerPidPath(mode));
   return info
     ? {
@@ -40,7 +47,9 @@ export function startHeartbeat(runner: Runner, subscriptions: Subscriptions) {
   const tick = () => {
     queue = queue
       .then(async () => {
-        await events.append('runner_state', health(runner));
+        await events.append('runner_state', health(runner), {
+          scope: await executionScope(runner.config),
+        });
         await expiryWarnings(runner.config);
         if (runner.config.masterAddress) {
           const state = await hlInfo<{
@@ -53,19 +62,13 @@ export function startHeartbeat(runner: Runner, subscriptions: Subscriptions) {
             runner.config.network,
             runner.config.masterAddress,
             collateralBalance(state),
-            {
-              emit: async (deposit) => {
-                await events.append('deposit', {
-                  id: deposit.id,
-                  state: deposit.state,
-                });
-              },
-            },
           );
         }
       })
       .catch(async (error) => {
-        await events.append('error', normalizeError(error).toJSON());
+        await events.append('error', normalizeError(error).toJSON(), {
+          scope: await executionScope(runner.config),
+        });
       });
   };
   tick();

@@ -1,10 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { migrate } from '../src/core/config.js';
 import { PaperStore } from '../src/paper/store.js';
-import {
-  paperExchange,
-  type PaperData,
-} from '../src/paper/services.js';
+import { paperExchange, type PaperData } from '../src/paper/services.js';
 import { paperTradingServices } from '../src/paper/services.js';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -15,13 +12,15 @@ const store = () =>
   );
 const BOOK = {
   bids: [{ px: '99', sz: '5' }],
-  asks: [{ px: '100', sz: '1' }, { px: '101', sz: '2' }],
+  asks: [
+    { px: '100', sz: '1' },
+    { px: '101', sz: '2' },
+  ],
 };
 const data = (books: Record<string, unknown> = { BTC: BOOK }): PaperData => ({
-  book: async (coin) =>
-    (books[coin] as never) ?? { bids: [], asks: [] },
+  book: async (coin) => (books[coin] as never) ?? { bids: [], asks: [] },
   marks: async () => ({ BTC: '100' }),
-  fundingRates: async () => ({ BTC: '0.0001' }),
+  fundingRates: async () => ({ BTC: '0' }),
   mids: async () => ({ BTC: '100' }),
   coinOfAsset: async (asset) => (asset === 0 ? 'BTC' : 'ETH'),
   maxLeverageOf: async () => 40,
@@ -39,24 +38,46 @@ test('IOC order walks the live book and reports a fill', async () => {
   );
   const result = (await exchange.order({
     orders: [
-      { a: 0, b: true, p: '100.5', s: '1', r: false, t: { limit: { tif: 'Ioc' } } },
+      {
+        a: 0,
+        b: true,
+        p: '100.5',
+        s: '1',
+        r: false,
+        t: { limit: { tif: 'Ioc' } },
+      },
     ],
   })) as { response: { data: { statuses: unknown[] } } };
   expect(result.response.data.statuses[0]).toEqual({
     filled: { oid: 1, totalSz: '1', avgPx: '100', status: 'filled' },
   });
   const state = await paper.load();
-  expect(state.positions[0]).toMatchObject({ coin: 'BTC', size: '1', entryPx: '100' });
+  expect(state.positions[0]).toMatchObject({
+    coin: 'BTC',
+    size: '1',
+    entryPx: '100',
+  });
   expect(state.balance).toBe('9999.955');
-  expect(emitted.map(([type]) => type)).toEqual(['fill']);
+  expect(emitted.map(([type]) => type)).toEqual(['fill', 'position_change']);
 });
 test('IOC without liquidity returns an error status', async () => {
   const paper = store();
   await paper.reset(10000);
-  const exchange = paperExchange(config(), paper, data({ BTC: { bids: [], asks: [] } }));
+  const exchange = paperExchange(
+    config(),
+    paper,
+    data({ BTC: { bids: [], asks: [] } }),
+  );
   const result = (await exchange.order({
     orders: [
-      { a: 0, b: true, p: '100', s: '1', r: false, t: { limit: { tif: 'Ioc' } } },
+      {
+        a: 0,
+        b: true,
+        p: '100',
+        s: '1',
+        r: false,
+        t: { limit: { tif: 'Ioc' } },
+      },
     ],
   })) as { response: { data: { statuses: { error?: string }[] } } };
   expect(result.response.data.statuses[0].error).toMatch(/immediately match/);
@@ -67,14 +88,28 @@ test('GTC limit rests when not crossed and fills immediately when crossed', asyn
   const exchange = paperExchange(config(), paper, data());
   const resting = (await exchange.order({
     orders: [
-      { a: 0, b: false, p: '102', s: '1', r: false, t: { limit: { tif: 'Gtc' } } },
+      {
+        a: 0,
+        b: false,
+        p: '102',
+        s: '1',
+        r: false,
+        t: { limit: { tif: 'Gtc' } },
+      },
     ],
   })) as { response: { data: { statuses: unknown[] } } };
   expect(resting.response.data.statuses[0]).toEqual({ resting: { oid: 1 } });
   expect((await paper.load()).orders[0].limitPx).toBe('102');
   const crossed = (await exchange.order({
     orders: [
-      { a: 0, b: true, p: '100', s: '0.5', r: false, t: { limit: { tif: 'Gtc' } } },
+      {
+        a: 0,
+        b: true,
+        p: '100',
+        s: '0.5',
+        r: false,
+        t: { limit: { tif: 'Gtc' } },
+      },
     ],
   })) as { response: { data: { statuses: unknown[] } } };
   expect(crossed.response.data.statuses[0]).toEqual({
@@ -100,7 +135,11 @@ test('TP/SL trigger orders rest and fire when already triggered', async () => {
   })) as { response: { data: { statuses: unknown[] } } };
   expect(resting.response.data.statuses[0]).toEqual({ resting: { oid: 1 } });
   const order = (await paper.load()).orders[0];
-  expect(order).toMatchObject({ isTrigger: true, triggerPx: '105', tpsl: 'tp' });
+  expect(order).toMatchObject({
+    isTrigger: true,
+    triggerPx: '105',
+    tpsl: 'tp',
+  });
   // Stop with trigger already below the mark fires immediately as a market walk.
   const fired = (await exchange.order({
     orders: [
@@ -124,7 +163,15 @@ test('cancel, cancelByCloid and unknown cancel errors', async () => {
   const exchange = paperExchange(config(), paper, data());
   await exchange.order({
     orders: [
-      { a: 0, b: false, p: '102', s: '1', r: false, t: { limit: { tif: 'Gtc' } }, c: '0x' + 'ab'.repeat(16) },
+      {
+        a: 0,
+        b: false,
+        p: '102',
+        s: '1',
+        r: false,
+        t: { limit: { tif: 'Gtc' } },
+        c: '0x' + 'ab'.repeat(16),
+      },
     ],
   });
   const byOid = (await exchange.cancel({ cancels: [{ a: 0, o: 1 }] })) as {
@@ -133,7 +180,15 @@ test('cancel, cancelByCloid and unknown cancel errors', async () => {
   expect(byOid.response.data.statuses[0]).toEqual({ success: true });
   await exchange.order({
     orders: [
-      { a: 0, b: false, p: '102', s: '1', r: false, t: { limit: { tif: 'Gtc' } }, c: '0x' + 'cd'.repeat(16) },
+      {
+        a: 0,
+        b: false,
+        p: '102',
+        s: '1',
+        r: false,
+        t: { limit: { tif: 'Gtc' } },
+        c: '0x' + 'cd'.repeat(16),
+      },
     ],
   });
   const byCloid = (await exchange.cancelByCloid({
@@ -152,14 +207,28 @@ test('batchModify updates resting orders and fills when modified into a cross', 
   const exchange = paperExchange(config(), paper, data());
   await exchange.order({
     orders: [
-      { a: 0, b: true, p: '98', s: '1', r: false, t: { limit: { tif: 'Gtc' } } },
+      {
+        a: 0,
+        b: true,
+        p: '98',
+        s: '1',
+        r: false,
+        t: { limit: { tif: 'Gtc' } },
+      },
     ],
   });
   const modified = (await exchange.batchModify({
     modifies: [
       {
         oid: 1,
-        order: { a: 0, b: true, p: '100', s: '1', r: false, t: { limit: { tif: 'Gtc' } } },
+        order: {
+          a: 0,
+          b: true,
+          p: '100',
+          s: '1',
+          r: false,
+          t: { limit: { tif: 'Gtc' } },
+        },
       },
     ],
   })) as { response: { data: { statuses: unknown[] } } };
@@ -171,7 +240,14 @@ test('batchModify updates resting orders and fills when modified into a cross', 
     modifies: [
       {
         oid: 777,
-        order: { a: 0, b: true, p: '100', s: '1', r: false, t: { limit: { tif: 'Gtc' } } },
+        order: {
+          a: 0,
+          b: true,
+          p: '100',
+          s: '1',
+          r: false,
+          t: { limit: { tif: 'Gtc' } },
+        },
       },
     ],
   })) as { response: { data: { statuses: { error?: string }[] } } };
@@ -197,7 +273,14 @@ test('margin exhaustion surfaces as INSUFFICIENT_MARGIN from the adapter', async
   await expect(
     exchange.order({
       orders: [
-        { a: 0, b: true, p: '100', s: '200', r: false, t: { limit: { tif: 'Gtc' } } },
+        {
+          a: 0,
+          b: true,
+          p: '100',
+          s: '200',
+          r: false,
+          t: { limit: { tif: 'Gtc' } },
+        },
       ],
     }),
   ).rejects.toMatchObject({ code: 'INSUFFICIENT_MARGIN' });
@@ -209,17 +292,31 @@ test('paperTradingServices exposes account state, open orders and daily loss', a
   const exchange = services.exchange;
   await exchange.order({
     orders: [
-      { a: 0, b: true, p: '100.5', s: '1', r: false, t: { limit: { tif: 'Ioc' } } },
+      {
+        a: 0,
+        b: true,
+        p: '100.5',
+        s: '1',
+        r: false,
+        t: { limit: { tif: 'Ioc' } },
+      },
     ],
   });
   await exchange.order({
     orders: [
-      { a: 0, b: false, p: '105', s: '1', r: true, t: { trigger: { isMarket: true, triggerPx: '105', tpsl: 'tp' } } },
+      {
+        a: 0,
+        b: false,
+        p: '105',
+        s: '1',
+        r: true,
+        t: { trigger: { isMarket: true, triggerPx: '105', tpsl: 'tp' } },
+      },
     ],
   });
   const state = await services.state();
   expect(state.marginSummary.accountValue).toBe('9999.955');
-  expect(state.withdrawable).toBe('9999.955');
+  expect(state.withdrawable).toBe('9899.955');
   expect(state.assetPositions[0].position).toMatchObject({
     coin: 'BTC',
     szi: '1',

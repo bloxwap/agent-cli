@@ -29,7 +29,7 @@ async function eoaAccount(config: Config, keyRef = config.eoaKeyRef) {
 
 export async function prepareEoaAgent(
   config: Config,
-  path?: string,
+  path?: string | null,
   keyRef = config.eoaKeyRef,
 ) {
   const account = await eoaAccount(config, keyRef);
@@ -44,7 +44,7 @@ export async function prepareEoaAgent(
     );
   config.eoaKeyRef = keyRef;
   config.agentAddress = account.address;
-  await saveConfig(config, path);
+  if (path !== null) await saveConfig(config, path);
   return account;
 }
 

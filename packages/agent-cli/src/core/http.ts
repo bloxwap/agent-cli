@@ -1,3 +1,4 @@
+import { AgentCliError } from '../errors/index.js';
 import { mapNetworkError } from '../errors/mappers.js';
 export async function jsonRequest(
   url: string,
@@ -15,7 +16,17 @@ export async function jsonRequest(
   } catch (error) {
     throw mapNetworkError(error);
   }
-  const data: unknown = await response.json();
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new AgentCliError(
+      'NETWORK_ERROR',
+      'Response body could not be decoded',
+      { outcome: body === undefined ? undefined : 'unknown' },
+      false,
+    );
+  }
   if (!response.ok)
     throw {
       status: response.status,

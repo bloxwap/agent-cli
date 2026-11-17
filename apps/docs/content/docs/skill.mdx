@@ -38,7 +38,7 @@ or submits anything — no agent key, `approveAgent`, or deposit is needed.
 builder fee and audit trail; a local simulator fills them (book-walking market
 orders, resting limits, reduce-only, TP/SL, fees, funding, margin/liquidation
 approximation). State is restartable under `~/.bloxwap/paper/`; `paper summary`
-reports PnL/fees/funding, `paper reset --yes` clears it. Envelopes and events
+reports PnL/fees/funding, `paper reset --yes` starts a new session while retaining historical journals. Envelopes and events
 carry `mode`/`paper`, paper state never mixes with live state, and going live
 requires `config set mode live --yes`. Only after the paper results are proven,
 continue with live onboarding below and real funding.
@@ -100,7 +100,8 @@ transport envelope does not imply exchange acceptance. Every live or paper
 `order` carries a `cloid` (generated when omitted) on the success and on the
 error. A mutation timeout or disconnect is `NETWORK_ERROR` with `retryable:
 false` and `details.outcome: "unknown"`. Retry that same `intentId` or `cloid`;
-the CLI reuses the cloid and will not place a second order. Do not mint a new
+the CLI reconciles the stored submission without placing a second order. An
+empty lookup remains unresolved and blocks additional exposure. Do not mint a new
 cloid for the same intent.
 
 For EOA rotation, the user sets a new local key and supplies only its reference
@@ -192,7 +193,8 @@ HyperCore perps USDC uses **8 decimals**; EVM USDC uses **6**. The quote's origi
 decimals must match `originDecimals` or `fund` returns `CONFIG_INVALID`. Preserve
 strings and bigints. Some deposits require **two distinct signatures**; resume
 stored steps rather than restarting the route. Agent expiry is at most **180 days**.
-Fills in `events.jsonl` are delivered once per exchange `tid`, including
+Fills in `events.jsonl` are deduplicated by account/network (paper: session) and
+exchange `tid`, including
 fills that happen while the runner is down; dedupe by `tid` as well as `seq`.
 Never
 ask for, paste, log or import a master private key or seed. EOA agent keys are
@@ -221,3 +223,25 @@ real funds. Missing CI credentials fail the job; a skipped or
 mocked test must never be reported as live validation. Record the workflow run,
 commit, lifecycle report, event and audit artifacts before claiming a testnet pass.
 See `docs/agent-workflow.md` and `docs/testnet.md` in the repository for setup.
+
+## Recovery and retained history
+
+An `outcome: "accepted"` error preserves a completed mutation despite a local
+audit/write failure; do not retry it as rejected. Mixed batch failures retain
+all member statuses with `outcome: "partial"`. Oversized RPC mutation results
+return a private `resultPath` receipt. Retain operation records and journal
+indexes with their journals for reconciliation and deduplication.
+
+Event/audit reads default to the current account or paper session and 200 records.
+Use `--since SEQ --limit N` (maximum 1,000) to page and `--all-scopes` for historical
+sessions/accounts. Paper reset retains global event sequence numbers. Orders and
+positions support `--offset` and `--limit`. A live but unresponsive runner blocks
+replacement; stop the owning process before starting another runner.
+
+Deposit settlement requires an attributable Relay destination transaction and
+Hyperliquid ledger credit, not just a balance increase. Unknown in-flight status
+remains pending. Signature steps persist claims before submission and require
+positive reconciliation after an uncertain outcome. Explicit abandon ends local
+tracking without canceling the transfer. Paper daily-loss protection blocks new
+exposure when its UTC-day baseline cannot be established; reducing exposure stays
+available.

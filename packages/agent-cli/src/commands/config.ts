@@ -23,6 +23,30 @@ register('config', {
         : config;
     if (action !== 'set' || !key || value === undefined)
       throw new AgentCliError('CONFIG_INVALID', 'Use config set key value');
+    if (
+      [
+        'approval',
+        'approvedNetwork',
+        'approved',
+        'revoked',
+        'agentAddress',
+        'agentExpiry',
+        'revision',
+      ].includes(key.split('.')[0])
+    )
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Approval state is managed by init, rotate and revoke',
+      );
+    if (
+      key === 'masterAddress' &&
+      config.agentAddress &&
+      value.toLowerCase() !== config.masterAddress?.toLowerCase()
+    )
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Use a separate config for a different master account',
+      );
     let parsed: unknown;
     try {
       parsed = JSON.parse(value);
@@ -38,12 +62,7 @@ register('config', {
         'CONFIG_INVALID',
         'Network is pinned to the agent approval; use a separate config for another network',
       );
-    if (
-      key === 'mode' &&
-      parsed === 'live' &&
-      !yes &&
-      config.mode !== 'live'
-    )
+    if (key === 'mode' && parsed === 'live' && !yes && config.mode !== 'live')
       throw new AgentCliError(
         'CONFIG_INVALID',
         'Switching to live mode requires explicit confirmation; re-run with --yes',

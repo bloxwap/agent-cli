@@ -47,12 +47,14 @@ import { activeRunner, setActiveRunner } from '../src/runner/lifecycle.js';
 import { rpcCall, socketPath, routeToRunner } from '../src/runner/rpc.js';
 import { readAudit, verifyAudit } from '../src/core/audit.js';
 let path: string;
+let master: ReturnType<typeof privateKeyToAccount>;
 let agent: ReturnType<typeof privateKeyToAccount>;
 let nextAgent: ReturnType<typeof privateKeyToAccount>;
 beforeEach(async () => {
   setRouting(routeToRunner);
   await mkdir(environment.home, { recursive: true, mode: 0o700 });
   path = join(environment.home, '.bloxwap', 'config.json');
+  master = privateKeyToAccount(generatePrivateKey());
   const agentKey = generatePrivateKey();
   const nextAgentKey = generatePrivateKey();
   agent = privateKeyToAccount(agentKey);
@@ -67,7 +69,7 @@ beforeEach(async () => {
   await saveConfig(
     migrate({
       eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
-      masterAddress: '0x' + 'a'.repeat(40),
+      masterAddress: master.address,
     }),
     path,
   );
@@ -89,17 +91,38 @@ beforeEach(async () => {
           ],
           fees: {},
           details: {
-            currencyOut: { amount: '1000000000', currency: { decimals: 8 } },
-            currencyIn: { amount: '10000000', currency: { decimals: 6 } },
+            recipient: master.address,
+            currencyOut: {
+              amount: '1000000000',
+              currency: {
+                decimals: 8,
+                chainId: 1337,
+                address: '0x' + '0'.repeat(32),
+              },
+            },
+            currencyIn: {
+              amount: '10000000',
+              currency: {
+                decimals: 6,
+                chainId: 42161,
+                address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+              },
+            },
             expiresAt: Date.now() + 60000,
           },
         });
       if (String(url).includes('/intents/status'))
-        return Response.json({ status: 'success' });
+        return Response.json({
+          status: 'success',
+          txHashes: ['0xledger'],
+          destinationChainId: 1337,
+        });
       if (action?.type === 'approveAgent') {
         if (action.agentAddress === '0x' + '0'.repeat(40))
-          environment.agents = environment.agents.filter((agent) =>
-            !agent.name.startsWith(`${action.agentName} valid_until `));
+          environment.agents = environment.agents.filter(
+            (agent) =>
+              !agent.name.startsWith(`${action.agentName} valid_until `),
+          );
         else
           environment.agents.push({
             address: action.agentAddress,
@@ -133,7 +156,10 @@ beforeEach(async () => {
             { coin: 'BTC', oid: 1, side: 'B', sz: '0.001', limitPx: '20000' },
           ];
           const { events } = await import('../src/runner/events.js');
-          await events.append('order_update', { order: { oid: 1 }, status: 'open' });
+          await events.append('order_update', {
+            order: { oid: 1 },
+            status: 'open',
+          });
         }
         if (action.type === 'batchModify')
           environment.orders[0].limitPx = action.modifies[0].order.p;
@@ -211,6 +237,11 @@ async function command(name: string, input: Record<string, unknown> = {}) {
   expect(result.body, JSON.stringify(result.body)).toMatchObject({ ok: true });
   return (result.body as { data: Record<string, unknown> }).data;
 }
+const sign = (approval: unknown) =>
+  master.signTypedData(
+    (approval as { typedData: Parameters<typeof master.signTypedData>[0] })
+      .typedData,
+  );
 test('mocked full account lifecycle through real CLI router, SDK and runner RPC', async () => {
   const initialized = await command('init', { qr: false });
   expect(initialized.requiresSignature).toBe(true);
@@ -223,7 +254,9 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   expect(
     await command('init', {
       qr: false,
-      signature: '0x' + '11'.repeat(64) + '1b',
+      signature: await sign(
+        (initialized.approvals as { agent: unknown }).agent,
+      ),
     }),
   ).toMatchObject({
     approved: true,
@@ -234,10 +267,20 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   expect((await command('init', { qr: false })).approved).toBe(true);
   const deposit = await command('fund', { qr: false, amount: '10' });
   expect(deposit.depositId).toBe('deposit-1');
-  expect((await command('status')).deposits).toEqual([{ id: 'deposit-1', state: 'pending' }]);
-  expect((await dispatch(['order', '--config', path, '--json',
-    '{"coin":"BTC","side":"buy","size":"0.001","price":"20000"}'])).body)
-    .toMatchObject({ ok: false, code: 'DEPOSIT_PENDING' });
+  expect((await command('status')).deposits).toEqual([
+    { id: 'deposit-1', state: 'pending' },
+  ]);
+  expect(
+    (
+      await dispatch([
+        'order',
+        '--config',
+        path,
+        '--json',
+        '{"coin":"BTC","side":"buy","size":"0.001","price":"20000"}',
+      ])
+    ).body,
+  ).toMatchObject({ ok: false, code: 'DEPOSIT_PENDING' });
   environment.balance = '10';
   const status = await command('status');
   expect(status.deposits).toEqual([{ id: 'deposit-1', state: 'settled' }]);
@@ -246,8 +289,14 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     szDecimals: '5',
     asset: '0',
   });
-  expect(await command('run')).toMatchObject({ ready: true, network: 'testnet' });
-  expect((await command('status')).runner).toMatchObject({ signingSession: 'ready', wsState: 'connected' });
+  expect(await command('run')).toMatchObject({
+    ready: true,
+    network: 'testnet',
+  });
+  expect((await command('status')).runner).toMatchObject({
+    signingSession: 'ready',
+    wsState: 'connected',
+  });
   expect(activeRunner?.signer?.address).toBe(agent.address);
   expect(await rpcCall('balance', {}, socketPath())).toMatchObject({
     accountValue: '10',
@@ -272,13 +321,25 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   });
   expect(rotation.requiresSignature).toBe(true);
   expect(rotation.newAgent).toBe(nextAgent.address);
-  const swapped = await command('rotate', { signature: '0x' + '11'.repeat(64) + '1b' });
+  const swapped = await command('rotate', {
+    signature: await sign(rotation.approval),
+  });
   expect(swapped.swapped).toBe(true);
   expect(activeRunner?.signer?.address).toBe(swapped.newAgent);
-  expect((await command('rotate', { revokeSignature: '0x' + '11'.repeat(64) + '1b' })).oldRevoked).toBe(true);
-  expect(environment.agents.map((agent) => agent.address)).toEqual([swapped.newAgent]);
-  expect(await command('revoke', { cancelOrders: true })).toMatchObject({
-    locallyRevoked: true, exchangeRevoked: false,
+  expect(
+    (
+      await command('rotate', {
+        revokeSignature: await sign(swapped.revokeApproval),
+      })
+    ).oldRevoked,
+  ).toBe(true);
+  expect(environment.agents.map((agent) => agent.address)).toEqual([
+    swapped.newAgent,
+  ]);
+  const revoked = await command('revoke', { cancelOrders: true });
+  expect(revoked).toMatchObject({
+    locallyRevoked: true,
+    exchangeRevoked: false,
   });
   const rejected = await dispatch([
     'order',
@@ -291,12 +352,20 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     ok: false,
     code: 'AGENT_NOT_APPROVED',
   });
-  expect(await command('revoke', { signature: '0x' + '11'.repeat(64) + '1b' })).toMatchObject({
-    locallyRevoked: true, exchangeRevoked: true,
+  expect(
+    await command('revoke', { signature: await sign(revoked.approval) }),
+  ).toMatchObject({
+    locallyRevoked: true,
+    exchangeRevoked: true,
   });
   expect(environment.agents).toEqual([]);
   const { events } = await import('../src/runner/events.js');
-  await events.append('fill', { tid: 7, oid: 1, fee: '0.01' });
+  await events.append('fill', {
+    tid: 7,
+    oid: 1,
+    fee: '0.01',
+    scope: `testnet:${master.address.toLowerCase()}`,
+  });
   const entries = await readAudit(
     join(environment.home, '.bloxwap', 'audit.jsonl'),
   );
@@ -311,8 +380,13 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
     ),
   ).toBe(true);
   expect(verifyAudit(entries)).toBe(true);
-  const replay = await command('events') as unknown as { seq: number; type: string }[];
+  const replay = (await command('events')) as unknown as {
+    seq: number;
+    type: string;
+  }[];
   expect(replay.map((event) => event.type)).toContain('order_update');
   expect(replay.map((event) => event.type)).toContain('fill');
-  expect(await command('events', { since: replay[0].seq })).toEqual(replay.slice(1));
+  expect(await command('events', { since: replay[0].seq })).toEqual(
+    replay.slice(1),
+  );
 }, 20000);

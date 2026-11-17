@@ -29,7 +29,10 @@ const json = (data: unknown) =>
     headers: { 'content-type': 'application/json' },
   });
 interface StubOptions {
-  book?: { bids: { px: string; sz: string }[]; asks: { px: string; sz: string }[] };
+  book?: {
+    bids: { px: string; sz: string }[];
+    asks: { px: string; sz: string }[];
+  };
   marks?: Record<string, string>;
 }
 function stubHyperliquid({ book, marks = { BTC: '100' } }: StubOptions = {}) {
@@ -37,7 +40,10 @@ function stubHyperliquid({ book, marks = { BTC: '100' } }: StubOptions = {}) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_url: unknown, init?: { body?: string }) => {
-      const body = JSON.parse(init?.body ?? '{}') as { type?: string; coin?: string };
+      const body = JSON.parse(init?.body ?? '{}') as {
+        type?: string;
+        coin?: string;
+      };
       calls.push(body.type ?? 'unknown');
       if (body.type === 'meta')
         return json({
@@ -45,7 +51,7 @@ function stubHyperliquid({ book, marks = { BTC: '100' } }: StubOptions = {}) {
         });
       if (body.type === 'metaAndAssetCtxs')
         return json([
-          {},
+          { universe: [{ name: 'BTC', szDecimals: 5, maxLeverage: 40 }] },
           [
             {
               markPx: marks.BTC,
@@ -57,6 +63,7 @@ function stubHyperliquid({ book, marks = { BTC: '100' } }: StubOptions = {}) {
       if (body.type === 'allMids') return json(marks);
       if (body.type === 'l2Book')
         return json({
+          time: Date.now(),
           levels: [book?.bids ?? [], book?.asks ?? []],
         });
       throw new Error(`Unexpected info request: ${body.type}`);
@@ -84,9 +91,9 @@ test('paper command marks envelopes paper and reset requires --yes', async () =>
 });
 test('global --paper flag marks envelopes and help advertises the flag', async () => {
   const help = await dispatch(['--help']);
-  expect((help.body as { data: { globalFlags: string[] } }).data.globalFlags).toContain(
-    '--paper',
-  );
+  expect(
+    (help.body as { data: { globalFlags: string[] } }).data.globalFlags,
+  ).toContain('--paper');
   const envelope = await dispatch(['--paper', 'help']);
   expect(envelope.body).toMatchObject({ mode: 'paper', paper: true });
   const live = await dispatch(['help']);
@@ -124,7 +131,11 @@ test('switching back to live requires explicit --yes confirmation', async () => 
   const { readStoredConfig } = await import('../src/core/config.js');
   const current = await readStoredConfig();
   await saveConfig(
-    migrate({ ...(current ?? {}), mode: 'paper', revision: current?.revision ?? 0 }),
+    migrate({
+      ...(current ?? {}),
+      mode: 'paper',
+      revision: current?.revision ?? 0,
+    }),
   );
   const refused = await dispatch(['config', 'set', 'mode', 'live']);
   expect(refused.body).toMatchObject({ ok: false, code: 'CONFIG_INVALID' });
@@ -152,7 +163,15 @@ test('paper market order fills against the live book and reads reflect it', asyn
     mode: 'paper',
     paper: true,
   });
-  const data = (order.body as { data: { result: { response: { data: { statuses: { filled?: { totalSz: string } }[] } } } } }).data;
+  const data = (
+    order.body as {
+      data: {
+        result: {
+          response: { data: { statuses: { filled?: { totalSz: string } }[] } };
+        };
+      };
+    }
+  ).data;
   expect(data.result.response.data.statuses[0].filled?.totalSz).toBe('1');
   const positions = await dispatch(['positions', '--paper']);
   expect(positions.body).toMatchObject({
@@ -170,7 +189,12 @@ test('paper trading still enforces configured risk limits', async () => {
   await expect(
     placeOrder(
       migrate({ mode: 'paper', limits: { maxOrderSize: 0.5 } }),
-      orderSchema.parse({ coin: 'BTC', side: 'buy', size: '1', price: '20000' }),
+      orderSchema.parse({
+        coin: 'BTC',
+        side: 'buy',
+        size: '1',
+        price: '20000',
+      }),
       clients,
     ),
   ).rejects.toMatchObject({ code: 'POLICY_REJECTED' });
@@ -193,7 +217,13 @@ test('paper actions audit into the paper chain, never the live chain', async () 
     'order',
     '--paper',
     '--json',
-    JSON.stringify({ coin: 'BTC', side: 'buy', size: '0.5', price: '99', tif: 'Gtc' }),
+    JSON.stringify({
+      coin: 'BTC',
+      side: 'buy',
+      size: '0.5',
+      price: '99',
+      tif: 'Gtc',
+    }),
   ]);
   expect(order.body).toMatchObject({ ok: true });
   const paperAudit = await readAudit(join(paperDir(), 'audit.jsonl'));
@@ -206,16 +236,20 @@ test('paper actions audit into the paper chain, never the live chain', async () 
   ).toBe(true);
   const liveAudit = await readAudit();
   expect(
-    liveAudit.some((entry) => JSON.stringify(entry.data).includes('"action":"order"')),
+    liveAudit.some((entry) =>
+      JSON.stringify(entry.data).includes('"action":"order"'),
+    ),
   ).toBe(false);
 });
 test('paper events carry paper:true and the events command reads the paper journal', async () => {
   await paperEvents.append('fill', { tid: 1, coin: 'BTC', px: '100', sz: '1' });
-  const replay = await dispatch(['events', '--paper']);
+  const replay = await dispatch(['events', '--paper', '--all-scopes']);
   expect(replay.body).toMatchObject({
     ok: true,
     mode: 'paper',
-    data: [{ type: 'fill', paper: true, mode: 'paper' }],
+    data: expect.arrayContaining([
+      expect.objectContaining({ type: 'fill', paper: true, mode: 'paper' }),
+    ]),
   });
   const paperAudit = await readAudit(join(paperDir(), 'audit.jsonl'));
   expect(paperAudit.some((entry) => entry.stage === 'fill')).toBe(true);
@@ -279,9 +313,8 @@ test('custody commands refuse to run in paper mode', async () => {
       mode: 'paper',
       paper: true,
     });
-    expect(
-      (result.body as { message: string }).message,
-      argv[0],
-    ).toMatch(/requires live mode/);
+    expect((result.body as { message: string }).message, argv[0]).toMatch(
+      /requires live mode/,
+    );
   }
 });

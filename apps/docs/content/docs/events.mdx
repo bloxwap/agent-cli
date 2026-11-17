@@ -3,19 +3,25 @@ title: "Event stream"
 description: "Replayable JSON lines from the persistent runner."
 ---
 
-Each JSON line is `{seq,timestamp,type,data}`. Sequence numbers strictly increase
-across restarts; timestamps are ISO UTC. Each exchange fill is appended once,
-including fills that occur while the runner is down: the runner backfills from
-the last cursor on startup and dedupes by `tid`. A crash cannot mint a second
-`seq` for the same `tid`. Consumers should still persist the last handled `seq`
-and may dedupe by `tid`. A torn final line is quarantined beside the journal
-before the next append, and a `journal_repaired` event records that repair.
-Types: `fill` (upstream fill with tid; fees also include exact 8-decimal
-`feeUnits` strings), `order_update`, `position_change`, `deposit` (id/state),
-`error` (normalized failure), `agent_expiry_warning`, `runner_state`, and
-`journal_repaired`. Secret fields are redacted.
+Each JSON line includes `seq`, `timestamp`, `type`, `data`, `mode`, `paper`,
+`scope` and `eventId`. Sequence numbers increase across restarts and paper resets;
+timestamps are ISO UTC. Live scope is network plus master address; paper scope
+contains its session ID. Stable event IDs deduplicate recovered publications.
+Fill fees include exact 8-decimal `feeUnits` strings, truncated toward zero.
+Types are `fill`, `order_update`, `position_change`, `deposit`, `error`,
+`agent_expiry_warning`, `runner_state` and `journal_repaired`. Secrets are redacted.
 
-`events --since 12` returns events after sequence 12. `--follow` is an explicit
-streaming exception to the one-document command contract: each event is one JSON
-line. Filter with `--types '["fill","error"]'`. Save the last processed sequence
-and replay it after reconnect. Shutdown flushes the queue before releasing state.
+`events --since 12 --limit 200` returns current-scope events after sequence 12.
+The default page is 200 records, maximum 1,000, with a byte budget for large
+records. Use the last returned sequence for the next page. `--all-scopes` includes
+other retained accounts/sessions and legacy unscoped records. `audit` uses the
+same scope, sequence and limit controls and verifies the complete hash chain.
+
+`--follow` streams one JSON document per event. Filter with
+`--types '["fill","error"]'`. Save the last processed sequence and replay after
+reconnect. Paper followers move to the new session after reset. Shutdown stops
+new RPC work before draining accepted work and publication queues.
+
+Paper fills and deposit transitions use durable outboxes. State commits before
+publication; restart/access retries the same event IDs until publication succeeds.
+Do not delete journal indexes separately from their journals.

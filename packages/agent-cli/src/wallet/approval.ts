@@ -1,3 +1,6 @@
+import { withFileLock } from '../core/lock.js';
+import { recoverTypedDataAddress } from 'viem';
+import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import { nextNonce } from '../core/nonce.js';
 import { atomicWrite, type Config } from '../core/config.js';
@@ -7,6 +10,7 @@ import { ApproveBuilderFeeTypes } from '@bloxwap/hyperliquid/api/exchange/approv
 import { AgentCliError } from '../errors/index.js';
 import { jsonRequest, hlEndpoint } from '../core/http.js';
 export interface Approval {
+  masterAddress?: string;
   action: Record<string, unknown>;
   typedData: Record<string, unknown>;
 }
@@ -56,8 +60,28 @@ export async function submitApproval(
   pending: Approval,
   signature: string,
 ) {
+  validateApproval(network, pending);
+  if (!pending.masterAddress)
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Approval is not bound to a master address; regenerate it',
+    );
   if (!/^0x[0-9a-fA-F]{130}$/.test(signature))
     throw new AgentCliError('CONFIG_INVALID', 'Expected 65-byte signature');
+  let recovered: string;
+  try {
+    recovered = await recoverTypedDataAddress({
+      ...pending.typedData,
+      signature,
+    } as Parameters<typeof recoverTypedDataAddress>[0]);
+  } catch {
+    throw new AgentCliError('CONFIG_INVALID', 'Invalid approval signature');
+  }
+  if (recovered.toLowerCase() !== pending.masterAddress.toLowerCase())
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Signature does not belong to the configured master wallet',
+    );
   const recovery = parseInt(signature.slice(-2), 16);
   const v = recovery < 27 ? recovery + 27 : recovery;
   if (v !== 27 && v !== 28)
@@ -87,38 +111,93 @@ export async function submitApproval(
   }
   return response;
 }
-export function isFreshApproval(createdAt: number | undefined, now = Date.now()) {
+export function isFreshApproval(
+  createdAt: number | undefined,
+  now = Date.now(),
+) {
   return (
     typeof createdAt === 'number' &&
     now >= createdAt &&
     now - createdAt < APPROVAL_MAX_AGE_MS
   );
 }
+export const approvalSchema = z.object({
+  masterAddress: z
+    .string()
+    .regex(/^0x[0-9a-f]{40}$/i)
+    .optional(),
+  action: z.record(z.string(), z.unknown()),
+  typedData: z.record(z.string(), z.unknown()),
+});
+export function approvalFingerprint(value: Approval) {
+  const { nonce, ...action } = value.action;
+  void nonce;
+  return JSON.stringify({
+    masterAddress: value.masterAddress?.toLowerCase(),
+    action: Object.fromEntries(
+      Object.entries(action).sort(([a], [b]) => a.localeCompare(b)),
+    ),
+  });
+}
+export function validateApproval(network: Config['network'], value: Approval) {
+  approvalSchema.parse(value);
+  const { type, nonce, hyperliquidChain, signatureChainId, ...fields } =
+    value.action;
+  if (
+    (type !== 'approveAgent' && type !== 'approveBuilderFee') ||
+    !Number.isSafeInteger(nonce) ||
+    hyperliquidChain !== (network === 'mainnet' ? 'Mainnet' : 'Testnet') ||
+    signatureChainId !== '0xa4b1'
+  )
+    throw new AgentCliError('CONFIG_INVALID', 'Invalid approval identity');
+  const expected = approval(network, type, fields, nonce as number);
+  if (JSON.stringify(expected.typedData) !== JSON.stringify(value.typedData))
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Approval action and typed data disagree',
+    );
+}
 export async function resolvePendingApproval(
   path: string,
   create: () => Promise<Approval>,
   now = Date.now(),
+  force = false,
 ): Promise<PendingApproval> {
-  try {
-    const stored = JSON.parse(await readFile(path, 'utf8')) as PendingApproval &
-      Approval;
-    const approval = stored.approval?.action ? stored.approval : stored.action ? stored : undefined;
-    if (approval?.action && isFreshApproval(stored.createdAt, now))
-      return {
-        approval,
-        createdAt: stored.createdAt,
-        expiresAt: stored.expiresAt ?? stored.createdAt + APPROVAL_MAX_AGE_MS,
-      };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-  const pending: PendingApproval = {
-    approval: await create(),
-    createdAt: now,
-    expiresAt: now + APPROVAL_MAX_AGE_MS,
-  };
-  await atomicWrite(path, JSON.stringify(pending));
-  return pending;
+  return withFileLock(path + '.lock', async () => {
+    const candidate = await create();
+    const network =
+      candidate.action.hyperliquidChain === 'Mainnet' ? 'mainnet' : 'testnet';
+    validateApproval(network, candidate);
+    if (!force)
+      try {
+        const stored = JSON.parse(
+          await readFile(path, 'utf8'),
+        ) as PendingApproval;
+        if (stored.approval) validateApproval(network, stored.approval);
+        if (
+          stored.approval &&
+          isFreshApproval(stored.createdAt, now) &&
+          stored.expiresAt === stored.createdAt + APPROVAL_MAX_AGE_MS &&
+          approvalFingerprint(stored.approval) ===
+            approvalFingerprint(candidate)
+        )
+          return stored;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+          throw new AgentCliError(
+            'CONFIG_INVALID',
+            'Invalid pending approval',
+            { path },
+          );
+      }
+    const pending = {
+      approval: candidate,
+      createdAt: now,
+      expiresAt: now + APPROVAL_MAX_AGE_MS,
+    };
+    await atomicWrite(path, JSON.stringify(pending));
+    return pending;
+  });
 }
 export async function submitFreshApproval(
   network: 'mainnet' | 'testnet',
@@ -127,30 +206,48 @@ export async function submitFreshApproval(
   signature: string,
   refresh: () => Promise<Approval>,
 ) {
-  if (!isFreshApproval(pending.createdAt)) {
-    const next = await resolvePendingApproval(path, refresh, Date.now());
-    throw new AgentCliError(
-      'CONFIG_INVALID',
-      'Approval payload expired; sign the regenerated payload',
-      { expiresAt: next.expiresAt, approval: next.approval },
-    );
-  }
-  try {
-    return await submitApproval(network, pending.approval, signature);
-  } catch (error) {
-    if (
-      error instanceof AgentCliError &&
-      (error.details as { nonceRejected?: boolean } | null)?.nonceRejected
-    ) {
-      const next = await resolvePendingApproval(path, refresh, Date.now());
+  return withFileLock(path + '.lock', async () => {
+    const current = JSON.parse(await readFile(path, 'utf8')) as PendingApproval;
+    if (JSON.stringify(current) !== JSON.stringify(pending))
       throw new AgentCliError(
         'CONFIG_INVALID',
-        'Approval nonce was rejected; sign the regenerated payload',
+        'Approval changed; sign the current payload',
+      );
+    if (!isFreshApproval(pending.createdAt)) {
+      const next = await resolvePendingApproval(
+        path,
+        refresh,
+        Date.now(),
+        true,
+      );
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Approval payload expired; sign the regenerated payload',
         { expiresAt: next.expiresAt, approval: next.approval },
       );
     }
-    throw error;
-  }
+    try {
+      return await submitApproval(network, pending.approval, signature);
+    } catch (error) {
+      if (
+        error instanceof AgentCliError &&
+        (error.details as { nonceRejected?: boolean } | null)?.nonceRejected
+      ) {
+        const next = await resolvePendingApproval(
+          path,
+          refresh,
+          Date.now(),
+          true,
+        );
+        throw new AgentCliError(
+          'CONFIG_INVALID',
+          'Approval nonce was rejected; sign the regenerated payload',
+          { expiresAt: next.expiresAt, approval: next.approval },
+        );
+      }
+      throw error;
+    }
+  });
 }
 export const rejectMasterKey = assertSafeInput;
 
@@ -161,10 +258,13 @@ export async function newApproval(
 ) {
   if (!config.masterAddress)
     throw new AgentCliError('CONFIG_INVALID', 'Master address required');
-  return approval(
-    config.network,
-    type,
-    fields,
-    await nextNonce(config.masterAddress),
-  );
+  return {
+    ...approval(
+      config.network,
+      type,
+      fields,
+      await nextNonce(config.masterAddress),
+    ),
+    masterAddress: config.masterAddress,
+  };
 }

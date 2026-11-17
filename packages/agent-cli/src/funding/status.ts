@@ -1,10 +1,12 @@
 import {
   readDeposits,
+  selectDeposit,
+  type DepositAccount,
   updateDeposits,
   type Deposit,
   type DepositState,
 } from './store.js';
-import { RelayClient, parseQuote } from './relay.js';
+import { RelayClient, parseQuote, type RelayStatus } from './relay.js';
 import { parseUsdc } from './amounts.js';
 import { AgentCliError } from '../errors/index.js';
 import { hlInfo } from '../core/http.js';
@@ -27,6 +29,7 @@ const started = new Set([
   'submitted',
   'failure',
   'failed',
+  'depositing',
   'refunded',
 ]);
 export function isTerminalDeposit(state: DepositState) {
@@ -55,7 +58,17 @@ export function matchLedgerDeposit(
     if (update.delta?.type !== 'deposit' || update.time < deposit.createdAt)
       continue;
     const hash = update.hash ?? `${update.time}:${update.delta.usdc ?? ''}`;
-    if (used.has(hash)) continue;
+    if (
+      used.has(hash.toLowerCase()) &&
+      deposit.ledgerHash?.toLowerCase() !== hash.toLowerCase()
+    )
+      continue;
+    if (
+      !deposit.destinationTxHashes?.some(
+        (tx) => tx.toLowerCase() === hash.toLowerCase(),
+      )
+    )
+      continue;
     let credit = 0n;
     try {
       credit = parseUsdc(update.delta.usdc ?? '0', 8);
@@ -63,7 +76,7 @@ export function matchLedgerDeposit(
       continue;
     }
     if (credit >= expected) {
-      used.add(hash);
+      used.add(hash.toLowerCase());
       return { hash, usdc: update.delta.usdc ?? '0' };
     }
   }
@@ -81,8 +94,9 @@ export function advanceDeposit(
 ) {
   if (isTerminalDeposit(deposit.state)) return deposit.state;
   if (relayStatus === 'failure' || relayStatus === 'failed')
-    return 'failed' as const;
-  if (relayStatus === 'refunded') return 'refunded' as const;
+    return 'pending' as const;
+  if (relayStatus === 'refunded' || relayStatus === 'refund')
+    return 'refunded' as const;
   const now = options.now ?? Date.now();
   const grace = options.graceMs ?? DEPOSIT_EXPIRY_GRACE_MS;
   if (relayStatus === 'success') {
@@ -91,7 +105,15 @@ export function advanceDeposit(
     return 'pending' as const;
   }
   if (started.has(relayStatus)) return 'pending' as const;
-  if (deposit.expiresAt + grace < now) return 'expired' as const;
+  if (
+    deposit.state === 'awaiting_funds' &&
+    !deposit.ledgerHash &&
+    !deposit.destinationTxHashes?.length &&
+    !Object.keys(deposit.stepClaims ?? {}).length &&
+    deposit.completedSteps.length === 0 &&
+    deposit.expiresAt + grace < now
+  )
+    return 'expired' as const;
   return deposit.state;
 }
 async function defaultLedger(
@@ -129,11 +151,6 @@ export async function pollDeposits(
   const updates = await (
     options.ledger ?? (() => defaultLedger(network, recipient))
   )();
-  const used = new Set(
-    (await readDeposits(path))
-      .map((deposit) => deposit.ledgerHash)
-      .filter((hash): hash is string => Boolean(hash)),
-  );
   const relay =
     options.relay ??
     new RelayClient(
@@ -141,36 +158,78 @@ export async function pollDeposits(
         ? 'https://api.testnets.relay.link'
         : 'https://api.relay.link',
     );
-  const changes = new Map<
-    string,
-    { state: DepositState; ledgerHash?: string }
-  >();
+  const statuses = new Map<string, RelayStatus>();
   for (const deposit of snapshot) {
     if (isTerminalDeposit(deposit.state)) continue;
-    let relayStatus = 'unknown';
     try {
-      relayStatus = (await relay.status(deposit.id)).status;
+      statuses.set(deposit.id, await relay.status(deposit.id));
     } catch {
-      relayStatus = 'unknown';
+      statuses.set(deposit.id, { status: 'unknown' });
     }
-    const credit = matchLedgerDeposit(deposit, updates, used);
-    const next = advanceDeposit(deposit, relayStatus, balance, {
-      now: options.now,
-      ledgerCredit: credit?.usdc ?? null,
-    });
-    if (next !== deposit.state)
-      changes.set(deposit.id, { state: next, ledgerHash: credit?.hash });
   }
-  const fresh = await updateDeposits(path, async (deposits) => {
-    for (const deposit of deposits) {
-      const change = changes.get(deposit.id);
-      if (!change || isTerminalDeposit(deposit.state)) continue;
-      const previous = deposit.state;
-      deposit.state = change.state;
-      if (change.ledgerHash) deposit.ledgerHash = change.ledgerHash;
-      if (previous !== deposit.state) await options.emit?.(deposit);
+  const changed: Deposit[] = [];
+  const fresh = await updateDeposits(path, (deposits) => {
+    // Attribution and uniqueness are decided from current state under one lock.
+    const account = deposits.filter(
+      (d) =>
+        d.network === network &&
+        d.recipient.toLowerCase() === recipient.toLowerCase(),
+    );
+    const used = new Set(
+      account.flatMap((d) =>
+        d.ledgerHash ? [d.ledgerHash.toLowerCase()] : [],
+      ),
+    );
+    for (const deposit of account) {
+      const status = statuses.get(deposit.id);
+      if (
+        status?.txHashes?.length &&
+        (status.destinationChainId === undefined ||
+          status.destinationChainId === 1337)
+      )
+        deposit.destinationTxHashes = [
+          ...new Set([
+            ...(deposit.destinationTxHashes ?? []),
+            ...status.txHashes,
+          ]),
+        ];
+    }
+    for (const deposit of account) {
+      const status = statuses.get(deposit.id);
+      if (!status || isTerminalDeposit(deposit.state)) continue;
+      if (
+        status.destinationChainId !== undefined &&
+        status.destinationChainId !== 1337
+      )
+        continue;
+      // One destination transaction cannot be attributed to competing intents.
+      const ambiguous = deposit.destinationTxHashes?.some((hash) =>
+        account.some(
+          (other) =>
+            other.id !== deposit.id &&
+            other.destinationTxHashes?.some(
+              (tx) => tx.toLowerCase() === hash.toLowerCase(),
+            ),
+        ),
+      );
+      const credit = ambiguous
+        ? null
+        : matchLedgerDeposit(deposit, updates, used);
+      if (credit) {
+        deposit.ledgerHash = credit.hash;
+        deposit.ledgerCredit = credit.usdc;
+      }
+      const next = advanceDeposit(deposit, status.status, balance, {
+        now: options.now,
+        ledgerCredit: ambiguous ? null : (deposit.ledgerCredit ?? null),
+      });
+      if (next !== deposit.state) {
+        deposit.state = next;
+        changed.push(structuredClone(deposit));
+      }
     }
   });
+  for (const deposit of changed) await options.emit?.(deposit);
   return fresh.filter(
     (deposit) =>
       deposit.network === network &&
@@ -208,17 +267,19 @@ export async function assertDepositsSettled(
       depositIds: pending.map((deposit) => deposit.id),
     });
 }
-export async function abandonDeposit(id: string, path?: string) {
+export async function abandonDeposit(
+  id: string,
+  path?: string,
+  account?: DepositAccount,
+) {
   let abandoned = false;
   await updateDeposits(path, (deposits) => {
-    const deposit = deposits.find((item) => item.id === id);
+    const deposit = selectDeposit(deposits, id, account);
     if (!deposit) throw new AgentCliError('CONFIG_INVALID', 'Unknown deposit');
     if (isTerminalDeposit(deposit.state))
-      throw new AgentCliError(
-        'CONFIG_INVALID',
-        'Deposit is already terminal',
-        { state: deposit.state },
-      );
+      throw new AgentCliError('CONFIG_INVALID', 'Deposit is already terminal', {
+        state: deposit.state,
+      });
     deposit.state = 'abandoned';
     abandoned = true;
   });

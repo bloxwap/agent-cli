@@ -1,13 +1,17 @@
 import { parseUsdc } from '../funding/amounts.js';
 import { auditFill } from '../core/audit.js';
-import { mkdir, readFile, chmod, open } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
+import { randomUUID } from 'node:crypto';
+import { currentRequestContext } from '../core/request-context.js';
+import { join } from 'node:path';
 import { z } from 'zod';
 import { stateDir } from '../core/config.js';
 import { paperDir } from '../core/mode.js';
 import { redact } from '../core/logger.js';
 import { withFileLock } from '../core/lock.js';
-import { repairTornTail } from '../core/journal.js';
+import { repairTornTail, appendOnce, journalTail } from '../core/journal.js';
 export const eventTypes = [
   'fill',
   'order_update',
@@ -21,7 +25,9 @@ export const eventTypes = [
 export type EventType = (typeof eventTypes)[number];
 export const eventSchema = z.object({
   seq: z.number().int().positive(),
-  timestamp: z.string(),
+  eventId: z.string().optional(),
+  scope: z.string().optional(),
+  timestamp: z.string().datetime(),
   type: z.enum(eventTypes),
   data: z.unknown(),
   mode: z.enum(['live', 'paper']).default('live'),
@@ -32,81 +38,110 @@ export async function readEvents(
   path = join(stateDir(), 'events.jsonl'),
   since = 0,
   types: EventType[] = [],
+  limit = Number.POSITIVE_INFINITY,
+  scope?: string,
 ): Promise<RunnerEvent[]> {
-  let contents: string;
-  try {
-    contents = await readFile(path, 'utf8');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw error;
-  }
-  return contents
-    .split('\n')
-    .slice(0, -1)
-    .filter(Boolean)
-    .map((line) => eventSchema.parse(JSON.parse(line)))
-    .filter(
-      (event) =>
-        event.seq > since && (!types.length || types.includes(event.type)),
-    );
+  return withFileLock(path + '.lock', async () => {
+    await repairTornTail(path);
+    try {
+      await stat(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      throw error;
+    }
+    const input = createReadStream(path, { encoding: 'utf8' });
+    const lines = createInterface({ input, crlfDelay: Infinity });
+    const result: RunnerEvent[] = [];
+    let bytes = 0;
+    try {
+      for await (const line of lines) {
+        if (!line) continue;
+        const event = eventSchema.parse(JSON.parse(line));
+        if (
+          event.seq <= since ||
+          (types.length && !types.includes(event.type)) ||
+          (scope && event.scope !== scope)
+        )
+          continue;
+        const size = Buffer.byteLength(line);
+        if (Number.isFinite(limit) && result.length && bytes + size > 512_000)
+          break;
+        result.push(event);
+        bytes += size;
+        if (result.length >= limit) break;
+      }
+    } finally {
+      lines.close();
+      input.destroy();
+    }
+    return result;
+  });
 }
 export class EventStore {
-  private queue = Promise.resolve();
+  private pending = new Set<Promise<unknown>>();
   constructor(
     readonly path = join(stateDir(), 'events.jsonl'),
     readonly paper = false,
   ) {}
-  append(type: EventType, data: unknown) {
-    let event: RunnerEvent;
-    const operation = this.queue.then(async () => {
-      if (type === 'fill' && data && typeof data === 'object')
+  append(type: EventType, data: unknown, metadata?: { scope: string }) {
+    const operation = (async () => {
+      const payload = type === 'fill' ? normalizeFillAmounts(data) : data;
+      const obj =
+        payload && typeof payload === 'object'
+          ? (payload as Record<string, unknown>)
+          : {};
+      const scope =
+        typeof obj.scope === 'string'
+          ? obj.scope
+          : (metadata?.scope ?? currentRequestContext()?.scope);
+      const eventId =
+        typeof obj.eventId === 'string'
+          ? obj.eventId
+          : scope && type === 'fill' && obj.tid !== undefined
+            ? `${scope}:fill:${obj.tid}`
+            : randomUUID();
+      // The producer retries with the same eventId until both journals commit.
+      if (type === 'fill')
         await auditFill(
-          data as Record<string, unknown>,
+          { ...obj, scope, eventId },
           this.paper ? 'paper' : 'live',
         );
-      await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
-      await chmod(dirname(this.path), 0o700);
       return withFileLock(this.path + '.lock', async () => {
         const repaired = await repairTornTail(this.path);
-        let previous = (await readEvents(this.path)).at(-1)?.seq ?? 0;
-        const write = async (eventType: EventType, payload: unknown) => {
-          const next = eventSchema.parse({
-            seq: ++previous,
-            timestamp: new Date().toISOString(),
-            type: eventType,
-            data: redact(payload),
-            mode: this.paper ? 'paper' : 'live',
-            paper: this.paper,
+        const write = (eventType: EventType, value: unknown, id: string) =>
+          appendOnce(this.path, id, async () => {
+            const tail = await journalTail(this.path);
+            const previous = tail.tail
+              ? eventSchema.parse(JSON.parse(tail.tail)).seq
+              : 0;
+            return eventSchema.parse({
+              seq: previous + 1,
+              timestamp: new Date().toISOString(),
+              type: eventType,
+              data: redact(value),
+              scope,
+              eventId: id,
+              mode: this.paper ? 'paper' : 'live',
+              paper: this.paper,
+            });
           });
-          const file = await open(this.path, 'a', 0o600);
-          await file.chmod(0o600);
-          try {
-            await file.writeFile(JSON.stringify(next) + '\n');
-            await file.sync();
-          } finally {
-            await file.close();
-          }
-          return next;
-        };
         if (repaired.repaired)
-          await write('journal_repaired', {
-            quarantine: repaired.quarantine ?? null,
-          });
-        event = await write(
-          type,
-          type === 'fill' ? normalizeFillAmounts(data) : data,
-        );
-        return event;
+          await write(
+            'journal_repaired',
+            { quarantine: repaired.quarantine ?? null },
+            randomUUID(),
+          );
+        return eventSchema.parse(await write(type, payload, eventId));
       });
-    });
-    this.queue = operation.then(
-      () => {},
-      () => {},
-    );
+    })();
+    this.pending.add(operation);
+    void operation
+      .finally(() => this.pending.delete(operation))
+      .catch(() => {});
     return operation;
   }
   async flush() {
-    await this.queue;
+    await Promise.all([...this.pending]);
   }
 }
 export async function followEvents(options: {
@@ -116,10 +151,21 @@ export async function followEvents(options: {
   signal?: AbortSignal;
   write: (event: RunnerEvent) => void;
   interval?: number;
+  scope?: string | (() => Promise<string>);
 }) {
   let since = options.since ?? 0;
   while (!options.signal?.aborted) {
-    for (const event of await readEvents(options.path, since, options.types)) {
+    const scope =
+      typeof options.scope === 'function'
+        ? await options.scope()
+        : options.scope;
+    for (const event of await readEvents(
+      options.path,
+      since,
+      options.types,
+      1000,
+      scope,
+    )) {
       options.write(event);
       since = event.seq;
     }
@@ -135,14 +181,17 @@ export async function followEvents(options: {
   }
 }
 export const events = new EventStore();
-export const paperEvents = new EventStore(join(paperDir(), 'events.jsonl'), true);
+export const paperEvents = new EventStore(
+  join(paperDir(), 'events.jsonl'),
+  true,
+);
 
 function normalizeFillAmounts(data: unknown) {
   if (!data || typeof data !== 'object') return data;
   const fill = data as Record<string, unknown>;
   if (typeof fill.fee !== 'string') return fill;
   const units = fill.fee.startsWith('-')
-    ? -parseUsdc(fill.fee.slice(1), 8)
-    : parseUsdc(fill.fee, 8);
+    ? -parseUsdc(fill.fee.slice(1), 18) / 10n ** 10n
+    : parseUsdc(fill.fee, 18) / 10n ** 10n;
   return { ...fill, feeUnits: units.toString() };
 }

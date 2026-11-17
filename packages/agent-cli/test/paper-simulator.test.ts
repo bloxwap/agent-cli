@@ -356,10 +356,13 @@ test('initial margin check rejects exposure beyond virtual equity', () => {
   expect(() =>
     assertInitialMargin(s, 'BTC', '100', '100', { BTC: '100' }),
   ).not.toThrow();
-  buy(s, '100');
-  expect(() => assertInitialMargin(s, 'BTC', '1', '100', { BTC: '100' })).toThrow(
+  expect(() => buy(s, '100')).toThrow(
     expect.objectContaining({ code: 'INSUFFICIENT_MARGIN' }),
   );
+  buy(s, '99.9');
+  expect(() =>
+    assertInitialMargin(s, 'BTC', '1', '100', { BTC: '100' }),
+  ).toThrow(expect.objectContaining({ code: 'INSUFFICIENT_MARGIN' }));
   // reduce-only closes do not need margin
   expect(() =>
     assertInitialMargin(s, 'BTC', '-100', '100', { BTC: '100' }),
@@ -382,6 +385,8 @@ test('daily loss rolls over with the virtual equity anchor', () => {
   buy(s, '10');
   const marks = { BTC: '90' };
   expect(dailyLoss(s, marks)).toBe('100.55'); // fee 0.55 + 10 * (100 - 90)
+  s.marks = marks;
+  s.marketAt = s.dayStartAt + 86_400_000 - 1000;
   rolloverDay(s, marks, s.dayStartAt + 86_400_001);
   expect(dailyLoss(s, marks)).toBe('0');
   expect(s.dayStartEquity).toBe('9899.45');

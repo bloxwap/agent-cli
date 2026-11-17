@@ -1,9 +1,17 @@
+import { currentRequestContext } from './request-context.js';
+import { executionScope } from './operations.js';
 import { join } from 'node:path';
 import { parseUsdc, formatUsdc } from '../funding/amounts.js';
 import { decisionAudit } from './audit.js';
 import { assertAgentValid } from '../wallet/expiry.js';
 import { activeRunner } from '../runner/lifecycle.js';
-import { stateDir, type Config } from './config.js';
+import {
+  stateDir,
+  accountLockPath,
+  refreshConfig,
+  assertApprovalIdentity,
+  type Config,
+} from './config.js';
 import {
   createClients,
   type ExchangeAdapter,
@@ -36,6 +44,20 @@ export interface TradingServices {
 export async function tradingServices(
   config: Config,
 ): Promise<TradingServices> {
+  if (
+    activeRunner &&
+    (activeRunner.config.network !== config.network ||
+      activeRunner.config.masterAddress?.toLowerCase() !==
+        config.masterAddress?.toLowerCase() ||
+      activeRunner.config.mode !== config.mode ||
+      (activeRunner.signer &&
+        activeRunner.signer.address.toLowerCase() !==
+          config.agentAddress?.toLowerCase()))
+  )
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Runner signer belongs to a different approval identity; restart the runner',
+    );
   const signer = activeRunner?.signer ?? (await openSigner(config));
   const clients = createClients(config.network, signer, () =>
     nextNonce(signer.address),
@@ -83,19 +105,24 @@ export async function assertCanTrade(
   if (config.mode === 'paper') return; // simulation: no approval, deposit or session gate
   if (config.revoked || !config.approved || !config.masterAddress)
     throw new AgentCliError('AGENT_NOT_APPROVED', 'Agent approval required');
+  assertApprovalIdentity(config);
   assertAgentValid(config);
   assertApprovedNetwork(config);
   if (!options.reduceOnly && !options.cancel)
     await assertDepositsSettled(config.network, config.masterAddress);
 }
-export function tradeLockPath(config: Config) {
-  const account = (config.masterAddress ?? 'default').toLowerCase();
-  return config.mode === 'paper'
-    ? join(paperDir(), 'locks', `trade-${account}.lock`)
-    : join(stateDir(), 'locks', `trade-${config.network}-${account}.lock`);
-}
+export const tradeLockPath = accountLockPath;
 export function withTradeLock<T>(config: Config, operation: () => Promise<T>) {
-  return withFileLock(tradeLockPath(config), operation);
+  return withFileLock(tradeLockPath(config), async () => {
+    await refreshConfig(config);
+    const scope = currentRequestContext()?.scope;
+    if (scope && scope !== (await executionScope(config)))
+      throw new AgentCliError(
+        'CONFIG_INVALID',
+        'Execution account or paper session changed while the action was pending',
+      );
+    return operation();
+  });
 }
 export function assertLiveMode(config: Config, command: string) {
   if (config.mode === 'paper')
@@ -108,7 +135,10 @@ export async function servicesForMode(
   config: Config,
 ): Promise<TradingServices> {
   return config.mode === 'paper'
-    ? paperTradingServices(config, new PaperStore())
+    ? paperTradingServices(
+        config,
+        new PaperStore(undefined, config.paper.startingBalance),
+      )
     : tradingServices(config);
 }
 export async function checkRisk(
@@ -117,18 +147,33 @@ export async function checkRisk(
   services: TradingServices,
   ignoreOid?: number,
 ) {
-  const [market, state, orders, leverage] = await Promise.all([
+  const [market, state, orders, leverage, mids] = await Promise.all([
     services.market(intent.coin),
     services.state(),
     services.orders(),
     accountLeverageFrom(services, intent.coin),
+    services.mids(),
   ]);
-  intent = { ...intent, leverage };
+  const mid = mids[intent.coin];
+  if (!mid || parseUsdc(mid, 18) <= 0n)
+    throw new AgentCliError(
+      'POLICY_REJECTED',
+      'Current market valuation unavailable',
+    );
+  intent = {
+    ...intent,
+    leverage,
+    valuationPrice:
+      parseUsdc(mid, 18) > parseUsdc(intent.price, 18) ? mid : intent.price,
+  };
   const position = state.assetPositions.find(
     (p) => p.position.coin === intent.coin,
   )?.position;
   const open = orders.filter((o) => o.oid !== ignoreOid);
   const pending = open.filter((o) => o.coin === intent.coin && !o.reduceOnly);
+  for (const order of pending)
+    if (parseUsdc(order.limitPx, 18) > parseUsdc(intent.valuationPrice!, 18))
+      intent.valuationPrice = order.limitPx;
   const buys = pending
       .filter((o) => o.side === 'B')
       .reduce((sum, o) => sum + parseUsdc(o.sz, 18), 0n),
@@ -136,10 +181,13 @@ export async function checkRisk(
       .filter((o) => o.side === 'A')
       .reduce((sum, o) => sum + parseUsdc(o.sz, 18), 0n);
   const loss =
-    config.limits.dailyLoss !== undefined
+    config.limits.dailyLoss !== undefined && !intent.reduceOnly
       ? await requiredDailyLoss(services)
       : '0';
-  const logger = new Logger({ level: config.logLevel });
+  const logger = new Logger({
+    level: config.logLevel,
+    directory: join(config.mode === 'paper' ? paperDir() : stateDir(), 'logs'),
+  });
   try {
     return evaluateRisk(config, intent, {
       positionSize: position?.szi ?? '0',
@@ -164,12 +212,17 @@ function detailRecord(details: unknown): Record<string, unknown> {
 }
 export function asUnknownMutation(error: unknown, cloid?: string) {
   const mapped = mapHyperliquidError(error);
-  const details = {
+  const details: Record<string, unknown> = {
     ...detailRecord(mapped.details),
     ...(cloid ? { cloid } : {}),
   };
-  if (mapped.code !== 'NETWORK_ERROR')
-    return new AgentCliError(mapped.code, mapped.message, details, mapped.retryable);
+  if (mapped.code !== 'NETWORK_ERROR' && details.outcome !== 'unknown')
+    return new AgentCliError(
+      mapped.code,
+      mapped.message,
+      details,
+      mapped.retryable,
+    );
   return new AgentCliError(
     'NETWORK_ERROR',
     mapped.message,
@@ -191,21 +244,52 @@ export async function exchangeAction(
       response?: { data?: { statuses?: unknown[] } };
     };
     if (data.status === 'err') throw mapHyperliquidError(response);
-    for (const status of data.response?.data?.statuses ?? [])
-      if (status && typeof status === 'object' && 'error' in status)
-        throw mapHyperliquidError((status as { error: string }).error);
+    const statuses = data.response?.data?.statuses ?? [];
+    for (const [index, status] of statuses.entries())
+      if (status && typeof status === 'object' && 'error' in status) {
+        const mapped = mapHyperliquidError((status as { error: string }).error);
+        throw new AgentCliError(
+          mapped.code,
+          mapped.message,
+          {
+            ...detailRecord(mapped.details),
+            outcome: statuses.length > 1 ? 'partial' : 'rejected',
+            failedIndex: index,
+            statuses,
+            response,
+          },
+          false,
+        );
+      }
     return response;
   } catch (error) {
+    const upstream = error as { response?: unknown; name?: string };
+    if (upstream?.name === 'ApiRequestError' && upstream.response) {
+      const mapped = mapHyperliquidError(error);
+      const statuses = (
+        upstream.response as { response?: { data?: { statuses?: unknown[] } } }
+      ).response?.data?.statuses;
+      throw new AgentCliError(
+        mapped.code,
+        mapped.message,
+        {
+          ...detailRecord(mapped.details),
+          outcome: statuses && statuses.length > 1 ? 'partial' : 'rejected',
+          response: upstream.response,
+          statuses,
+        },
+        false,
+      );
+    }
     throw asUnknownMutation(error, cloid);
   }
 }
 async function accountLeverage(config: Config, coin: string) {
   if (!config.masterAddress)
-    throw new AgentCliError(
-      'POLICY_REJECTED',
-      'Account leverage unavailable',
-      { limit: 'maxLeverage', coin },
-    );
+    throw new AgentCliError('POLICY_REJECTED', 'Account leverage unavailable', {
+      limit: 'maxLeverage',
+      coin,
+    });
   const data = await hlInfo<{ leverage?: { value?: unknown } }>(
     config.network,
     'activeAssetData',
@@ -266,10 +350,25 @@ export function dailyLossFromPortfolio(
     );
   const midnight = new Date(now);
   midnight.setUTCHours(0, 0, 0, 0);
-  const initial =
-    [...history].reverse().find(([time]) => time <= midnight.getTime()) ??
-    history[0];
   const last = history.at(-1)!;
+  const initial = [...history]
+    .reverse()
+    .find(([time]) => time <= midnight.getTime());
+  if (
+    !initial ||
+    midnight.getTime() - initial[0] > 60 * 60_000 ||
+    now - last[0] > 5 * 60_000 ||
+    history.some(
+      ([time], index) =>
+        !Number.isSafeInteger(time) ||
+        time > now ||
+        (index > 0 && time <= history[index - 1][0]),
+    )
+  )
+    throw new AgentCliError(
+      'POLICY_REJECTED',
+      'Daily loss history is stale, unordered or missing the UTC-day baseline',
+    );
   const signed = (value: string) =>
     value.startsWith('-') ? -parseUsdc(value.slice(1), 8) : parseUsdc(value, 8);
   const pnl = signed(last[1]) - signed(initial[1]);

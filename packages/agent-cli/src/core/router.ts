@@ -1,6 +1,8 @@
 import { outputSchemas } from './output-schemas.js';
 import { errorDefaults } from '../errors/index.js';
 import { assertSafeInput } from '../wallet/safety.js';
+import { bindOrderIdentity } from './operations.js';
+import { loadConfig, assertApprovalIdentity } from './config.js';
 import { auditedAction } from './audit.js';
 import { resolveMode, modeFields, type Mode } from './mode.js';
 import { z } from 'zod';
@@ -223,6 +225,20 @@ export async function dispatch(argv: string[], stdin = '') {
         'Invalid command input',
         parsed.error.flatten(),
       );
+    if (
+      name === 'run' &&
+      (parsed.data as { paper?: boolean }).paper &&
+      context.paper === undefined
+    )
+      mode = 'paper';
+    context.paper = mode === 'paper';
+    if (name === 'order') {
+      const config = await loadConfig(context.configPath);
+      config.mode = mode;
+      if (context.network) config.network = context.network;
+      if (mode === 'live' && config.approved) assertApprovalIdentity(config);
+      await bindOrderIdentity(config, parsed.data as Record<string, unknown>);
+    }
     const route = await routing?.(
       name,
       parsed.data as Record<string, unknown>,

@@ -15,6 +15,11 @@ records intent, decision, signature digest, response, and linked fill stages.
 Entries include `seq`, UTC `timestamp`, `intentId`, optional `cloid` and `requestId`,
 `stage`, redacted `data`, `previousHash`, and SHA-256 `hash`.
 
+Entries also carry account/network or paper-session `scope`. By default, `audit`
+returns up to 200 entries for the current scope; use `--since SEQ --limit N`
+(maximum 1,000) to page and `--all-scopes` for retained history. Paper reset creates
+a new session and retains the chain and sequence numbers.
+
 `audit` verifies the complete chain before filtering. Each entry hashes its payload
 and references the previous hash; sequence numbers are checked. Appends use a
 private lock and sync the file. Raw signatures are never recorded, only digests.
@@ -23,3 +28,8 @@ The chain detects edits to a retained journal. It cannot detect deletion of the
 whole journal or replacement with a newly valid chain without an external
 checkpoint. Back up checkpoints separately. Same-user malware and root can change
 local files and configuration; see [Security](/docs/security).
+
+Order identity bindings and results are stored separately from the display/audit
+history so cloid reuse stays detectable after rotation or retention changes. A
+mutation that succeeds before audit persistence fails returns an accepted outcome
+with its result and identity; it must not be retried as a rejected operation.

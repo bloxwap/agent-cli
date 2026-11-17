@@ -7,9 +7,14 @@ import {
 } from 'node:net';
 import { chmod, unlink, lstat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { stateDir, loadConfig, readStoredConfig } from '../core/config.js';
+import {
+  stateDir,
+  loadConfig,
+  readStoredConfig,
+  atomicWrite,
+} from '../core/config.js';
 import { resolveMode, type Mode } from '../core/mode.js';
 import { AgentCliError, normalizeError } from '../errors/index.js';
 import { commands, type Context } from '../core/router.js';
@@ -44,9 +49,12 @@ export const routedCommands = new Set([
   'rotate',
   'revoke',
 ]);
+export const MAX_RPC_BYTES = 1_048_576;
+const MAX_QUEUED_REQUESTS = 64;
+const MAX_QUEUED_BYTES = 4 * MAX_RPC_BYTES;
 const requestSchema = z.object({
   jsonrpc: z.literal('2.0'),
-  id: z.union([z.string(), z.number(), z.null()]),
+  id: z.union([z.string().max(128), z.number().finite(), z.null()]),
   method: z.string(),
   params: z.record(z.string(), z.unknown()).default({}),
 });
@@ -59,15 +67,27 @@ export async function rpcServer(
   let queue = Promise.resolve();
   const sockets = new Set<Socket>();
   let stopping = false;
+  let queued = 0;
+  let queuedBytes = 0;
+  const savedMode =
+    (await readStoredConfig(context.configPath))?.mode ?? 'live';
   const server = createServer((socket) => {
+    if (stopping || sockets.size >= 128) {
+      socket.destroy();
+      return;
+    }
     sockets.add(socket);
     socket.once('close', () => sockets.delete(socket));
     let buffer = '';
     socket.setEncoding('utf8');
     socket.setTimeout(30_000, () => socket.destroy());
     socket.on('data', (chunk) => {
+      if (socket.writableLength > MAX_RPC_BYTES) {
+        socket.destroy();
+        return;
+      }
       buffer += chunk;
-      if (Buffer.byteLength(buffer) > 1_048_576) {
+      if (Buffer.byteLength(buffer) > MAX_RPC_BYTES) {
         socket.destroy();
         return;
       }
@@ -75,9 +95,38 @@ export async function rpcServer(
       while ((end = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, end);
         buffer = buffer.slice(end + 1);
+        // Health checks never wait behind a command or external service.
+        try {
+          const ping = requestSchema.safeParse(JSON.parse(line));
+          if (ping.success && ping.data.method === 'runner.ping') {
+            socket.write(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                id: ping.data.id,
+                result: { token: runner.info.token, pid: runner.info.pid },
+              }) + '\n',
+            );
+            continue;
+          }
+        } catch {
+          /* the queued parser returns a normalized error */
+        }
+        const bytes = Buffer.byteLength(line);
+        if (
+          stopping ||
+          queued >= MAX_QUEUED_REQUESTS ||
+          queuedBytes + bytes > MAX_QUEUED_BYTES
+        ) {
+          socket.destroy();
+          return;
+        }
+        queued++;
+        queuedBytes += bytes;
         queue = queue
           .then(async () => {
             let id: unknown = null;
+            let actionName = '';
+            let cloid: unknown;
             try {
               if (stopping)
                 throw new AgentCliError(
@@ -108,6 +157,8 @@ export async function rpcServer(
                   'Runner belongs to a different config or network',
                 );
               const name = aliases[request.method] ?? request.method;
+              actionName = name;
+              cloid = request.params.cloid;
               if (name === 'runner.ping') {
                 socket.write(
                   JSON.stringify({
@@ -129,11 +180,11 @@ export async function rpcServer(
                   'Runner mode does not match the caller',
                   { runnerMode: pinned, requested: metadata.mode },
                 );
-              if (metadata) {
+              {
                 const disk = await readStoredConfig(
-                  metadata.configPath ?? join(stateDir(), 'config.json'),
+                  context.configPath ?? join(stateDir(), 'config.json'),
                 );
-                if (disk && disk.mode !== pinned)
+                if (disk && disk.mode !== savedMode)
                   throw new AgentCliError(
                     'CONFIG_INVALID',
                     'Runner mode does not match the saved config; restart the runner',
@@ -177,9 +228,52 @@ export async function rpcServer(
                     parsed!.data as Record<string, unknown>,
                     { ...context, runner: true, paper: pinned === 'paper' },
                   );
-              socket.write(
-                JSON.stringify({ jsonrpc: '2.0', id, result: data }) + '\n',
-              );
+              const encoded =
+                JSON.stringify({ jsonrpc: '2.0', id, result: data }) + '\n';
+              if (Buffer.byteLength(encoded) > MAX_RPC_BYTES) {
+                if (
+                  [
+                    'order',
+                    'cancel',
+                    'modify',
+                    'leverage',
+                    'rotate',
+                    'revoke',
+                  ].includes(name)
+                ) {
+                  const resultPath = join(
+                    runner.directory,
+                    'results',
+                    randomUUID() + '.json',
+                  );
+                  try {
+                    await atomicWrite(resultPath, JSON.stringify(data));
+                  } catch {
+                    throw new AgentCliError(
+                      'INTERNAL',
+                      'Action completed but its oversized result could not be persisted',
+                      { outcome: 'accepted', cloid, receiptUnavailable: true },
+                      false,
+                    );
+                  }
+                  if (!socket.destroyed)
+                    socket.write(
+                      JSON.stringify({
+                        jsonrpc: '2.0',
+                        id,
+                        result: { outcome: 'accepted', resultPath, cloid },
+                      }) + '\n',
+                    );
+                  return;
+                }
+                throw new AgentCliError(
+                  'CONFIG_INVALID',
+                  'Runner response exceeds frame limit; request a smaller page',
+                  { maxBytes: MAX_RPC_BYTES },
+                  false,
+                );
+              }
+              if (!socket.destroyed) socket.write(encoded);
             } catch (error) {
               const normalized =
                 error instanceof SyntaxError || error instanceof z.ZodError
@@ -188,18 +282,55 @@ export async function rpcServer(
                       'Invalid JSON-RPC request',
                     )
                   : normalizeError(error);
-              socket.write(
-                JSON.stringify({
-                  jsonrpc: '2.0',
-                  id,
-                  error: {
-                    code: -32000,
-                    message: normalized.message,
-                    data: normalized.toJSON(),
+              let errorData = normalized.toJSON();
+              if (
+                Buffer.byteLength(JSON.stringify(errorData)) >
+                MAX_RPC_BYTES / 2
+              ) {
+                const resultPath = join(
+                  runner.directory,
+                  'results',
+                  randomUUID() + '.json',
+                );
+                let saved = false;
+                try {
+                  await atomicWrite(resultPath, JSON.stringify(errorData));
+                  saved = true;
+                } catch {
+                  /* preserve the action outcome even when the receipt cannot be written */
+                }
+                const details = normalized.details as
+                  { outcome?: unknown } | undefined;
+                errorData = new AgentCliError(
+                  normalized.code,
+                  normalized.message.slice(0, 1000),
+                  {
+                    outcome:
+                      details?.outcome ??
+                      (routedCommands.has(actionName) ? 'unknown' : undefined),
+                    cloid,
+                    ...(saved ? { resultPath } : { receiptUnavailable: true }),
                   },
-                }) + '\n',
-              );
+                  false,
+                ).toJSON();
+              }
+              if (!socket.destroyed)
+                socket.write(
+                  JSON.stringify({
+                    jsonrpc: '2.0',
+                    id,
+                    error: {
+                      code: -32000,
+                      message: normalized.message.slice(0, 1000),
+                      data: errorData,
+                    },
+                  }) + '\n',
+                );
             }
+          })
+          .finally(() => {
+            queued--;
+            queuedBytes -= bytes;
           })
           .catch((error) => {
             runner.logger.log('error', 'RPC write failed', {
@@ -232,7 +363,7 @@ export async function rpcServer(
     });
   });
   if (process.platform !== 'win32') await chmod(path, 0o600);
-  runner.onShutdown(async () => {
+  runner.onStopAdmission(async () => {
     stopping = true;
     const closed = new Promise<void>((resolve) =>
       server.close(() => resolve()),
@@ -270,7 +401,7 @@ export function rpcCall(
     );
     socket.on('data', (chunk) => {
       buffer += chunk;
-      if (buffer.length > 1_048_576) {
+      if (Buffer.byteLength(buffer) > MAX_RPC_BYTES) {
         socket.destroy(new Error('Oversize runner response'));
         return;
       }
@@ -360,7 +491,9 @@ export async function routeToRunner(
     if (
       error instanceof AgentCliError &&
       error.code === 'NETWORK_ERROR' &&
-      ['order', 'cancel', 'modify', 'leverage'].includes(name)
+      ['order', 'cancel', 'modify', 'leverage', 'rotate', 'revoke'].includes(
+        name,
+      )
     ) {
       const details =
         error.details && typeof error.details === 'object'
@@ -373,6 +506,7 @@ export async function routeToRunner(
           ...details,
           outcome: 'unknown',
           cloid: details.cloid ?? input.cloid ?? null,
+          intentId: input.intentId ?? null,
         },
         false,
       );

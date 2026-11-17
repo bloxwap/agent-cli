@@ -32,3 +32,16 @@ checks. There is no remote signing policy and no independent server-side
 per-action/notional enforcement. Anyone who can read the agent key can sign as
 the agent within Hyperliquid's agent permissions, so protect the reference
 target, keep expiry short, and `rotate` or `revoke` after suspected exposure.
+
+Approval state binds network, master address, agent address and verified expiry.
+Changing a master or extending expiry cannot inherit an existing approval. The
+master signature is recovered locally against the exact approval action before
+submission, and remote agent state confirms completion. Pending approval caches
+are bound to the whole action, including builder fee and agent expiry.
+
+Rotation opens the replacement key before saving the handoff. A resumed rotation
+recognizes an approval already visible at the exchange and reconciles a config
+swap interrupted before its rotation record was saved. Revocation immediately
+blocks local trading and confirms remote removal before reporting exchange
+revocation. Current config and cached runner identity are checked under the same
+account lock used for submission.

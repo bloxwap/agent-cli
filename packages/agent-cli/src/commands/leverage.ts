@@ -1,3 +1,4 @@
+import { reconcilePendingOrders } from '../core/operations.js';
 import { z } from 'zod';
 import { register } from '../core/router.js';
 import { commandConfig } from './read.js';
@@ -10,7 +11,7 @@ import {
   withTradeLock,
   type TradingServices,
 } from '../core/trading.js';
-import { parseUsdc } from '../funding/amounts.js';
+import { parseUsdc, decimalNumber } from '../funding/amounts.js';
 import { AgentCliError } from '../errors/index.js';
 export const leverageSchema = z.object({
   coin: z.string(),
@@ -24,32 +25,33 @@ export async function setLeverage(
   services?: TradingServices,
 ) {
   return withTradeLock(config, async () => {
-  await assertCanTrade(config);
-  const clients = services ?? (await servicesForMode(config));
-  const market = await clients.market(input.coin);
-  if (
-    (config.allowedMarkets.length &&
-      !config.allowedMarkets.includes(input.coin)) ||
-    input.leverage >
-      Math.min(market.maxLeverage, config.limits.maxLeverage ?? Infinity)
-  )
-    throw new AgentCliError(
-      'POLICY_REJECTED',
-      'Leverage or market exceeds configured limits',
+    await assertCanTrade(config);
+    const clients = services ?? (await servicesForMode(config));
+    await reconcilePendingOrders(config, clients.orderByCloid);
+    const market = await clients.market(input.coin);
+    if (
+      (config.allowedMarkets.length &&
+        !config.allowedMarkets.includes(input.coin)) ||
+      input.leverage >
+        Math.min(market.maxLeverage, config.limits.maxLeverage ?? Infinity)
+    )
+      throw new AgentCliError(
+        'POLICY_REJECTED',
+        'Leverage or market exceeds configured limits',
+      );
+    if (
+      config.limits.dailyLoss !== undefined &&
+      parseUsdc(await requiredDailyLoss(clients), 18) >
+        parseUsdc(decimalNumber(config.limits.dailyLoss), 18)
+    )
+      throw new AgentCliError('POLICY_REJECTED', 'Daily loss cap exceeded');
+    return exchangeAction('updateLeverage', () =>
+      clients.exchange.updateLeverage({
+        asset: market.asset,
+        isCross: input.mode === 'cross',
+        leverage: input.leverage,
+      }),
     );
-  if (
-    config.limits.dailyLoss !== undefined &&
-    parseUsdc(await requiredDailyLoss(clients), 8) >
-      parseUsdc(String(config.limits.dailyLoss), 8)
-  )
-    throw new AgentCliError('POLICY_REJECTED', 'Daily loss cap exceeded');
-  return exchangeAction('updateLeverage', () =>
-    clients.exchange.updateLeverage({
-      asset: market.asset,
-      isCross: input.mode === 'cross',
-      leverage: input.leverage,
-    }),
-  );
   });
 }
 register('leverage', {

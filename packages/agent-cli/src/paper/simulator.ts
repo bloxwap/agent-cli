@@ -1,4 +1,5 @@
-import { parseUsdc, formatUsdc } from '../funding/amounts.js';
+import { randomUUID } from 'node:crypto';
+import { parseUsdc, formatUsdc, decimalNumber } from '../funding/amounts.js';
 import { AgentCliError } from '../errors/index.js';
 // Deterministic local fill simulator for paper trading. Every function mutates
 // the passed PaperState in place and reports what happened so callers can emit
@@ -56,6 +57,18 @@ export interface PaperTrade {
 }
 export interface PaperState {
   version: 1;
+  sessionId: string;
+  marks: Record<string, string>;
+  marketAt: number;
+  dayBaselineValid: boolean;
+  fundingRates: Record<string, string>;
+  orderResults: { cloid: string; requestHash: string; result: unknown }[];
+  outbox: {
+    eventId: string;
+    type: 'fill' | 'order_update' | 'position_change' | 'error';
+    data: Record<string, unknown>;
+    trade?: PaperTrade;
+  }[];
   createdAt: number;
   startingBalance: string;
   balance: string;
@@ -75,6 +88,7 @@ export interface PaperState {
 }
 const d = (value: string) => parseUsdc(value, 18);
 const f = (value: bigint) => formatUsdc(value, 18);
+const cashUnits = (value: bigint) => (value / 10n ** 10n) * 10n ** 10n;
 const abs = (value: bigint) => (value < 0n ? -value : value);
 export const builderFeeFraction = (builderFee: number) =>
   Math.max(0, builderFee) / 100_000; // config tenths of a bp; f=10 -> 1 bp = 0.0001
@@ -85,10 +99,21 @@ export function initialPaperState(
   now = Date.now(),
 ): PaperState {
   if (!Number.isFinite(startingBalance) || startingBalance <= 0)
-    throw new AgentCliError('CONFIG_INVALID', 'Starting balance must be positive');
-  const balance = String(startingBalance);
+    throw new AgentCliError(
+      'CONFIG_INVALID',
+      'Starting balance must be positive',
+    );
+  const balance = decimalNumber(startingBalance);
+  d(balance);
   return {
     version: 1,
+    sessionId: randomUUID(),
+    marks: {},
+    marketAt: now,
+    dayBaselineValid: true,
+    fundingRates: {},
+    outbox: [],
+    orderResults: [],
     createdAt: now,
     startingBalance: balance,
     balance,
@@ -104,7 +129,7 @@ export function initialPaperState(
     liquidations: 0,
     lastFundingAt: now,
     dayStartEquity: balance,
-    dayStartAt: now,
+    dayStartAt: Math.floor(now / 86_400_000) * 86_400_000,
   };
 }
 export function positionOf(state: PaperState, coin: string) {
@@ -133,16 +158,27 @@ export function maintenanceMargin(
   maxLeverage: number,
 ) {
   return (
-    (abs(d(position.size)) * d(markPx) * BigInt(Math.round(maintenanceRate(maxLeverage) * 1e9))) /
+    (abs(d(position.size)) *
+      d(markPx) *
+      BigInt(Math.round(maintenanceRate(maxLeverage) * 1e9))) /
     BigInt(1e9) /
     SCALE
   );
 }
-export function accountEquity(state: PaperState, marks: Record<string, string>) {
+export function accountEquity(
+  state: PaperState,
+  marks: Record<string, string>,
+) {
   let equity = d(state.balance);
   for (const position of state.positions) {
     const mark = marks[position.coin];
-    if (mark) equity += unrealizedPnl(position, mark);
+    if (!mark || d(mark) <= 0n)
+      throw new AgentCliError(
+        'POLICY_REJECTED',
+        'Current paper mark unavailable',
+        { coin: position.coin },
+      );
+    equity += unrealizedPnl(position, mark);
   }
   return equity;
 }
@@ -161,8 +197,6 @@ export function liquidationPx(
 }
 function pushTrade(state: PaperState, trade: PaperTrade) {
   state.trades.push(trade);
-  if (state.trades.length > MAX_STATE_TRADES)
-    state.trades.splice(0, state.trades.length - MAX_STATE_TRADES);
   return trade;
 }
 export interface FillInput {
@@ -176,33 +210,71 @@ export interface FillInput {
   builderFee: number;
   now: number;
   liquidation?: boolean;
+  reduceOnly?: boolean;
 }
 export function applyFill(state: PaperState, input: FillInput): PaperTrade {
-  const sz = d(input.sz),
-    px = d(input.px);
+  let sz = d(input.sz);
+  const px = d(input.px);
+  if (input.reduceOnly) {
+    const position = positionOf(state, input.coin);
+    if (!position || d(position.size) > 0n === (input.side === 'B'))
+      throw new AgentCliError(
+        'POLICY_REJECTED',
+        'Reduce-only fill would increase exposure',
+      );
+    if (sz > abs(d(position.size))) sz = abs(d(position.size));
+    input = { ...input, sz: f(sz) };
+  }
   if (sz <= 0n || px <= 0n)
-    throw new AgentCliError('INVALID_SIZE', 'Fill size and price must be positive');
+    throw new AgentCliError(
+      'INVALID_SIZE',
+      'Fill size and price must be positive',
+    );
+  // Settle the old exposure before changing its size or direction.
+  if (Object.keys(state.fundingRates).length)
+    accrueFunding(
+      state,
+      state.fundingRates,
+      { ...state.marks, [input.coin]: input.px },
+      input.now,
+    );
+  else if (!state.positions.length) state.lastFundingAt = input.now;
   const notional = (sz * px) / SCALE;
-  const fee = (notional * BigInt(Math.round(tradeFeeRate(input.taker, input.builderFee) * 1e9))) / BigInt(1e9);
+  const fee = cashUnits(
+    (notional *
+      BigInt(Math.round(tradeFeeRate(input.taker, input.builderFee) * 1e9))) /
+      BigInt(1e9),
+  );
+  state.marks[input.coin] = input.px;
+  if (!input.liquidation)
+    assertInitialMargin(
+      state,
+      input.coin,
+      input.side === 'B' ? input.sz : `-${input.sz}`,
+      input.px,
+      state.marks,
+      fee,
+    );
   const signed = input.side === 'B' ? sz : -sz;
   let realized = 0n;
   const position = positionOf(state, input.coin);
   if (position && d(position.size) !== 0n) {
     const current = d(position.size);
-    const sameDirection = current > 0n === (signed > 0n);
+    const sameDirection = current > 0n === signed > 0n;
     if (!sameDirection) {
       const closing = abs(current) <= abs(signed) ? abs(current) : abs(signed);
       const direction = current > 0n ? 1n : -1n;
       realized = (closing * (px - d(position.entryPx)) * direction) / SCALE;
     }
     const next = current + signed;
-    if (next === 0n) state.positions = state.positions.filter((p) => p !== position);
+    if (next === 0n)
+      state.positions = state.positions.filter((p) => p !== position);
     else {
-      if (abs(next) > abs(current))
+      if (next < 0n !== current < 0n) position.entryPx = input.px;
+      else if (sameDirection)
         position.entryPx = f(
           (abs(current) * d(position.entryPx) + sz * px) / (abs(current) + sz),
         );
-      else if (next < 0n !== current < 0n) position.entryPx = input.px;
       position.size = f(next);
     }
   } else if (signed !== 0n) {
@@ -215,6 +287,7 @@ export function applyFill(state: PaperState, input: FillInput): PaperTrade {
   }
   // Cross-style virtual margin: cash moves only by fees, funding and realized
   // PnL; position notional is not deducted. Margin checks use account equity.
+  realized = cashUnits(realized);
   state.balance = f(d(state.balance) - fee + realized);
   state.feesPaid = f(d(state.feesPaid) + fee);
   state.realizedPnl = f(d(state.realizedPnl) + realized);
@@ -228,7 +301,7 @@ export function applyFill(state: PaperState, input: FillInput): PaperTrade {
     ...(input.oid !== undefined ? { oid: input.oid } : {}),
     ...(input.cloid ? { cloid: input.cloid } : {}),
     fee: f(fee),
-    feeRate: String(tradeFeeRate(input.taker, input.builderFee)),
+    feeRate: decimalNumber(tradeFeeRate(input.taker, input.builderFee)),
     taker: input.taker,
     ...(input.liquidation ? { liquidation: true } : {}),
     ...(realized !== 0n ? { realizedPnl: f(realized) } : {}),
@@ -260,10 +333,16 @@ export function walkBook(
   const bound = order.limitPx === undefined ? null : d(order.limitPx);
   let remaining = d(order.sz);
   const position = positionOf(state, order.coin);
-  if (order.reduceOnly && (!position || d(position.size) === 0n))
+  if (
+    order.reduceOnly &&
+    (!position ||
+      d(position.size) === 0n ||
+      d(position.size) > 0n === (order.side === 'B'))
+  )
     return { filledSz: '0', avgPx: null, trades: [] };
   if (order.reduceOnly)
-    remaining = remaining < abs(d(position!.size)) ? remaining : abs(d(position!.size));
+    remaining =
+      remaining < abs(d(position!.size)) ? remaining : abs(d(position!.size));
   let notional = 0n,
     filled = 0n;
   const trades: PaperTrade[] = [];
@@ -271,7 +350,10 @@ export function walkBook(
     if (remaining <= 0n) break;
     const px = d(level.px);
     if (bound !== null && (order.side === 'B' ? px > bound : px < bound)) break;
+    if (px <= 0n || d(level.sz) < 0n)
+      throw new AgentCliError('UPSTREAM_ERROR', 'Invalid paper book level');
     const take = remaining < d(level.sz) ? remaining : d(level.sz);
+    if (take === 0n) continue;
     trades.push(
       applyFill(state, {
         coin: order.coin,
@@ -281,6 +363,7 @@ export function walkBook(
         oid: order.oid,
         cloid: order.cloid,
         taker: true,
+        reduceOnly: order.reduceOnly,
         builderFee,
         now,
       }),
@@ -302,6 +385,7 @@ export function assertInitialMargin(
   signedSz: string,
   px: string,
   marks: Record<string, string>,
+  fee = 0n,
 ) {
   const current = d(positionOf(state, coin)?.size ?? '0');
   const projected = current + d(signedSz);
@@ -309,11 +393,12 @@ export function assertInitialMargin(
   if (increase <= 0n) return;
   const withFill = { ...marks, [coin]: px };
   const used = state.positions.reduce(
-    (sum, p) => (withFill[p.coin] ? sum + initialMargin(p, withFill[p.coin]) : sum),
+    (sum, p) =>
+      withFill[p.coin] ? sum + initialMargin(p, withFill[p.coin]) : sum,
     0n,
   );
   const leverage = leverageOf(state, coin).value;
-  const required = (increase * d(px)) / BigInt(leverage) / SCALE;
+  const required = (increase * d(px)) / BigInt(leverage) / SCALE + fee;
   const available = accountEquity(state, withFill) - used;
   if (available < required)
     throw new AgentCliError('INSUFFICIENT_MARGIN', 'Paper margin exhausted', {
@@ -371,6 +456,9 @@ export interface MarketTick {
   bestAsk?: string;
   lastTradePx?: string;
   markPx?: string;
+  time?: number;
+  bookTime?: number;
+  tradeTime?: number;
 }
 function triggered(order: PaperOrder, tick: MarketTick): string | null {
   const price = tick.lastTradePx ?? tick.markPx;
@@ -379,7 +467,8 @@ function triggered(order: PaperOrder, tick: MarketTick): string | null {
     trigger = d(order.triggerPx);
   const rising = order.side === 'A' ? px >= trigger : px <= trigger;
   if (order.tpsl === 'tp') return rising ? price : null;
-  return rising ? null : price;
+  const stopping = order.side === 'A' ? px <= trigger : px >= trigger;
+  return stopping ? price : null;
 }
 export interface MatchResult {
   fills: PaperTrade[];
@@ -397,23 +486,50 @@ export function matchOrders(
   book: PaperBook | null,
   builderFee: number,
   now: number,
+  onlyOid?: number,
 ): MatchResult {
-  const result: MatchResult = { fills: [], filledOids: [], cancelledOids: [], triggeredOids: [] };
+  const result: MatchResult = {
+    fills: [],
+    filledOids: [],
+    cancelledOids: [],
+    triggeredOids: [],
+  };
   for (const order of [...state.orders]) {
-    if (order.coin !== coin) continue;
+    if (
+      (onlyOid !== undefined && order.oid !== onlyOid) ||
+      order.coin !== coin ||
+      (tick.time !== undefined && tick.time < order.placedAt)
+    )
+      continue;
+    const currentTick = {
+      ...tick,
+      ...(tick.bookTime !== undefined && tick.bookTime < order.placedAt
+        ? { bestBid: undefined, bestAsk: undefined }
+        : {}),
+      ...(tick.tradeTime !== undefined && tick.tradeTime < order.placedAt
+        ? { lastTradePx: undefined }
+        : {}),
+    };
     if (order.isTrigger) {
-      const price = triggered(order, tick);
+      const price = triggered(order, currentTick);
       if (!price) continue;
-      if (order.reduceOnly && isFlat(state, coin)) {
+      if (
+        order.reduceOnly &&
+        (isFlat(state, coin) ||
+          d(positionOf(state, coin)!.size) > 0n === (order.side === 'B'))
+      ) {
         cancelOrder(state, order.oid);
         result.cancelledOids.push(order.oid);
         continue;
       }
       result.triggeredOids.push(order.oid);
-      if (order.triggerIsMarket || !book) {
-        const hasLiquidity =
-          book && (order.side === 'B' ? book.asks.length : book.bids.length);
-        if (book && hasLiquidity) {
+      if (order.triggerIsMarket) {
+        if (
+          !book ||
+          (tick.bookTime !== undefined && tick.bookTime < order.placedAt)
+        )
+          continue; // no fabricated liquidity when the feed is unavailable
+        try {
           const walk = walkBook(
             state,
             {
@@ -429,29 +545,28 @@ export function matchOrders(
             now,
           );
           result.fills.push(...walk.trades);
-        } else {
-          applyFill(state, {
-            coin,
-            side: order.side,
-            sz: remainingSz(order),
-            px: order.limitPx,
-            oid: order.oid,
-            cloid: order.cloid,
-            taker: true,
-            builderFee,
-            now,
-          });
-          result.fills.push(state.trades.at(-1)!);
+          if (walk.trades.length) finishOrder(state, order, result);
+          else {
+            cancelOrder(state, order.oid);
+            result.cancelledOids.push(order.oid);
+          }
+        } catch (error) {
+          if (!(
+            error instanceof AgentCliError &&
+            error.code === 'INSUFFICIENT_MARGIN'
+          ))
+            throw error;
+          cancelOrder(state, order.oid);
+          result.cancelledOids.push(order.oid);
         }
-        finishOrder(state, order, result);
       } else {
         order.isTrigger = false;
         order.tif = 'Gtc';
-        fillCrossed(state, order, tick, builderFee, now, result);
+        fillCrossed(state, order, currentTick, builderFee, now, result);
       }
       continue;
     }
-    fillCrossed(state, order, tick, builderFee, now, result);
+    fillCrossed(state, order, currentTick, builderFee, now, result);
   }
   return result;
 }
@@ -462,7 +577,11 @@ function isFlat(state: PaperState, coin: string) {
   const position = positionOf(state, coin);
   return !position || d(position.size) === 0n;
 }
-function finishOrder(state: PaperState, order: PaperOrder, result: MatchResult) {
+function finishOrder(
+  state: PaperState,
+  order: PaperOrder,
+  result: MatchResult,
+) {
   state.orders = state.orders.filter((o) => o.oid !== order.oid);
   result.filledOids.push(order.oid);
 }
@@ -480,7 +599,9 @@ function fillCrossed(
       : (tick.bestBid ?? tick.lastTradePx);
   if (!price) return;
   const crosses =
-    order.side === 'B' ? d(price) <= d(order.limitPx) : d(price) >= d(order.limitPx);
+    order.side === 'B'
+      ? d(price) <= d(order.limitPx)
+      : d(price) >= d(order.limitPx);
   const tradedThrough =
     tick.lastTradePx !== undefined &&
     (order.side === 'B'
@@ -503,17 +624,28 @@ function fillCrossed(
     }
     sz = sz < abs(d(position.size)) ? sz : abs(d(position.size));
   }
-  applyFill(state, {
-    coin: order.coin,
-    side: order.side,
-    sz: f(sz),
-    px: order.limitPx,
-    oid: order.oid,
-    cloid: order.cloid,
-    taker: false,
-    builderFee,
-    now,
-  });
+  try {
+    applyFill(state, {
+      coin: order.coin,
+      side: order.side,
+      sz: f(sz),
+      px: order.limitPx,
+      oid: order.oid,
+      cloid: order.cloid,
+      taker: false,
+      reduceOnly: order.reduceOnly,
+      builderFee,
+      now,
+    });
+  } catch (error) {
+    if (!(
+      error instanceof AgentCliError && error.code === 'INSUFFICIENT_MARGIN'
+    ))
+      throw error;
+    cancelOrder(state, order.oid);
+    result.cancelledOids.push(order.oid);
+    return;
+  }
   result.fills.push(state.trades.at(-1)!);
   finishOrder(state, order, result);
 }
@@ -533,14 +665,20 @@ export function accrueFunding(
   for (const position of state.positions) {
     const rate = fundingRates[position.coin],
       mark = marks[position.coin];
-    if (!rate || !mark) continue;
+    if (rate === undefined || !mark)
+      throw new AgentCliError(
+        'POLICY_REJECTED',
+        'Funding data unavailable for existing paper exposure',
+        { coin: position.coin },
+      );
     // Hyperliquid's metaAndAssetCtxs funding is the hourly rate (paid every
     // hour), so positive funding is paid by longs and received by shorts at
     // notional * rate per elapsed hour.
     const notionalRate =
       (((d(position.size) * d(mark)) / SCALE) * d(rate)) / SCALE;
-    const cash =
-      (-notionalRate * BigInt(Math.round(hours * 1e9))) / BigInt(1e9);
+    const cash = cashUnits(
+      (-notionalRate * BigInt(Math.round(hours * 1e9))) / BigInt(1e9),
+    );
     if (cash === 0n) continue;
     state.balance = f(d(state.balance) + cash);
     state.fundingPaid = f(d(state.fundingPaid) + cash);
@@ -583,14 +721,21 @@ export function liquidate(
     const mark = marks[position.coin];
     if (!mark) continue;
     const locked = initialMargin(position, mark);
-    if (locked + unrealizedPnl(position, mark) <= maintenanceMargin(position, mark, maxLeverageOf(position.coin)))
+    if (
+      locked + unrealizedPnl(position, mark) <=
+      maintenanceMargin(position, mark, maxLeverageOf(position.coin))
+    )
       liquidatePosition(position, mark);
   }
   for (let guard = 0; guard < 100; guard++) {
     const cross = state.positions.filter((p) => p.leverage.type === 'cross');
     if (!cross.length) break;
     const maintTotal = cross.reduce(
-      (sum, p) => sum + (marks[p.coin] ? maintenanceMargin(p, marks[p.coin], maxLeverageOf(p.coin)) : 0n),
+      (sum, p) =>
+        sum +
+        (marks[p.coin]
+          ? maintenanceMargin(p, marks[p.coin], maxLeverageOf(p.coin))
+          : 0n),
       0n,
     );
     const equity = accountEquity(state, marks);
@@ -608,13 +753,28 @@ export function liquidate(
   }
   return liquidated;
 }
-export function rolloverDay(state: PaperState, marks: Record<string, string>, now: number) {
-  if (now - state.dayStartAt >= 86_400_000) {
-    state.dayStartEquity = f(accountEquity(state, marks));
-    state.dayStartAt = now;
+export function rolloverDay(
+  state: PaperState,
+  marks: Record<string, string>,
+  now: number,
+) {
+  const midnight = Math.floor(now / 86_400_000) * 86_400_000;
+  if (state.dayStartAt < midnight) {
+    const recentBoundary =
+      state.marketAt <= midnight && midnight - state.marketAt <= 5 * 60_000;
+    state.dayBaselineValid = !state.positions.length || recentBoundary;
+    state.dayStartEquity = f(
+      accountEquity(state, recentBoundary ? state.marks : marks),
+    );
+    state.dayStartAt = midnight;
   }
 }
 export function dailyLoss(state: PaperState, marks: Record<string, string>) {
+  if (!state.dayBaselineValid)
+    throw new AgentCliError(
+      'POLICY_REJECTED',
+      'Paper UTC-day baseline is unavailable after a market-data gap; reduce exposure or reset the paper account',
+    );
   const loss = d(state.dayStartEquity) - accountEquity(state, marks);
   return f(loss > 0n ? loss : 0n);
 }

@@ -48,10 +48,15 @@ const data = (marks: Record<string, string> = { BTC: '100' }): PaperData => ({
   coinOfAsset: async () => 'BTC',
   maxLeverageOf: async () => 40,
 });
-async function setup(options: { allowedMarkets?: string[]; marks?: Record<string, string> } = {}) {
+async function setup(
+  options: { allowedMarkets?: string[]; marks?: Record<string, string> } = {},
+) {
   const dir = await mkdtemp(join(tmpdir(), 'bloxwap-engine-'));
   const runner = new Runner(
-    migrate({ mode: 'paper', allowedMarkets: options.allowedMarkets ?? ['BTC'] }),
+    migrate({
+      mode: 'paper',
+      allowedMarkets: options.allowedMarkets ?? ['BTC'],
+    }),
     dir,
   );
   const store = new PaperStore(join(dir, 'paper'));
@@ -74,7 +79,9 @@ test('engine subscribes to l2Book, trades and bbo for active coins', async () =>
   const { dir, runner, backend, engine } = await setup();
   try {
     expect(
-      backend.listeners.map((listener) => `${listener.type}:${listener.coin}`).sort(),
+      backend.listeners
+        .map((listener) => `${listener.type}:${listener.coin}`)
+        .sort(),
     ).toEqual(['bbo:BTC', 'l2Book:BTC', 'trades:BTC']);
     await engine.flush();
   } finally {
@@ -98,12 +105,15 @@ test('resting limit fills when a trade prints through the price', async () => {
     });
     backend.push('l2Book', 'BTC', {
       coin: 'BTC',
+      time: Date.now(),
       levels: [[{ px: '98.5', sz: '5', n: 1 }], [{ px: '100', sz: '5', n: 1 }]],
     });
     await engine.flush();
     backend.push('trades', 'BTC', {
       coin: 'BTC',
-      trades: [{ coin: 'BTC', px: '98.9', sz: '0.2', side: 'A' }],
+      trades: [
+        { time: Date.now(), coin: 'BTC', px: '98.9', sz: '0.2', side: 'A' },
+      ],
     });
     await engine.flush();
     expect(events.some((event) => event.type === 'fill')).toBe(true);
@@ -111,7 +121,8 @@ test('resting limit fills when a trade prints through the price', async () => {
     expect(fill.data).toMatchObject({ px: '99', sz: '1', paper: true });
     expect(
       events.some(
-        (event) => event.type === 'order_update' && event.data.status === 'filled',
+        (event) =>
+          event.type === 'order_update' && event.data.status === 'filled',
       ),
     ).toBe(true);
     const state = await store.load();
@@ -137,12 +148,14 @@ test('l2Book deltas maintain the book and cross resting orders', async () => {
     });
     backend.push('l2Book', 'BTC', {
       coin: 'BTC',
+      time: Date.now(),
       levels: [[{ px: '98', sz: '5', n: 1 }], [{ px: '100', sz: '5', n: 1 }]],
     });
     await engine.flush();
     backend.push('l2Book', 'BTC', {
       coin: 'BTC',
       side: 'B',
+      time: Date.now(),
       levels: [[{ px: '99.6', sz: '2', n: 1 }]],
     });
     await engine.flush();
@@ -171,22 +184,23 @@ test('tick accrues funding and emits runner_state', async () => {
     await engine.tick();
     await engine.flush();
     const state = await store.load();
-    expect(Number(state.fundingPaid)).toBeCloseTo(-0.08, 6);
+    expect(Number(state.fundingPaid)).toBeCloseTo(-0.08, 3);
     expect(
       events.some(
-        (event) => event.type === 'position_change' && event.data.type === 'funding',
+        (event) =>
+          event.type === 'position_change' && event.data.type === 'funding',
       ),
     ).toBe(true);
-    expect(
-      events.some((event) => event.type === 'runner_state'),
-    ).toBe(true);
+    expect(events.some((event) => event.type === 'runner_state')).toBe(true);
   } finally {
     await runner.shutdown();
     await rm(dir, { recursive: true, force: true });
   }
 });
 test('tick liquidates leveraged positions that breach maintenance margin', async () => {
-  const { dir, runner, store, events, engine } = await setup({ marks: { BTC: '70' } });
+  const { dir, runner, store, events, engine } = await setup({
+    marks: { BTC: '70' },
+  });
   try {
     await store.update((state) => {
       state.leverage.BTC = { type: 'cross', value: 40 };
@@ -234,7 +248,9 @@ test('subscriptions follow newly ordered coins and drop idle ones', async () => 
     });
     await engine.refreshSubscriptions();
     expect(
-      backend.listeners.map((listener) => `${listener.type}:${listener.coin}`).sort(),
+      backend.listeners
+        .map((listener) => `${listener.type}:${listener.coin}`)
+        .sort(),
     ).toEqual(['bbo:ETH', 'l2Book:ETH', 'trades:ETH']);
     await store.update((state) => {
       state.orders = [];

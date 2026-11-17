@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { join } from 'node:path';
 import { register } from '../core/router.js';
+import { executionScope } from '../core/operations.js';
+import { commandConfig } from './read.js';
 import { stateDir } from '../core/config.js';
 import {
   readEvents,
@@ -12,12 +14,17 @@ import { paperDir, resolveMode } from '../core/mode.js';
 register('events', {
   description: 'Replay or follow JSON-line runner events',
   schema: z.object({
+    limit: z.number().int().min(1).max(1000).default(200),
+    allScopes: z.boolean().default(false),
     follow: z.boolean().default(false),
     since: z.number().int().nonnegative().default(0),
     types: z.array(z.enum(eventTypes)).default([]),
   }),
   execute: async (input, context) => {
     const paper = (await resolveMode(context, 'events')) === 'paper';
+    const scope = input.allScopes
+      ? undefined
+      : await executionScope(await commandConfig(context));
     const path = paper
       ? join(paperDir(), 'events.jsonl')
       : join(stateDir(), 'events.jsonl');
@@ -26,6 +33,8 @@ register('events', {
         path,
         input.since as number,
         input.types as EventType[],
+        input.limit as number,
+        scope,
       );
     context.streaming = true;
     const abort = new AbortController();
@@ -35,6 +44,10 @@ register('events', {
     try {
       await followEvents({
         path,
+        scope:
+          paper && !input.allScopes
+            ? async () => executionScope(await commandConfig(context))
+            : scope,
         since: input.since as number,
         types: input.types as EventType[],
         signal: abort.signal,

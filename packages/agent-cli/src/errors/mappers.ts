@@ -1,3 +1,8 @@
+import {
+  TransportError,
+  HttpRequestError,
+  HttpRateLimitError,
+} from '@bloxwap/hyperliquid';
 import { AgentCliError, type ErrorCode } from './index.js';
 import { redact } from '../core/logger.js';
 function describe(error: unknown): string {
@@ -8,9 +13,21 @@ function describe(error: unknown): string {
 function map(error: unknown, service: string): AgentCliError {
   if (error instanceof AgentCliError) return error;
   const message = String(redact(describe(error)));
+  if (error instanceof HttpRateLimitError)
+    return new AgentCliError('RATE_LIMIT', message);
+  if (
+    error instanceof TransportError &&
+    (!(error instanceof HttpRequestError) ||
+      !error.status ||
+      error.status >= 500 ||
+      /Invalid JSON response/i.test(message))
+  )
+    return mapNetworkError(error);
   if (
     (error instanceof TypeError && /fetch|network/i.test(message)) ||
-    /ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED/.test(message)
+    /ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED|timed out|request aborted/i.test(
+      message,
+    )
   )
     return mapNetworkError(error);
   let code: ErrorCode = 'UPSTREAM_ERROR';
@@ -36,7 +53,10 @@ function map(error: unknown, service: string): AgentCliError {
     [/agent.*expired|expired.*agent/i, 'AGENT_EXPIRED'],
     [/agent.*not.*approved|not.*authorized/i, 'AGENT_NOT_APPROVED'],
     [/policy|not allowed|denied/i, 'POLICY_REJECTED'],
-    [/order.*not.*found|never placed|already canceled|does not exist/i, 'ORDER_NOT_FOUND'],
+    [
+      /order.*not.*found|never placed|already canceled|does not exist/i,
+      'ORDER_NOT_FOUND',
+    ],
   ];
   for (const [pattern, candidate, flags] of patterns)
     if (pattern.test(message)) {

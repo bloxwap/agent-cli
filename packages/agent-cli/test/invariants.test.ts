@@ -1,17 +1,34 @@
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { expect, test, vi } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { migrate, readStoredConfig, saveConfig, updateConfig, copyAgentFields, stateDir } from '../src/core/config.js';
+import {
+  migrate,
+  readStoredConfig,
+  saveConfig,
+  updateConfig,
+  copyAgentFields,
+  stateDir,
+} from '../src/core/config.js';
 import { nextNonce } from '../src/core/nonce.js';
-import { AuditStore, auditFill, readAudit, verifyAudit } from '../src/core/audit.js';
+import {
+  AuditStore,
+  auditFill,
+  readAudit,
+  verifyAudit,
+} from '../src/core/audit.js';
 import { intentForFill } from '../src/core/audit.js';
 import { auditedAction } from '../src/core/audit.js';
 import { EventStore, readEvents } from '../src/runner/events.js';
 import { PaperStore } from '../src/paper/store.js';
 import { withFileLock } from '../src/core/lock.js';
-import { Runner, runningInfo, STARTUP_TIMEOUT_MS } from '../src/runner/lifecycle.js';
+import {
+  Runner,
+  runningInfo,
+  STARTUP_TIMEOUT_MS,
+} from '../src/runner/lifecycle.js';
 import { rpcServer, rpcCall, socketPath } from '../src/runner/rpc.js';
 import { placeOrder, orderSchema } from '../src/commands/order.js';
 import { modifyOrders, modifySchema } from '../src/commands/modify.js';
@@ -20,9 +37,23 @@ import { accountFixture, mockTrading, quoteFixture } from './fixtures.js';
 import { AgentCliError } from '../src/errors/index.js';
 import { mapHyperliquidError } from '../src/errors/mappers.js';
 import { fund, fundSchema } from '../src/commands/fund.js';
-import { advanceDeposit, abandonDeposit, pollDeposits, DEPOSIT_EXPIRY_GRACE_MS } from '../src/funding/status.js';
-import { readDeposits, updateDeposits, writeDeposits, type Deposit } from '../src/funding/store.js';
-import { resolvePendingApproval, APPROVAL_MAX_AGE_MS } from '../src/wallet/approval.js';
+import {
+  advanceDeposit,
+  abandonDeposit,
+  pollDeposits,
+  DEPOSIT_EXPIRY_GRACE_MS,
+} from '../src/funding/status.js';
+import {
+  readDeposits,
+  updateDeposits,
+  writeDeposits,
+  type Deposit,
+} from '../src/funding/store.js';
+import {
+  approval,
+  resolvePendingApproval,
+  APPROVAL_MAX_AGE_MS,
+} from '../src/wallet/approval.js';
 import { Subscriptions } from '../src/runner/subscriptions.js';
 import { dispatch } from '../src/core/router.js';
 import '../src/commands/order.js';
@@ -60,12 +91,17 @@ test('a timed-out order is not retryable and the same cloid is not sent twice', 
   let accepted: string | null = null;
   services.orderByCloid = async (cloid) =>
     accepted === cloid
-      ? { status: 'ok', response: { data: { statuses: [{ resting: { oid: 7 } }] } } }
+      ? {
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 7 } }] } },
+        }
       : null;
-  services.exchange.order = vi.fn(async (request: { orders: { c: string }[] }) => {
-    accepted = request.orders[0].c;
-    throw new AgentCliError('NETWORK_ERROR', 'timed out');
-  });
+  services.exchange.order = vi.fn(
+    async (request: { orders: { c: string }[] }) => {
+      accepted = request.orders[0].c;
+      throw new AgentCliError('NETWORK_ERROR', 'timed out');
+    },
+  );
   const config = liveConfig();
   let cloid = '';
   try {
@@ -77,10 +113,11 @@ test('a timed-out order is not retryable and the same cloid is not sent twice', 
       retryable: false,
       details: { outcome: 'unknown' },
     });
-    cloid = (error as AgentCliError).details &&
+    cloid =
+      (error as AgentCliError).details &&
       typeof (error as AgentCliError).details === 'object'
-      ? String((error as { details: { cloid?: string } }).details.cloid)
-      : '';
+        ? String((error as { details: { cloid?: string } }).details.cloid)
+        : '';
   }
   expect(cloid).toMatch(/^0x[0-9a-f]{32}$/);
   expect(accepted).toBe(cloid);
@@ -114,7 +151,9 @@ test('flat accounts are risk-checked at the leverage Hyperliquid will apply', as
   services.state = async () => ({ ...accountFixture, assetPositions: [] });
   services.assetLeverage = async () => 40;
   const config = liveConfig({ limits: { maxLeverage: 3 } });
-  await expect(placeOrder(config, orderInput(), services)).rejects.toMatchObject({
+  await expect(
+    placeOrder(config, orderInput(), services),
+  ).rejects.toMatchObject({
     code: 'POLICY_REJECTED',
     details: expect.objectContaining({ limit: 'maxLeverage', actual: 40 }),
   });
@@ -122,7 +161,11 @@ test('flat accounts are risk-checked at the leverage Hyperliquid will apply', as
     { coin: 'BTC', oid: 1, sz: '0.001', limitPx: '20000', side: 'B' },
   ];
   await expect(
-    modifyOrders(config, modifySchema.parse({ oid: 1, price: '20000' }), services),
+    modifyOrders(
+      config,
+      modifySchema.parse({ oid: 1, price: '20000' }),
+      services,
+    ),
   ).rejects.toMatchObject({
     code: 'POLICY_REJECTED',
     details: expect.objectContaining({ limit: 'maxLeverage' }),
@@ -130,7 +173,9 @@ test('flat accounts are risk-checked at the leverage Hyperliquid will apply', as
   services.assetLeverage = async () => {
     throw new Error('activeAssetData down');
   };
-  await expect(placeOrder(config, orderInput(), services)).rejects.toMatchObject({
+  await expect(
+    placeOrder(config, orderInput(), services),
+  ).rejects.toMatchObject({
     code: 'POLICY_REJECTED',
   });
 });
@@ -179,7 +224,9 @@ test('concurrent orders cannot both pass the same position limit', async () => {
       placeOrder(config, input, services),
       placeOrder(config, input, services),
     ]);
-    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
     expect(services.exchange.order).toHaveBeenCalledTimes(1);
   }
 });
@@ -227,7 +274,12 @@ test('trading rejects a network that differs from the approval', async () => {
       '--config',
       path,
       '--json',
-      JSON.stringify({ coin: 'BTC', side: 'buy', size: '0.001', price: '20000' }),
+      JSON.stringify({
+        coin: 'BTC',
+        side: 'buy',
+        size: '0.001',
+        price: '20000',
+      }),
     ]);
     expect(byEnv.body).toMatchObject({ ok: false, code: 'CONFIG_INVALID' });
     delete process.env.BLOXWAP_NETWORK;
@@ -238,7 +290,12 @@ test('trading rejects a network that differs from the approval', async () => {
       '--network',
       'mainnet',
       '--json',
-      JSON.stringify({ coin: 'BTC', side: 'buy', size: '0.001', price: '20000' }),
+      JSON.stringify({
+        coin: 'BTC',
+        side: 'buy',
+        size: '0.001',
+        price: '20000',
+      }),
     ]);
     expect(byFlag.body).toMatchObject({ ok: false, code: 'CONFIG_INVALID' });
   } finally {
@@ -288,22 +345,28 @@ test('rotation keeps limits changed after it started and saves detect races', as
 test('a stale revoke payload is regenerated and can then be submitted', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'bloxwap-approval-'));
   const path = join(dir, 'revoke.json');
+  const wallet = privateKeyToAccount(generatePrivateKey());
+  const makeApproval = (nonce: number) => ({
+    ...approval(
+      'testnet',
+      'approveAgent',
+      { agentAddress: '0x' + '0'.repeat(40), agentName: 'agent' },
+      nonce,
+    ),
+    masterAddress: wallet.address,
+  });
   const oldNonce = 111;
   await writeFile(
     path,
     JSON.stringify({
       createdAt: Date.now() - APPROVAL_MAX_AGE_MS - 5_000,
       expiresAt: Date.now() - 1_000,
-      approval: {
-        action: { type: 'approveAgent', nonce: oldNonce },
-        typedData: {},
-      },
+      approval: makeApproval(oldNonce),
     }),
   );
-  const pending = await resolvePendingApproval(path, async () => ({
-    action: { type: 'approveAgent', nonce: 222 },
-    typedData: { primaryType: 'ApproveAgent' },
-  }));
+  const pending = await resolvePendingApproval(path, async () =>
+    makeApproval(222),
+  );
   expect(pending.approval.action.nonce).toBe(222);
   expect(pending.expiresAt).toBeGreaterThan(Date.now());
   const submitted: number[] = [];
@@ -320,7 +383,11 @@ test('a stale revoke payload is regenerated and can then be submitted', async ()
     await submitApproval(
       'testnet',
       pending.approval,
-      '0x' + '11'.repeat(64) + '1b',
+      await wallet.signTypedData(
+        pending.approval.typedData as Parameters<
+          typeof wallet.signTypedData
+        >[0],
+      ),
     );
     expect(submitted).toEqual([222]);
   } finally {
@@ -368,7 +435,14 @@ test('funding rejects an origin decimals mismatch and shows verified units', asy
             ...quoteFixture,
             details: {
               ...quoteFixture.details,
-              currencyIn: { amount: request.amount, currency: { decimals: 6 } },
+              recipient: master,
+              currencyIn: {
+                amount: request.amount,
+                currency: {
+                  ...quoteFixture.details.currencyIn!.currency,
+                  decimals: 6,
+                },
+              },
             },
           }),
         } as never,
@@ -408,15 +482,29 @@ test('expired deposits and reduce-only actions do not block trading forever', as
     ],
     path,
   );
-  await expect(placeOrder(config, orderInput(), services)).resolves.toMatchObject({
+  await expect(
+    placeOrder(config, orderInput(), services),
+  ).resolves.toMatchObject({
     cloid: expect.stringMatching(/^0x[0-9a-f]{32}$/),
   });
-  await writeDeposits([deposit({ id: 'open', expiresAt: Date.now() + 3_600_000 })], path);
-  await expect(placeOrder(config, orderInput(), services)).rejects.toMatchObject({
+  await writeDeposits(
+    [deposit({ id: 'open', expiresAt: Date.now() + 3_600_000 })],
+    path,
+  );
+  await expect(
+    placeOrder(config, orderInput(), services),
+  ).rejects.toMatchObject({
     code: 'DEPOSIT_PENDING',
   });
   services.orders = async () => [
-    { coin: 'BTC', oid: 4, sz: '0.001', limitPx: '20000', side: 'A', reduceOnly: true },
+    {
+      coin: 'BTC',
+      oid: 4,
+      sz: '0.001',
+      limitPx: '20000',
+      side: 'A',
+      reduceOnly: true,
+    },
   ];
   await expect(
     cancelOrders(config, cancelSchema.parse({ oid: 4 }), services),
@@ -428,13 +516,17 @@ test('expired deposits and reduce-only actions do not block trading forever', as
       services,
     ),
   ).resolves.toMatchObject({ cloid: expect.any(String) });
-  expect(await abandonDeposit('open', path)).toMatchObject({ state: 'abandoned' });
+  expect(await abandonDeposit('open', path)).toMatchObject({
+    state: 'abandoned',
+  });
   services.orders = async () => [];
-  await expect(placeOrder(config, orderInput(), services)).resolves.toBeTruthy();
+  await expect(
+    placeOrder(config, orderInput(), services),
+  ).resolves.toBeTruthy();
   const sample = deposit({ baseline: '2' });
-  expect(
-    advanceDeposit(sample, 'success', '2.6', { ledgerCredit: '1' }),
-  ).toBe('settled');
+  expect(advanceDeposit(sample, 'success', '2.6', { ledgerCredit: '1' })).toBe(
+    'settled',
+  );
   expect(advanceDeposit(sample, 'success', '3')).toBe('pending');
 });
 
@@ -477,14 +569,21 @@ test('an unknown or expired agent is not reported as a missing order', () => {
   expect(
     mapHyperliquidError('User or API Wallet 0xabc does not exist.').code,
   ).toBe('AGENT_NOT_APPROVED');
-  expect(mapHyperliquidError('Invalid nonce: nonce too old').retryable).toBe(false);
+  expect(mapHyperliquidError('Invalid nonce: nonce too old').retryable).toBe(
+    false,
+  );
 });
 
 test('fills during downtime are backfilled once and a crash does not duplicate them', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'bloxwap-fills-'));
   const runner = new Runner(migrate({ masterAddress: master }), dir);
   const events = new EventStore(join(dir, 'events.jsonl'));
-  await events.append('fill', { tid: 1, time: 10, oid: 1 });
+  await events.append('fill', {
+    tid: 1,
+    time: 10,
+    oid: 1,
+    scope: `testnet:${master}`,
+  });
   const emitted: unknown[] = [];
   const backend = {
     subscribe: async () => ({ unsubscribe: async () => {} }),
@@ -505,12 +604,19 @@ test('fills during downtime are backfilled once and a crash does not duplicate t
     const fills = emitted.filter(
       (event) => (event as { type: string }).type === 'fill',
     );
-    expect(fills).toEqual([{ type: 'fill', data: { tid: 2, time: 20 } }]);
+    expect(fills).toMatchObject([
+      { type: 'fill', data: { tid: 2, time: 20, scope: `testnet:${master}` } },
+    ]);
     const restarted = new Subscriptions(runner, backend, async () => {
       emitted.push({ type: 'fill', data: { tid: 'duplicate' } });
     });
     await restarted.start();
-    expect(emitted.some((event) => (event as { data: { tid?: unknown } }).data?.tid === 'duplicate')).toBe(false);
+    expect(
+      emitted.some(
+        (event) =>
+          (event as { data: { tid?: unknown } }).data?.tid === 'duplicate',
+      ),
+    ).toBe(false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -529,7 +635,9 @@ test('a torn journal tail is quarantined before the next append', async () => {
     expect(events.map((event) => event.type)).toContain('deposit');
     expect(events.map((event) => event.type)).toContain('journal_repaired');
     const { readdir } = await import('node:fs/promises');
-    expect((await readdir(dir)).some((name) => name.includes('.corrupt-'))).toBe(true);
+    expect(
+      (await readdir(dir)).some((name) => name.includes('.corrupt-')),
+    ).toBe(true);
     const auditPath = join(dir, 'audit.jsonl');
     const audit = new AuditStore(auditPath);
     await audit.append('decision', { allowed: true }, { intentId: 'kept' });
@@ -557,11 +665,17 @@ test('stale locks from dead processes are recovered', async () => {
     const auditPath = join(dir, 'audit.jsonl');
     await writeFile(auditPath + '.lock', record);
     await expect(
-      new AuditStore(auditPath).append('decision', { allowed: true }, { intentId: 'lock' }),
+      new AuditStore(auditPath).append(
+        'decision',
+        { allowed: true },
+        { intentId: 'lock' },
+      ),
     ).resolves.toMatchObject({ stage: 'decision' });
     const eventsPath = join(dir, 'events.jsonl');
     await writeFile(eventsPath + '.lock', record);
-    await expect(new EventStore(eventsPath).append('error', { ok: false })).resolves.toMatchObject({
+    await expect(
+      new EventStore(eventsPath).append('error', { ok: false }),
+    ).resolves.toMatchObject({
       type: 'error',
     });
     const paper = new PaperStore(join(dir, 'paper'));
@@ -570,7 +684,9 @@ test('stale locks from dead processes are recovered', async () => {
     await writeFile(paper.statePath + '.lock', record);
     await expect(paper.reset(10)).resolves.toBeUndefined();
     await writeFile(join(dir, 'busy.lock'), record);
-    await expect(withFileLock(join(dir, 'busy.lock'), async () => 'ok')).resolves.toBe('ok');
+    await expect(
+      withFileLock(join(dir, 'busy.lock'), async () => 'ok'),
+    ).resolves.toBe('ok');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -590,11 +706,19 @@ test('runner liveness follows the socket token and stale startup locks are clear
         token: 'not-this-process',
       }),
     );
-    expect(await runningInfo(pidPath)).toBeNull();
+    expect(await runningInfo(pidPath)).toMatchObject({
+      ready: false,
+      status: 'unresponsive',
+    });
     const dead = await deadPid();
+    await writeFile(pidPath, JSON.stringify({ pid: dead }));
     await writeFile(
       pidPath + '.startup',
-      JSON.stringify({ pid: dead, createdAt: Date.now() - STARTUP_TIMEOUT_MS - 1, token: 'old' }),
+      JSON.stringify({
+        pid: dead,
+        createdAt: Date.now() - STARTUP_TIMEOUT_MS - 1,
+        token: 'old',
+      }),
     );
     const runner = new Runner(migrate({}), dir);
     await expect(
@@ -631,8 +755,13 @@ test('fill linkage compares order ids exactly', async () => {
     },
   ];
   expect(intentForFill(entries, { oid: 12 })?.intentId).toBe('twelve');
-  expect(intentForFill([...entries].reverse(), { oid: 12 })?.intentId).toBe('twelve');
+  expect(intentForFill([...entries].reverse(), { oid: 12 })?.intentId).toBe(
+    'twelve',
+  );
   await auditFill({ oid: 12, tid: 12, cloid: undefined });
-  const recorded = (await readAudit()).filter((entry) => entry.stage === 'fill' && (entry.data as { tid?: number }).tid === 12);
+  const recorded = (await readAudit()).filter(
+    (entry) =>
+      entry.stage === 'fill' && (entry.data as { tid?: number }).tid === 12,
+  );
   expect(recorded.at(-1)?.intentId).not.toBe('onetwothree');
 });

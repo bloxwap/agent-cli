@@ -1,10 +1,11 @@
 import type { Config } from './config.js';
 import { AgentCliError } from '../errors/index.js';
-import { parseUsdc } from '../funding/amounts.js';
+import { parseUsdc, decimalNumber } from '../funding/amounts.js';
 export interface RiskIntent {
   coin: string;
   size: string;
   price: string;
+  valuationPrice?: string;
   side: 'buy' | 'sell';
   leverage: number;
   reduceOnly?: boolean;
@@ -54,7 +55,8 @@ export function evaluateRisk(
     price = decimal(intent.price);
   if (size <= 0n || price <= 0n)
     fail('positive size/price', intent.size, intent.price);
-  const notional = (size * price) / scale;
+  const valuation = decimal(intent.valuationPrice ?? intent.price);
+  const notional = (size * valuation) / scale;
   const signed = intent.side === 'buy' ? size : -size;
   const position = decimal(state.positionSize);
   if (
@@ -84,13 +86,13 @@ export function evaluateRisk(
     ['maxNotional', notional, config.limits.maxNotional],
     [
       'maxPositionNotional',
-      (projected * price) / scale,
+      (projected * valuation) / scale,
       config.limits.maxPositionNotional,
     ],
     ['dailyLoss', decimal(state.dailyLoss), config.limits.dailyLoss],
   ];
   for (const [name, actual, maximum] of comparisons)
-    if (maximum !== undefined && actual > decimal(String(maximum)))
+    if (maximum !== undefined && actual > decimal(decimalNumber(maximum)))
       fail(name, actual.toString(), maximum);
   if (
     config.limits.maxOpenOrders !== undefined &&
