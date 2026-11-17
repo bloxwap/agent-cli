@@ -2,7 +2,7 @@
 name: agent-cli
 description: Operate the agent-cli Hyperliquid trading CLI, including bring-your-own-wallet agent onboarding, paper trading against real market data, funding, orders, event monitoring, rotation, and normalized error recovery.
 metadata:
-  version: "0.4.1"
+  version: "0.5.0"
 ---
 
 Use `agent-cli` for the user's authorized Hyperliquid account operations. Obtain
@@ -136,7 +136,7 @@ Full inputs/outputs are discoverable with `schema`; amounts/prices are strings.
 | `revoke --cancel-orders` | `{"ok":true,"data":{"locallyRevoked":true,"exchangeRevoked":false,"requiresSignature":true,"approval":{}}}` |
 | `revoke --signature 0x...` | `{"ok":true,"data":{"locallyRevoked":true,"exchangeRevoked":true}}` |
 | `audit --intent ID` | `{"ok":true,"data":[{"intentId":"ID","stage":"decision","data":{"allowed":true},"previousHash":"...","hash":"..."}]}` |
-| `skill install --target codex` | `{"ok":true,"data":{"target":"codex","path":".../agent-cli/SKILL.md","version":"0.4.1"}}` |
+| `skill install --target codex` | `{"ok":true,"data":{"target":"codex","path":".../agent-cli/SKILL.md","version":"0.5.0"}}` |
 
 Before an order, query `market --coin BTC` for `mid`, `szDecimals`, asset and
 market leverage ceiling. Compute size/notional with decimal strings/bigints,
