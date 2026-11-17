@@ -37,7 +37,7 @@
     },
     "packages/agent-cli": {
       "name": "@bloxwap/agent-cli",
-      "version": "0.4.1",
+      "version": "0.5.0",
       "bin": {
         "agent-cli": "dist/cli.js",
       },
