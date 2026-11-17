@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 const environment = vi.hoisted(() => ({
   home: `/tmp/bloxwap-e2e-${process.pid}-${Math.random().toString(16).slice(2)}`,
-  wallets: 0,
   orders: [] as {
     coin: string;
     oid: number;
@@ -21,44 +20,6 @@ vi.mock('node:os', async (importOriginal) => ({
   ...(await importOriginal<typeof import('node:os')>()),
   homedir: () => environment.home,
 }));
-vi.mock('../src/wallet/privy.js', async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import('../src/wallet/privy.js')>();
-  return {
-    ...original,
-    privyClient: async () => ({
-      policies: () => ({
-        create: async (input: Record<string, unknown>) => ({ ...input, id: 'policy' }),
-        get: async () => {
-          const { policyFor } = await import('../src/wallet/policy.js');
-          return { ...policyFor('testnet'), id: 'policy' };
-        },
-      }),
-      wallets: () => ({
-        ethereum: () => ({
-          signTypedData: async () => ({
-            signature: '0x' + '11'.repeat(64) + '1b',
-          }),
-        }),
-      }),
-    }),
-    createAgent: async (
-      config: import('../src/core/config.js').Config,
-      _client: unknown,
-      path?: string,
-    ) => {
-      const { saveConfig } = await import('../src/core/config.js');
-      if (config.agentAddress && config.privyWalletId)
-        return { id: config.privyWalletId, address: config.agentAddress };
-      config.agentAddress = '0x' + String(++environment.wallets).repeat(40);
-      config.privyWalletId = 'wallet-' + environment.wallets;
-      config.authorizationKeyRef = 'env:BLOXWAP_E2E_AUTH';
-      await saveConfig(config, path);
-      return { id: config.privyWalletId, address: config.agentAddress };
-    },
-    privySigner: original.privySigner,
-  };
-});
 vi.mock('../src/runner/subscriptions.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/runner/subscriptions.js')>()),
   startSubscriptions: async () => ({
@@ -86,19 +47,28 @@ import { activeRunner, setActiveRunner } from '../src/runner/lifecycle.js';
 import { rpcCall, socketPath, routeToRunner } from '../src/runner/rpc.js';
 import { readAudit, verifyAudit } from '../src/core/audit.js';
 let path: string;
+let agent: ReturnType<typeof privateKeyToAccount>;
+let nextAgent: ReturnType<typeof privateKeyToAccount>;
 beforeEach(async () => {
   setRouting(routeToRunner);
   await mkdir(environment.home, { recursive: true, mode: 0o700 });
   path = join(environment.home, '.bloxwap', 'config.json');
-  process.env.BLOXWAP_E2E_AUTH = 'mock-authorization';
-  environment.wallets = 0;
+  const agentKey = generatePrivateKey();
+  const nextAgentKey = generatePrivateKey();
+  agent = privateKeyToAccount(agentKey);
+  nextAgent = privateKeyToAccount(nextAgentKey);
+  process.env.BLOXWAP_TEST_EOA = agentKey;
+  process.env.BLOXWAP_TEST_NEXT_EOA = nextAgentKey;
   environment.orders = [];
   environment.agents = [];
   environment.balance = '0';
   environment.builderFee = 0;
   environment.referralCode = null;
   await saveConfig(
-    migrate({ privyAppId: 'mock', masterAddress: '0x' + 'a'.repeat(40) }),
+    migrate({
+      eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
+      masterAddress: '0x' + 'a'.repeat(40),
+    }),
     path,
   );
   vi.stubGlobal(
@@ -225,7 +195,6 @@ afterEach(async () => {
   await activeRunner?.shutdown();
   setActiveRunner(undefined);
   setRouting(undefined);
-  delete process.env.BLOXWAP_E2E_AUTH;
   delete process.env.BLOXWAP_TEST_EOA;
   delete process.env.BLOXWAP_TEST_NEXT_EOA;
   vi.unstubAllGlobals();
@@ -245,6 +214,7 @@ async function command(name: string, input: Record<string, unknown> = {}) {
 test('mocked full account lifecycle through real CLI router, SDK and runner RPC', async () => {
   const initialized = await command('init', { qr: false });
   expect(initialized.requiresSignature).toBe(true);
+  expect(initialized.agentAddress).toBe(agent.address);
   expect(initialized).toMatchObject({
     referralCode: 'BLOXWAP',
     referralApplied: false,
@@ -278,6 +248,7 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   });
   expect(await command('run')).toMatchObject({ ready: true, network: 'testnet' });
   expect((await command('status')).runner).toMatchObject({ signingSession: 'ready', wsState: 'connected' });
+  expect(activeRunner?.signer?.address).toBe(agent.address);
   expect(await rpcCall('balance', {}, socketPath())).toMatchObject({
     accountValue: '10',
   });
@@ -296,8 +267,11 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   expect(environment.orders[0].limitPx).toBe('20100');
   await command('cancel', { all: true });
   expect(await command('orders')).toEqual([]);
-  const rotation = await command('rotate');
+  const rotation = await command('rotate', {
+    eoaKeyRef: 'env:BLOXWAP_TEST_NEXT_EOA',
+  });
   expect(rotation.requiresSignature).toBe(true);
+  expect(rotation.newAgent).toBe(nextAgent.address);
   const swapped = await command('rotate', { signature: '0x' + '11'.repeat(64) + '1b' });
   expect(swapped.swapped).toBe(true);
   expect(activeRunner?.signer?.address).toBe(swapped.newAgent);
@@ -341,63 +315,4 @@ test('mocked full account lifecycle through real CLI router, SDK and runner RPC'
   expect(replay.map((event) => event.type)).toContain('order_update');
   expect(replay.map((event) => event.type)).toContain('fill');
   expect(await command('events', { since: replay[0].seq })).toEqual(replay.slice(1));
-}, 20000);
-
-test('user-provided EOA agent completes onboarding, runner trading and rotation without Privy', async () => {
-  const master = privateKeyToAccount(generatePrivateKey());
-  const agentKey = generatePrivateKey();
-  const agent = privateKeyToAccount(agentKey);
-  const nextAgentKey = generatePrivateKey();
-  const nextAgent = privateKeyToAccount(nextAgentKey);
-  process.env.BLOXWAP_TEST_EOA = agentKey;
-  process.env.BLOXWAP_TEST_NEXT_EOA = nextAgentKey;
-  const { readStoredConfig } = await import('../src/core/config.js');
-  const current = await readStoredConfig(path);
-  await saveConfig(
-    migrate({
-      ...(current ?? {}),
-      revision: current?.revision ?? 0,
-      signerType: 'eoa',
-      eoaKeyRef: 'env:BLOXWAP_TEST_EOA',
-      masterAddress: master.address,
-    }),
-    path,
-  );
-
-  const initialized = await command('init', { qr: false });
-  expect(initialized).toMatchObject({
-    signerType: 'eoa',
-    agentAddress: agent.address,
-    policyId: null,
-  });
-  expect(
-    await command('init', { signature: '0x' + '11'.repeat(64) + '1b' }),
-  ).toMatchObject({ approved: true, referralApplied: true });
-  environment.balance = '10';
-  await command('run');
-  expect(activeRunner?.signer?.address).toBe(agent.address);
-  await command('order', {
-    coin: 'BTC',
-    side: 'buy',
-    size: '0.001',
-    price: '20000',
-  });
-
-  const rotation = await command('rotate', {
-    eoaKeyRef: 'env:BLOXWAP_TEST_NEXT_EOA',
-  });
-  expect(rotation.newAgent).toBe(nextAgent.address);
-  const swapped = await command('rotate', {
-    signature: '0x' + '11'.repeat(64) + '1b',
-  });
-  expect(swapped.swapped).toBe(true);
-  expect(activeRunner?.signer?.address).toBe(nextAgent.address);
-  expect(
-    (
-      await command('rotate', {
-        revokeSignature: '0x' + '11'.repeat(64) + '1b',
-      })
-    ).oldRevoked,
-  ).toBe(true);
-  await command('revoke', { signature: '0x' + '11'.repeat(64) + '1b' });
 }, 20000);

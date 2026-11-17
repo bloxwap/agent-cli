@@ -3,22 +3,16 @@ title: "Quickstart"
 description: "Initialize, show the funding QR, confirm settlement, and start the runner."
 ---
 
-Use a dedicated testnet account and your own Privy sandbox app or EOA agent.
+Use a dedicated testnet account and your own EOA agent key.
 Replace placeholders with your own values. Never supply a private key, seed,
-mnemonic, or app secret to CLI input or a conversation.
+or mnemonic to CLI input or a conversation.
 
 ## 1. Initialize
 
-Choose one signer and set its secret securely outside the CLI first:
+Bring your own agent wallet. Set its key securely outside the CLI first:
 
 ```sh
-# Privy option:
-agent-cli config set signerType privy
-agent-cli config set privyAppId YOUR_APP_ID
-agent-cli config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
-
-# Or dedicated EOA agent option (never the master key):
-agent-cli config set signerType eoa
+# Dedicated EOA agent key (never the master key):
 agent-cli config set eoaKeyRef env:BLOXWAP_EOA_KEY
 
 agent-cli init --network testnet --master-address 0xYOUR_MASTER_ADDRESS

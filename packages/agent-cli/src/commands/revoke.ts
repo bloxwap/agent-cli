@@ -52,8 +52,6 @@ register('revoke', {
         refresh,
       );
       exchangeRevoked = true;
-      config.authorizationKeyRef = undefined;
-      config.privyWalletId = undefined;
       config.eoaKeyRef = undefined;
     }
     markRevoked(config);

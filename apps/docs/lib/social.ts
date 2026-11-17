@@ -4,7 +4,7 @@ import { basePath, siteUrl } from './site';
 export const socialImageSize = { width: 1200, height: 630 };
 export const homeSocial = {
   title: 'Trading tools for your agent.',
-  description: 'Hyperliquid trading with JSON commands, Privy custody, Relay funding, and a persistent signing runner.',
+  description: 'Hyperliquid trading with JSON commands, bring-your-own agent wallets, Relay funding, and a persistent signing runner.',
 };
 
 /** Explicit PNG paths work on GitHub Pages without a running image service. */

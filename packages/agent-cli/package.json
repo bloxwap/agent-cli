@@ -11,7 +11,6 @@
   "files": [
     "dist",
     "SKILL.md",
-    "policies",
     "LICENSE",
     "CHANGELOG.md"
   ],
@@ -23,7 +22,6 @@
     "test:e2e": "node scripts/e2e-testnet.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "build:binaries": "node scripts/generate-skill.mjs && node scripts/build-binaries.mjs",
-    "test:sandbox": "vitest run --config vitest.integration.config.ts",
     "skill:sync-version": "node scripts/sync-skill-version.mjs",
     "skill:generate": "node scripts/generate-skill.mjs",
     "typecheck:tsc": "tsc --noEmit"
@@ -42,13 +40,12 @@
   },
   "dependencies": {
     "@bloxwap/hyperliquid": "^0.6.0",
-    "@privy-io/node": "^0.35.0",
     "@scure/bip39": "^2.4.0",
     "qrcode": "^1.5.4",
     "ws": "^8.22.0",
     "zod": "^4.6.7"
   },
-  "description": "Agent-native Hyperliquid trading CLI with user-owned Privy or EOA signing and Relay funding",
+  "description": "Agent-native Hyperliquid trading CLI with bring-your-own EOA agent signing and Relay funding",
   "license": "MIT",
   "repository": {
     "type": "git",

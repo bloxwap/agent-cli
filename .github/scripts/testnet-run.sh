@@ -72,7 +72,7 @@ docker run --rm --init --platform linux/arm64 \
   -e CI=true \
   -e GITHUB_SHA -e GITHUB_RUN_ID \
   -e BLOXWAP_E2E -e BLOXWAP_TEST_ACCOUNT_ONLY \
-  -e BLOXWAP_TEST_MASTER_KEY -e BLOXWAP_PRIVY_APP_ID -e BLOXWAP_PRIVY_APP_SECRET \
+  -e BLOXWAP_TEST_MASTER_KEY \
   -v "$stage:/work" -w /work node:24-bookworm \
   sh -eu -c '
 export PATH="/work/bun:$PATH"

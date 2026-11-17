@@ -3,7 +3,7 @@ import { saveConfig, type Config } from '../core/config.js';
 import { signatureAudit } from '../core/audit.js';
 import { AgentCliError } from '../errors/index.js';
 import type { Signer } from '../core/hlclient.js';
-import { resolveSecret } from './privy.js';
+import { resolveSecret } from './secret.js';
 import { assertAgentTypedData } from './policy.js';
 
 async function eoaAccount(config: Config, keyRef = config.eoaKeyRef) {
@@ -42,13 +42,8 @@ export async function prepareEoaAgent(
       'CONFIG_INVALID',
       'Approved EOA cannot be replaced with init; use rotate',
     );
-  config.signerType = 'eoa';
   config.eoaKeyRef = keyRef;
   config.agentAddress = account.address;
-  config.privyWalletId = undefined;
-  config.authorizationKeyRef = undefined;
-  config.policyId = undefined;
-  config.policyVersion = undefined;
   await saveConfig(config, path);
   return account;
 }
@@ -62,8 +57,10 @@ export async function eoaSigner(config: Config): Promise<Signer> {
       'CONFIG_INVALID',
       'EOA key does not match agentAddress; use rotate to change agents',
     );
+  // Expose only the guarded method. Spreading the viem account also exposes its
+  // raw signing methods, which callers can use to skip the domain check and audit.
   return {
-    ...account,
+    address: account.address,
     signTypedData: async (data) => {
       assertAgentTypedData(data, config.network);
       const signature = await account.signTypedData(data);

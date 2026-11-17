@@ -12,7 +12,6 @@ import {
   stateDir,
   type Config,
 } from '../core/config.js';
-import { privyClient, createAgent } from '../wallet/privy.js';
 import { prepareEoaAgent } from '../wallet/eoa.js';
 import { openSigner } from '../wallet/signer.js';
 import {
@@ -79,8 +78,6 @@ register('rotate', {
       `rotation-${current.network}-${current.masterAddress}.json`,
     );
     let rotation: Rotation;
-    const client =
-      current.signerType === 'privy' ? await privyClient(current) : undefined;
     try {
       rotation = JSON.parse(await readFile(path, 'utf8'));
       if (rotation.revoked && !input.signature && !input.revokeSignature) {
@@ -96,28 +93,17 @@ register('rotate', {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
       const next: Config = {
         ...structuredClone(current),
-        privyWalletId: undefined,
         agentAddress: undefined,
-        authorizationKeyRef: undefined,
         eoaKeyRef: undefined,
         agentExpiry: Date.now() + 179 * 86400000,
         approved: false,
         revoked: false,
       };
-      if (current.signerType === 'eoa') {
-        await prepareEoaAgent(
-          next,
-          join(stateDir(), 'rotation-next.json'),
-          input.eoaKeyRef as string | undefined,
-        );
-      } else {
-        await createAgent(
-          next,
-          client!,
-          join(stateDir(), 'rotation-next.json'),
-          current.policyId,
-        );
-      }
+      await prepareEoaAgent(
+        next,
+        join(stateDir(), 'rotation-next.json'),
+        input.eoaKeyRef as string | undefined,
+      );
       if (next.agentAddress === current.agentAddress)
         throw new AgentCliError(
           'CONFIG_INVALID',

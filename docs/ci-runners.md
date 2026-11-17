@@ -123,7 +123,7 @@ The runner needs outbound access to:
 - npm (`registry.npmjs.org`)
 - Docker Hub (or a mirror of the images above)
 - Playwright CDN
-- Hyperliquid testnet and Privy, for the dedicated testnet workflow
+- Hyperliquid testnet, for the dedicated testnet workflow
 
 ## How jobs use the Mac mini
 

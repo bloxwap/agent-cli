@@ -130,7 +130,7 @@ Get, set or validate local configuration
 
 ## init
 
-Create agent and emit resumable master-wallet approvals
+Register your own agent key and emit resumable master-wallet approvals
 
 ```json
 {
@@ -141,13 +141,6 @@ Create agent and emit resumable master-wallet approvals
       "masterAddress": {
         "type": "string",
         "pattern": "^0x[0-9a-fA-F]{40}$"
-      },
-      "signerType": {
-        "type": "string",
-        "enum": [
-          "privy",
-          "eoa"
-        ]
       },
       "eoaKeyRef": {
         "type": "string",
@@ -197,20 +190,8 @@ Create agent and emit resumable master-wallet approvals
               "agentAddress": {
                 "type": "string"
               },
-              "signerType": {
-                "enum": [
-                  "privy",
-                  "eoa"
-                ]
-              },
               "expiry": {
                 "type": "number"
-              },
-              "policyId": {
-                "type": [
-                  "string",
-                  "null"
-                ]
               },
               "approved": {
                 "type": "boolean"
@@ -238,9 +219,7 @@ Create agent and emit resumable master-wallet approvals
             "required": [
               "masterAddress",
               "agentAddress",
-              "signerType",
               "expiry",
-              "policyId",
               "approved"
             ]
           },
@@ -762,21 +741,6 @@ Read account status
                 },
                 "required": []
               },
-              "policy": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "version": {
-                    "type": "string"
-                  }
-                },
-                "required": []
-              },
               "deposits": {
                 "type": "array",
                 "items": {
@@ -814,7 +778,6 @@ Read account status
               "balance",
               "positions",
               "agent",
-              "policy",
               "deposits",
               "approvedMaxBuilderFee",
               "runner"

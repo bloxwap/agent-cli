@@ -57,7 +57,6 @@ function map(error: unknown, service: string): AgentCliError {
 }
 export const mapHyperliquidError = (error: unknown) =>
   map(error, 'hyperliquid');
-export const mapPrivyError = (error: unknown) => map(error, 'privy');
 export const mapRelayError = (error: unknown) => map(error, 'relay');
 export const mapNetworkError = (error: unknown) =>
   new AgentCliError(

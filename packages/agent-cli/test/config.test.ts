@@ -71,3 +71,24 @@ test('builder defaults, persisted overrides and validated environment precedence
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('configs written for the removed Privy signer still load', () => {
+  const config = migrate({
+    signerType: 'privy',
+    privyAppId: 'app',
+    privyWalletId: 'wallet',
+    privyAppSecretRef: 'env:BLOXWAP_PRIVY_APP_SECRET',
+    authorizationKeyRef: 'file:/tmp/authorization.key',
+    policyId: 'policy',
+    policyVersion: 2,
+    agentAddress: '0x' + '1'.repeat(40),
+    approved: true,
+  });
+  expect(config).toMatchObject({
+    agentAddress: '0x' + '1'.repeat(40),
+    approved: true,
+  });
+  expect(config).not.toHaveProperty('signerType');
+  expect(config).not.toHaveProperty('privyWalletId');
+  expect(config).not.toHaveProperty('policyId');
+});

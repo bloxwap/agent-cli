@@ -4,18 +4,13 @@ The AI decides which authorized actions to request. `agent-cli` provides JSON
 commands, a signing runner, risk checks and event/audit journals; it does not
 choose a trading strategy or supply a Bloxwap-owned wallet.
 
-Choose your own Privy app or dedicated EOA agent on your own machine or runner.
+Bring your own dedicated EOA agent key on your own machine or runner.
 Bloxwap bundles no wallet or credentials and never receives your secrets. Keep
-the master wallet external and review each approval there. Set the selected secret
+the master wallet external and review each approval there. Set the agent key
 in your local secret manager or process environment, outside the AI conversation:
 
 ```sh
-# Privy option:
-agent-cli config set signerType privy
-agent-cli config set privyAppId YOUR_APP_ID
-agent-cli config set privyAppSecretRef env:BLOXWAP_PRIVY_APP_SECRET
-# Or dedicated EOA agent option (never the master key):
-agent-cli config set signerType eoa
+# Dedicated EOA agent key (never the master key):
 agent-cli config set eoaKeyRef env:BLOXWAP_EOA_KEY
 
 agent-cli config set network testnet
@@ -26,7 +21,7 @@ agent-cli skill install --target codex
 Tell the agent to read the installed `agent-cli` skill and inspect command schemas.
 Give it a network, allowed markets, maximum notional/leverage and the operations
 you authorize. Configure the corresponding local limits before trading. Never
-paste a private key, seed or Privy app secret into the conversation or CLI input.
+paste a private key or seed into the conversation or CLI input.
 
 The workflow is `init` → `fund` → poll `status` until settled → `run --detach`.
 `init` returns an agent approval payload (plus a builder approval only for an

@@ -33,8 +33,7 @@ function baseEnv(overrides = {}) {
   return {
     BLOXWAP_E2E: '1',
     BLOXWAP_TEST_ACCOUNT_ONLY: '1',
-    BLOXWAP_PRIVY_APP_ID: 'qa-owned-app',
-    BLOXWAP_PRIVY_APP_SECRET: 'qa-owned-secret',
+    BLOXWAP_TEST_AGENT_KEY: 'disposable-agent-key',
     ...overrides,
   };
 }
@@ -73,27 +72,14 @@ function builderApproval() {
 }
 
 test('preflight preserves legacy missing-name order and selects explicit external configuration', () => {
-  expect(requiredTestnetSecrets).toEqual([
-    'BLOXWAP_TEST_MASTER_KEY',
-    'BLOXWAP_PRIVY_APP_ID',
-    'BLOXWAP_PRIVY_APP_SECRET',
-  ]);
+  expect(requiredTestnetSecrets).toEqual(['BLOXWAP_TEST_MASTER_KEY']);
   expect(missingTestnetConfiguration({})).toEqual(requiredTestnetSecrets);
   expect(
     requiredTestnetEnvironmentNames({ BLOXWAP_TEST_MASTER_ADDRESS: 'public' }),
-  ).toEqual([
-    'BLOXWAP_TEST_MASTER_ADDRESS',
-    'BLOXWAP_TEST_SIGNER',
-    'BLOXWAP_PRIVY_APP_ID',
-    'BLOXWAP_PRIVY_APP_SECRET',
-  ]);
+  ).toEqual(['BLOXWAP_TEST_MASTER_ADDRESS', 'BLOXWAP_TEST_SIGNER']);
   expect(
     missingTestnetConfiguration({ BLOXWAP_TEST_SIGNER: '/wallet' }),
-  ).toEqual([
-    'BLOXWAP_TEST_MASTER_ADDRESS',
-    'BLOXWAP_PRIVY_APP_ID',
-    'BLOXWAP_PRIVY_APP_SECRET',
-  ]);
+  ).toEqual(['BLOXWAP_TEST_MASTER_ADDRESS']);
   expect(() => requireTestnetEnvironment({})).toThrow('BLOXWAP_E2E');
   expect(() => requireTestnetEnvironment({ BLOXWAP_E2E: '1' })).toThrow(
     'CI-only',
@@ -107,7 +93,7 @@ test.each([
   ['agent', approval],
   ['builder', builderApproval],
 ])(
-  'external wallet signs the public %s approval without QA app secrets in its environment',
+  'external wallet signs the public %s approval without CI or agent keys in its environment',
   async (_kind, createApproval) => {
     const account = privateKeyToAccount(generatePrivateKey());
     const pending = createApproval();
@@ -116,7 +102,7 @@ test.each([
 import {readFileSync, writeFileSync} from 'node:fs';
 const request = JSON.parse(readFileSync(0, 'utf8'));
 writeFileSync(new URL('./request.json', import.meta.url), JSON.stringify({request,
-  hasPrivySecret: Object.hasOwn(process.env, 'BLOXWAP_PRIVY_APP_SECRET'),
+  hasAgentKey: Object.hasOwn(process.env, 'BLOXWAP_TEST_AGENT_KEY'),
   hasMasterKey: Object.hasOwn(process.env, 'BLOXWAP_TEST_MASTER_KEY')}));
 process.stdout.write(JSON.stringify({signature: ${JSON.stringify(signature)}}));
 `);
@@ -139,7 +125,7 @@ process.stdout.write(JSON.stringify({signature: ${JSON.stringify(signature)}}));
         address: account.address,
         ...pending,
       },
-      hasPrivySecret: false,
+      hasAgentKey: false,
       hasMasterKey: false,
     });
   },
@@ -212,7 +198,7 @@ test('signer accepts production approvals after the CLI JSON envelope roundtrip'
   }
 });
 
-test('external mode requires both opt-ins, its public address, executable and user-owned Privy app', async () => {
+test('external mode requires both opt-ins, its public address, and executable', async () => {
   const account = privateKeyToAccount(generatePrivateKey());
   const { executable } = await fixture('process.stdout.write("{}");');
   const env = externalEnv(account, executable);
@@ -221,8 +207,6 @@ test('external mode requires both opt-ins, its public address, executable and us
     'BLOXWAP_TEST_ACCOUNT_ONLY',
     'BLOXWAP_TEST_MASTER_ADDRESS',
     'BLOXWAP_TEST_SIGNER',
-    'BLOXWAP_PRIVY_APP_ID',
-    'BLOXWAP_PRIVY_APP_SECRET',
   ]) {
     const missing = { ...env };
     delete missing[name];

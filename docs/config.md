@@ -5,16 +5,20 @@ All command JSON objects reject unknown fields to catch intent-changing typos.
 Version 1 is validated on read and write; versionless config migrates to version 1.
 Unknown versions fail closed. Writes use a private temporary file and atomic rename.
 
-`BLOXWAP_NETWORK`, `BLOXWAP_MODE`, `BLOXWAP_LOG_LEVEL`, `BLOXWAP_PRIVY_APP_ID` and
+`BLOXWAP_NETWORK`, `BLOXWAP_MODE`, `BLOXWAP_LOG_LEVEL` and
 `BLOXWAP_MASTER_ADDRESS` override stored values in commands. `config get` shows
 persisted values; `config validate` validates them without overrides.
-Secrets use `env:BLOXWAP_PRIVY_APP_SECRET` and `env:BLOXWAP_AUTHORIZATION_KEY`
-references; authorization keys may also use `file:/absolute/private/path`.
-No wallet or credentials are bundled. Set `signerType` to `privy` (default) or
-`eoa`. EOA agents use `eoaKeyRef`, for example `env:BLOXWAP_EOA_KEY` or a private
-`file:` reference. The referenced key must belong to a dedicated agent EOA, never
-the master wallet. Raw keys are forbidden in CLI input and are never stored in config.
-`BLOXWAP_SIGNER_TYPE` overrides the stored signer selection.
+No wallet or credentials are bundled: bring your own agent wallet. Set
+`eoaKeyRef` to an `env:` reference such as `env:BLOXWAP_EOA_KEY` or a private
+`file:/absolute/private/path` reference. The referenced key must belong to a
+dedicated agent EOA, never the master wallet. Raw keys are forbidden in CLI input
+and are never stored in config.
+
+Configs written by releases that offered a managed Privy signer still load; the
+removed fields (`signerType`, `privyAppId`, `privyAppSecretRef`, `privyWalletId`,
+`authorizationKeyRef`, `policyId`, `policyVersion`) are dropped on the next write.
+An agent approved through Privy can no longer sign: move to your own key with
+`rotate --eoa-key-ref env:NEW_EOA_KEY`, or `revoke` it.
 
 `mode` is `live` (default) or `paper`. Paper mode simulates orders against real
 mainnet Hyperliquid public market data and never signs or submits; see

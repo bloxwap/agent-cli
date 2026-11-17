@@ -71,7 +71,6 @@ try {
   for (const required of [
     'SKILL.md',
     'dist/cli.js',
-    'policies/agent-trade-only.json',
     'README.md',
     'LICENSE',
     'CHANGELOG.md',

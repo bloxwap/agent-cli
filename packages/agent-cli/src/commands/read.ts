@@ -87,7 +87,7 @@ export function expiryStatus(config: Config, now = Date.now()) {
             .map((threshold) => `Agent expires within ${threshold} days`),
   };
 }
-export async function paperRead(name: string, config: Config) {
+export async function paperRead(name: string) {
   const store = new PaperStore();
   const data = paperData();
   const [state, marks] = await Promise.all([store.load(), data.marks()]);
@@ -112,16 +112,12 @@ export async function paperRead(name: string, config: Config) {
       openOrders: state.orders.length,
       liquidations: state.liquidations,
     },
-    policy: {
-      id: config.policyId ?? null,
-      version: String(config.policyVersion ?? 0),
-    },
     deposits: [],
     runner: await runnerHealth('paper'),
   };
 }
 export async function readCommand(name: string, config: Config) {
-  if (config.mode === 'paper') return paperRead(name, config);
+  if (config.mode === 'paper') return paperRead(name);
   if (!config.masterAddress)
     throw new AgentCliError('AGENT_NOT_APPROVED', 'Initialize master address');
   try {
@@ -183,10 +179,6 @@ export async function readCommand(name: string, config: Config) {
         ),
         revoked: config.revoked,
         ...expiryStatus(config),
-      },
-      policy: {
-        id: config.policyId ?? null,
-        version: String(config.policyVersion ?? 0),
       },
       deposits: deposits.map((d) => ({ id: d.id, state: d.state })),
       approvedMaxBuilderFee: String(maxBuilderFee),

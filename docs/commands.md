@@ -117,7 +117,7 @@ Get, set or validate local configuration
 
 ## init
 
-Create agent and emit resumable master-wallet approvals
+Register your own agent key and emit resumable master-wallet approvals
 
 ```json
 {
@@ -128,6 +128,10 @@ Create agent and emit resumable master-wallet approvals
       "masterAddress": {
         "type": "string",
         "pattern": "^0x[0-9a-fA-F]{40}$"
+      },
+      "eoaKeyRef": {
+        "type": "string",
+        "pattern": "^env:[A-Z_][A-Z0-9_]*$|^file:.+"
       },
       "validUntil": {
         "type": "integer",
@@ -176,10 +180,13 @@ Create agent and emit resumable master-wallet approvals
               "expiry": {
                 "type": "number"
               },
-              "policyId": {
+              "approved": {
+                "type": "boolean"
+              },
+              "referralCode": {
                 "type": "string"
               },
-              "approved": {
+              "referralApplied": {
                 "type": "boolean"
               },
               "requiresSignature": {
@@ -200,7 +207,6 @@ Create agent and emit resumable master-wallet approvals
               "masterAddress",
               "agentAddress",
               "expiry",
-              "policyId",
               "approved"
             ]
           },
@@ -486,10 +492,15 @@ Resume deposit steps or submit a master-wallet signature
       },
       "signature": {
         "type": "string"
+      },
+      "abandon": {
+        "default": false,
+        "type": "boolean"
       }
     },
     "required": [
-      "depositId"
+      "depositId",
+      "abandon"
     ],
     "additionalProperties": false
   },
@@ -717,21 +728,6 @@ Read account status
                 },
                 "required": []
               },
-              "policy": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "version": {
-                    "type": "string"
-                  }
-                },
-                "required": []
-              },
               "deposits": {
                 "type": "array",
                 "items": {
@@ -746,7 +742,9 @@ Read account status
                         "pending",
                         "settled",
                         "failed",
-                        "refunded"
+                        "refunded",
+                        "expired",
+                        "abandoned"
                       ]
                     }
                   },
@@ -767,7 +765,6 @@ Read account status
               "balance",
               "positions",
               "agent",
-              "policy",
               "deposits",
               "approvedMaxBuilderFee",
               "runner"
@@ -1331,10 +1328,7 @@ Place limit, IOC market or TP/SL order
                 "type": "string"
               },
               "cloid": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": "string"
               }
             },
             "required": [
@@ -2028,7 +2022,8 @@ Replay or follow JSON-line runner events
             "deposit",
             "error",
             "agent_expiry_warning",
-            "runner_state"
+            "runner_state",
+            "journal_repaired"
           ]
         }
       }
@@ -2075,7 +2070,8 @@ Replay or follow JSON-line runner events
                     "deposit",
                     "error",
                     "agent_expiry_warning",
-                    "runner_state"
+                    "runner_state",
+                    "journal_repaired"
                   ]
                 },
                 "data": {},
@@ -2307,6 +2303,10 @@ Approve new agent, hot-swap signer, then revoke old agent
       },
       "revokeSignature": {
         "type": "string"
+      },
+      "eoaKeyRef": {
+        "type": "string",
+        "pattern": "^env:[A-Z_][A-Z0-9_]*$|^file:.+"
       },
       "intentId": {
         "type": "string"
