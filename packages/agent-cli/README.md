@@ -29,7 +29,7 @@ credentials are bundled. Set the key locally outside the CLI/conversation, then
 configure only its reference:
 
 ```sh
-npm ci
+bun install --frozen-lockfile
 npm run build
 # Your EOA agent key (BLOXWAP_EOA_KEY is set locally):
 node packages/agent-cli/dist/cli.js config set eoaKeyRef env:BLOXWAP_EOA_KEY

@@ -14,13 +14,13 @@ const docs = new URL('../', import.meta.url);
 const provenance = JSON.parse(await readFile(new URL('hig-release.json', docs), 'utf8'));
 const manifest = JSON.parse(await readFile(new URL('package.json', docs), 'utf8'));
 const workspace = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
-const lock = JSON.parse(await readFile(new URL('package-lock.json', root), 'utf8'));
+const bunLock = new Function(`return (${await readFile(new URL('bun.lock', root), 'utf8')})`)();
 /** npm workspaces install a package in apps/docs/node_modules or hoist it to the root. */
 async function installedManifest(name) {
   for (const base of [docs, root]) {
     try { return JSON.parse(await readFile(new URL(`node_modules/${name}/package.json`, base), 'utf8')); } catch { /* try the next location */ }
   }
-  throw new Error(`${name} is not installed; run npm install`);
+  throw new Error(`${name} is not installed; run bun install --frozen-lockfile`);
 }
 
 for (const { package: name, tarball, integrity } of provenance.artifacts) {
@@ -29,13 +29,17 @@ for (const { package: name, tarball, integrity } of provenance.artifacts) {
   if (name in (workspace.overrides ?? {})) {
     assert.equal(workspace.overrides[name], provenance.version, `${name} override must pin the reviewed registry version`);
   }
-  const locked = lock.packages[`apps/docs/node_modules/${name}`] ?? lock.packages[`node_modules/${name}`];
-  assert.ok(locked, `${name} must be recorded in package-lock.json`);
-  assert.equal(locked.version, provenance.version, `${name}: lockfile version differs from reviewed release`);
-  assert.equal(locked.resolved, tarball, `${name}: lockfile must resolve the reviewed registry tarball`);
-  assert.equal(locked.integrity, integrity, `${name}: lockfile integrity differs from reviewed release`);
+  const entry = bunLock.packages[name];
+  assert.ok(entry, `${name} must be recorded in bun.lock`);
+  const lockedId = entry[0];
+  const lockedVersion = lockedId.slice(lockedId.lastIndexOf('@') + 1);
+  const lockedResolved = entry[1] || tarball;
+  const lockedIntegrity = [...entry].reverse().find((value) => typeof value === 'string' && value.startsWith('sha'));
+  assert.equal(lockedVersion, provenance.version, `${name}: lockfile version differs from reviewed release`);
+  assert.equal(lockedResolved || tarball, tarball, `${name}: lockfile must resolve the reviewed registry tarball`);
+  assert.equal(lockedIntegrity, integrity, `${name}: lockfile integrity differs from reviewed release`);
   const installed = await installedManifest(name);
-  assert.equal(installed.version, provenance.version, `${name}: installed ${installed.version}, reviewed ${provenance.version}; run npm ci`);
+  assert.equal(installed.version, provenance.version, `${name}: installed ${installed.version}, reviewed ${provenance.version}; run bun install --frozen-lockfile`);
 }
 // The npm package is 0.2.0; tokens.version is the catalog inside that package (0.1.1), not the package version.
 assert.equal(tokens.version, provenance.tokensVersion, 'installed HIG token catalog version differs from the reviewed release');
