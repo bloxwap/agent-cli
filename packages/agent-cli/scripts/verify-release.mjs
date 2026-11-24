@@ -13,9 +13,8 @@ const release = verifyReleaseMetadata({
   manifest: JSON.parse(
     readFileSync(resolve(packageRoot, 'package.json'), 'utf8'),
   ),
-  lockVersion: JSON.parse(
-    readFileSync(resolve(root, 'package-lock.json'), 'utf8'),
-  ).packages['packages/agent-cli'].version,
+  lockVersion: new Function(`return (${readFileSync(resolve(root, 'bun.lock'), 'utf8')})`)()
+    .workspaces['packages/agent-cli'].version,
   skill: readFileSync(resolve(packageRoot, 'SKILL.md'), 'utf8'),
   changelog: readFileSync(resolve(packageRoot, 'CHANGELOG.md'), 'utf8'),
   tag,

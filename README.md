@@ -42,7 +42,7 @@ or a mode-0600 file. Never use the master EOA as the agent or put any private
 key in CLI input.
 
 ```sh
-npm ci
+bun install --frozen-lockfile
 npm run build
 node packages/agent-cli/dist/cli.js --help
 
@@ -117,7 +117,7 @@ Docs builds run `next typegen` and the wrapper with `--noEmit` before `next buil
 Next's duplicate type check is disabled. See the [development guide](apps/docs/content/docs/development.mdx).
 
 ```sh
-npm ci
+bun install --frozen-lockfile
 npm run docs:dev       # http://localhost:3903/
 npm run docs:build     # static export at apps/docs/out
 npm run docs:check

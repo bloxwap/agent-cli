@@ -36,6 +36,8 @@
   },
   "overrides": {
     "esbuild": "^0.28.1",
-    "mdast-util-to-markdown": "2.1.2"
+    "mdast-util-to-markdown": "2.1.2",
+    "next": "16.4.6",
+    "tiny-secp256k1": "2.2.5"
   }
 }

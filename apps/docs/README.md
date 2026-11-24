@@ -7,7 +7,7 @@ used by the Hyperliquid docs. Docs dependencies stay out of the published CLI.
 From the repository root (Node.js 24+):
 
 ```sh
-npm ci
+bun install --frozen-lockfile
 npm run docs:dev
 npm run docs:build
 npm run docs:check

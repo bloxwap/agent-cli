@@ -41,7 +41,7 @@ jobs:
           no-cache: true
       - name: Verify version, skill, release notes and tagged main ancestry
         run: node packages/agent-cli/scripts/verify-release.mjs
-      - run: npm ci
+      - run: bun install --frozen-lockfile
       - run: npm run build
       - run: npm run lint
       - run: npm run typecheck
