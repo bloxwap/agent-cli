@@ -36,24 +36,18 @@ binary uses Bun's baseline target; binaries do not load incidental `.env` or
 
 ## Configure publishing
 
-[npm trusted publishing does not support self-hosted runners](https://docs.npmjs.com/trusted-publishers/).
-The gated publish job therefore authenticates with the organization `NPM_TOKEN`
-secret as `NODE_AUTH_TOKEN`. That **drops OIDC trusted publishing and automatic
-provenance**. Do not bind a trusted publisher to `release.yml` on these Mac minis.
+[npm trusted publishing does not support self-hosted runners](https://docs.npmjs.com/trusted-publishers/),
+so the gated `publish` job runs on GitHub-hosted `ubuntu-24.04` with
+`id-token: write` and `npm publish --provenance`. It authenticates only
+through the npm Trusted Publisher bound to `bloxwap/agent-cli`, workflow
+`release.yml`, and the `npm-release` environment. Do not bind a trusted
+publisher to a self-hosted job, and do not add token-only preflights such
+as `npm whoami` to this path. `@bloxwap/agent-cli@0.5.0` (and `0.4.1`)
+already published this way with SLSA provenance; the transitional
+`NPM_TOKEN` fallback has been removed.
 
-As of 2026-10-16, `@bloxwap/agent-cli` is not publicly available on npm (registry
-404) and the `npm-release` GitHub environment / `BLOXWAP_PUBLISH` gate were not
-configured. The organization now shares a granular `NPM_TOKEN` (publish rights
-for `@bloxwap` packages) with this repository. Publication still awaits the
-environment and `BLOXWAP_PUBLISH=1` gate, plus an actual public registry smoke.
-
-Before enabling publication:
-
-1. Confirm the organization `NPM_TOKEN` secret is available to this repository
-   and can publish `@bloxwap/agent-cli`. The publish job checks the token
-   (`whoami`, then collaborator write access, or a first-publish 404).
-2. Create the `npm-release` GitHub environment and apply the desired tag/reviewer
-   restrictions before setting the repository variable `BLOXWAP_PUBLISH=1`.
+Publication still requires the `npm-release` environment (with the desired
+tag/reviewer restrictions) and the repository variable `BLOXWAP_PUBLISH=1`.
 
 ## Publish a reviewed version
 
@@ -76,7 +70,8 @@ publishing disabled still builds candidate artifacts; enabling the gate later
 requires rerunning the existing tag's workflow, not moving the tag.
 
 After the candidate job succeeds, the gated publish job downloads the
-exact tested tarball, computes `SHA256SUMS`, publishes it with `NPM_TOKEN`, and
+exact tested tarball, computes `SHA256SUMS`, publishes it with OIDC trusted
+publishing and provenance, and
 verifies registry integrity. It then tests a
 public global npm install and bunx registry execution before creating generated
 GitHub release notes and attaching the npm tarball, four binaries, SKILL.md,
