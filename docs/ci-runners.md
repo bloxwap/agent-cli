@@ -36,12 +36,11 @@ that job from running; a failed verification prevents the GitHub release.
 Only the hosted job has npm credentials/OIDC, and only the final self-hosted job
 has permission to write the GitHub release.
 
-Bind the npm Trusted Publisher for `@bloxwap/agent-cli` to
+Keep the npm Trusted Publisher for `@bloxwap/agent-cli` bound to
 `bloxwap/agent-cli`, workflow `release.yml`, environment `npm-release`.
-
-The organization `NPM_TOKEN` stays as a transitional fallback (same as chart,
-font, haptic and sfx). Delete it from the workflow once a release has been
-verified to publish through the Trusted Publisher.
+Latest releases (`0.4.1` and `0.5.0`) already published through that
+trusted publisher with SLSA provenance. The transitional `NPM_TOKEN`
+fallback has been removed from the publish job.
 
 GitHub Pages deploy still uses OIDC (`id-token: write`) on the minis.
 
